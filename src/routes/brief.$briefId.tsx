@@ -11,12 +11,13 @@ export const Route = createFileRoute("/brief/$briefId")({
       {
         name: "description",
         content:
-          "Route, reliability, backup, weather, and demand cues for a standby trip, in plain English.",
+          "Departure, arrival, and flight-chain conditions that could make a standby attempt harder, with evidence and source freshness.",
       },
       { property: "og:title", content: "Standby Brief — Aircue" },
       {
         property: "og:description",
-        content: "Five plain-English cues that show whether standby looks harder than usual today.",
+        content:
+          "Standby outlook, what changed, and the departure, arrival, and flight-chain signals behind it.",
       },
     ],
   }),
