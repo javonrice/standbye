@@ -26,7 +26,7 @@ export const Route = createFileRoute("/watches")({
   component: WatchesPage,
 });
 
-function WatchesPage() {
+function WatchesContent() {
   const watched = briefs.filter((b) => b.watch?.active);
 
   return (
@@ -88,8 +88,6 @@ function WatchesPage() {
 }
 
 function WatchesPage() {
-  const watched = briefs.filter((b) => b.watch?.active);
-
   return (
     <>
       <WatchesContent />
