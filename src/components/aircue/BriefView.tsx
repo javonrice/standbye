@@ -1,204 +1,262 @@
 import { useState } from "react";
-import { Bell, BellOff, Clock, Info, Link2, Plane } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  ChevronDown,
+  ChevronLeft,
+  Clock,
+  CloudSun,
+  Frown,
+  Info,
+  Meh,
+  Plane,
+  Share2,
+  ShieldCheck,
+  Shuffle,
+  Smile,
+  Users,
+} from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { SignalRow } from "@/components/aircue/SignalRow";
-import { StatusPill } from "@/components/aircue/StatusPill";
-import type { Brief, BriefSection, BriefStatus } from "@/lib/aircue/data";
+import type { Brief } from "@/lib/aircue/data";
 import { disclaimer } from "@/lib/aircue/data";
+import { getCueBrief, type Cue, type CueKey, type CueTone } from "@/lib/aircue/cues";
 
-const verdictTone: Record<BriefStatus, string> = {
-  fine: "border-fine/50 bg-fine-soft",
-  watch: "border-watch/50 bg-watch-soft",
-  rough: "border-rough/40 bg-rough-soft",
-  unknown: "border-border bg-muted",
+const toneText: Record<CueTone, string> = {
+  helpful: "text-fine",
+  mixed: "text-watch",
+  harder: "text-rough",
 };
 
-const dotTone: Record<BriefStatus, string> = {
-  fine: "bg-fine",
-  watch: "bg-watch",
-  rough: "bg-rough",
-  unknown: "bg-muted-foreground",
+const toneBar: Record<CueTone, string> = {
+  helpful: "bg-fine",
+  mixed: "bg-watch",
+  harder: "bg-rough",
 };
 
-function Card({
-  title,
-  status,
-  children,
-}: {
-  title: string;
-  status?: BriefStatus;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="font-display text-lg font-semibold">{title}</h2>
-        {status && <StatusPill status={status} size="sm" />}
-      </div>
-      {children}
-    </section>
-  );
-}
+const toneIcon: Record<CueTone, React.ComponentType<{ className?: string }>> = {
+  helpful: Smile,
+  mixed: Meh,
+  harder: Frown,
+};
 
-function Note({ text }: { text?: string | undefined }) {
-  if (!text) return null;
-  return (
-    <p className="mt-4 flex items-start gap-2 rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
-      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-      {text}
-    </p>
-  );
-}
+const cueIcon: Record<CueKey, React.ComponentType<{ className?: string }>> = {
+  route: Shuffle,
+  reliability: Clock,
+  backup: ShieldCheck,
+  weather: CloudSun,
+  demand: Users,
+};
 
-function AirportCard({ section }: { section: BriefSection }) {
+function CueRow({ cue }: { cue: Cue }) {
+  const [open, setOpen] = useState(false);
+  const Icon = cueIcon[cue.key];
+  const ToneIcon = toneIcon[cue.tone];
+
   return (
-    <Card title={`${section.label} ${section.place}`} status={section.status}>
-      <p className="mt-2 text-sm text-muted-foreground">{section.summary}</p>
-      <div className="mt-5 space-y-4">
-        {(section.signals ?? []).map((signal) => (
-          <SignalRow key={signal.id} signal={signal} />
-        ))}
-      </div>
-      <Note text={section.note} />
-    </Card>
+    <div className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-1 py-4 text-left"
+      >
+        <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold">{cue.label}</span>
+            <span
+              className={cn("flex items-center gap-1.5 text-xs font-medium", toneText[cue.tone])}
+            >
+              <ToneIcon className="h-3.5 w-3.5" />
+              {cue.toneLabel}
+            </span>
+          </span>
+          <span className="mt-2.5 block h-1 w-full overflow-hidden rounded-full bg-muted">
+            <span
+              className={cn("block h-full rounded-full transition-all", toneBar[cue.tone])}
+              style={{ width: `${cue.score}%` }}
+            />
+          </span>
+        </span>
+
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="pb-4 pl-9 pr-1">
+          <p className="text-sm leading-relaxed text-foreground/80">{cue.summary}</p>
+          <ul className="mt-3 space-y-1.5">
+            {cue.evidence.map((line) => (
+              <li key={line} className="flex gap-2 text-xs text-muted-foreground">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" />
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
 export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?: boolean }) {
   const [watching, setWatching] = useState(Boolean(brief.watch?.active));
   const [shareOpen, setShareOpen] = useState(false);
+  const cueBrief = getCueBrief(brief.id);
+  const SetupIcon = toneIcon[cueBrief?.setupTone ?? "mixed"];
 
   return (
-    <div className="space-y-5">
-      {/* Verdict */}
-      <section className={`rounded-2xl border p-6 sm:p-7 ${verdictTone[brief.status]}`}>
-        <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
-          <StatusPill status={brief.status} />
-          <span className="flex items-center gap-1.5 text-foreground/70">
-            <Plane className="h-4 w-4" />
-            {brief.flightNumber} · {brief.originCity} to {brief.destinationCity}
+    <div className="mx-auto w-full max-w-md">
+      {/* Screen header */}
+      <div className="flex items-center justify-between gap-3 pb-4">
+        <Link
+          to="/"
+          aria-label="Back"
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="text-sm font-semibold">Standby brief</h1>
+        <button
+          type="button"
+          aria-label="Share this brief"
+          onClick={() => setShareOpen((v) => !v)}
+          className="text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Share2 className="h-4.5 w-4.5" />
+        </button>
+      </div>
+
+      {/* Flight card */}
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <div className="flex items-baseline justify-between gap-3 text-sm">
+          <span className="font-semibold">{brief.flightNumber}</span>
+          <span className="text-muted-foreground">{brief.date}</span>
+        </div>
+
+        <div className="mt-4 flex items-center gap-4">
+          <div>
+            <p className="font-display text-2xl font-bold tracking-tight">{brief.origin}</p>
+            <p className="text-xs text-muted-foreground">{brief.originCity}</p>
+          </div>
+          <div className="flex flex-1 items-center gap-2">
+            <span className="h-px flex-1 bg-border" />
+            <Plane className="h-4 w-4 rotate-45 text-muted-foreground" />
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <div className="text-right">
+            <p className="font-display text-2xl font-bold tracking-tight">{brief.destination}</p>
+            <p className="text-xs text-muted-foreground">{brief.destinationCity}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
+          <span>
+            {brief.departsLocal} — {brief.arrivesLocal}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            {brief.countdown}
           </span>
         </div>
 
-        <h1 className="mt-4 font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl">
-          {brief.verdict}
-        </h1>
-
-        <ul className="mt-4 space-y-2">
-          {(brief.reasons ?? []).map((reason) => (
-            <li key={reason} className="flex items-start gap-2.5 text-base">
-              <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${dotTone[brief.status]}`} />
-              {reason}
-            </li>
-          ))}
-        </ul>
-
-        <p className="mt-5 text-sm text-foreground/70">
-          It is still your call. We cannot see open seats or the standby list.
-        </p>
-      </section>
-
-      {/* Flight facts */}
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 shadow-card">
-        <div>
-          <p className="font-display text-2xl font-bold tracking-tight">
-            {brief.origin} <span className="text-muted-foreground">→</span> {brief.destination}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {brief.date} · {brief.departsLocal} to {brief.arrivesLocal}
-          </p>
-        </div>
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-          <Clock className="h-4 w-4" />
-          {brief.countdown}
-        </p>
-      </section>
-
-      {/* Actions */}
-      {!readOnly && (
-        <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-semibold">
-              {watching ? "We are watching this flight" : "Not watching this flight"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {watching && brief.watch
-                ? `Next check at ${brief.watch.nextCheck}. We email you only when something real changes.`
-                : "Turn this on and we will email you if something changes."}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant={watching ? "secondary" : "default"}
-              onClick={() => setWatching((v) => !v)}
-              className="h-11 font-semibold"
-            >
-              {watching ? (
-                <>
-                  <BellOff className="h-4 w-4" /> Stop watching
-                </>
-              ) : (
-                <>
-                  <Bell className="h-4 w-4" /> Watch this flight
-                </>
+        {cueBrief && (
+          <div className="mt-5">
+            <span
+              className={cn(
+                "flex items-center gap-1.5 text-xs font-semibold",
+                toneText[cueBrief.setupTone],
               )}
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 font-semibold"
-              onClick={() => setShareOpen((v) => !v)}
             >
-              <Link2 className="h-4 w-4" /> Share
-            </Button>
+              <SetupIcon className="h-4 w-4" />
+              {cueBrief.setupLabel}
+            </span>
+            <h2 className="mt-2.5 font-display text-xl font-bold leading-snug tracking-tight">
+              {cueBrief.headline}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {cueBrief.subline}
+            </p>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {shareOpen && brief.shareToken && (
-        <section className="rounded-2xl border border-border bg-secondary p-5 text-sm">
-          <p className="font-medium">Anyone with this link can see the brief</p>
-          <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+        <section className="mt-4 rounded-xl border border-border bg-secondary p-4 text-xs">
+          <p className="font-medium">Anyone with this link can see this brief</p>
+          <p className="mt-1 break-all font-mono text-muted-foreground">
             aircue.app/share/{brief.shareToken}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            It shows this page only, never your account or email.
           </p>
         </section>
       )}
 
-      {/* Cards */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <AirportCard section={brief.departure} />
-        <AirportCard section={brief.arrival} />
+      {/* Cues */}
+      {cueBrief && (
+        <section className="mt-7">
+          <div className="flex items-end justify-between gap-3">
+            <h2 className="font-display text-lg font-bold tracking-tight">Your AirCues</h2>
+            <span className="text-xs text-muted-foreground">Tap for evidence</span>
+          </div>
 
-        <Card title="This flight">
-          <p className="mt-2 text-sm text-muted-foreground">{brief.chain.summary}</p>
-          <div className="mt-5 space-y-4">
-            {(brief.chain?.signals ?? []).map((signal) => (
-              <SignalRow key={signal.id} signal={signal} />
+          <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Frown className="h-3.5 w-3.5" /> Harder
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Meh className="h-3.5 w-3.5" /> Mixed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Smile className="h-3.5 w-3.5" /> Helpful
+            </span>
+          </div>
+
+          <div className="mt-2 border-t border-border">
+            {cueBrief.cues.map((cue) => (
+              <CueRow key={cue.key} cue={cue} />
             ))}
           </div>
-          <Note text={brief.chain.note} />
-        </Card>
+        </section>
+      )}
 
-        <Card title="What changed today">
-          <ol className="mt-3 space-y-3">
-            {(brief.changes ?? []).map((change) => (
-              <li key={change.id} className="flex gap-3 text-sm">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                <span>
-                  <span className="block text-xs text-muted-foreground">{change.time}</span>
-                  {change.text}
-                </span>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-4 text-xs text-muted-foreground">Last checked at {brief.generatedAt}.</p>
-        </Card>
-      </div>
+      {/* Disclaimer + action */}
+      <p className="mt-7 text-center text-xs leading-relaxed text-muted-foreground">
+        {disclaimer}
+      </p>
 
-      <p className="text-xs text-muted-foreground">{disclaimer}</p>
+      {!readOnly && (
+        <div className="mt-4">
+          <Button
+            variant={watching ? "secondary" : "default"}
+            onClick={() => setWatching((v) => !v)}
+            className="h-12 w-full text-sm font-semibold"
+          >
+            {watching ? (
+              <>
+                <BellOff className="h-4 w-4" /> Stop watching this trip
+              </>
+            ) : (
+              <>
+                <Bell className="h-4 w-4" /> Watch this trip
+              </>
+            )}
+          </Button>
+          {watching && brief.watch && (
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+              <Info className="h-3.5 w-3.5" />
+              Next check at {brief.watch.nextCheck}. We only email when something real changes.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
