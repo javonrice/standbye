@@ -41,7 +41,7 @@ function Card({
   );
 }
 
-function Note({ text }: { text?: string }) {
+function Note({ text }: { text?: string | undefined }) {
   if (!text) return null;
   return (
     <p className="mt-4 flex items-start gap-2 rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
