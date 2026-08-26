@@ -56,7 +56,7 @@ function AirportCard({ section }: { section: BriefSection }) {
     <Card title={`${section.label} ${section.place}`} status={section.status}>
       <p className="mt-2 text-sm text-muted-foreground">{section.summary}</p>
       <div className="mt-5 space-y-4">
-        {section.signals.map((signal) => (
+        {(section.signals ?? []).map((signal) => (
           <SignalRow key={signal.id} signal={signal} />
         ))}
       </div>
@@ -86,7 +86,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
         </h1>
 
         <ul className="mt-4 space-y-2">
-          {brief.reasons.map((reason) => (
+          {(brief.reasons ?? []).map((reason) => (
             <li key={reason} className="flex items-start gap-2.5 text-base">
               <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${dotTone[brief.status]}`} />
               {reason}
@@ -175,7 +175,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
         <Card title="This flight">
           <p className="mt-2 text-sm text-muted-foreground">{brief.chain.summary}</p>
           <div className="mt-5 space-y-4">
-            {brief.chain.signals.map((signal) => (
+            {(brief.chain?.signals ?? []).map((signal) => (
               <SignalRow key={signal.id} signal={signal} />
             ))}
           </div>
@@ -184,7 +184,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
 
         <Card title="What changed today">
           <ol className="mt-3 space-y-3">
-            {brief.changes.map((change) => (
+            {(brief.changes ?? []).map((change) => (
               <li key={change.id} className="flex gap-3 text-sm">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <span>
