@@ -64,7 +64,7 @@ function HomeScreen() {
         className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/40 via-background/30 to-background"
       />
 
-      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-6">
+      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src={mark.url} alt="" aria-hidden className="h-8 w-8 invert" />
