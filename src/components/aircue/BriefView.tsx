@@ -86,7 +86,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
         </h1>
 
         <ul className="mt-4 space-y-2">
-          {brief.reasons.map((reason) => (
+          {(brief.reasons ?? []).map((reason) => (
             <li key={reason} className="flex items-start gap-2.5 text-base">
               <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${dotTone[brief.status]}`} />
               {reason}
