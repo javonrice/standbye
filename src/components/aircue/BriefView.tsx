@@ -23,13 +23,25 @@ const pressureScore: Record<BriefStatus, number> = {
   incomplete: 45,
 };
 
+const orbGlow: Record<BriefStatus, string> = {
+  clear: "radial-gradient(circle, var(--fine) 0%, transparent 70%)",
+  watch: "radial-gradient(circle, var(--watch) 0%, transparent 70%)",
+  elevated: "radial-gradient(circle, var(--rough) 0%, transparent 70%)",
+  disruption: "radial-gradient(circle, var(--rough) 0%, transparent 70%)",
+  incomplete: "radial-gradient(circle, var(--muted-foreground) 0%, transparent 70%)",
+};
+
 const orbGradient: Record<BriefStatus, string> = {
-  clear: "conic-gradient(from 210deg, var(--fine), var(--primary), var(--fine-soft), var(--fine))",
-  watch: "conic-gradient(from 210deg, var(--primary), var(--watch), var(--fine), var(--primary))",
-  elevated: "conic-gradient(from 210deg, var(--watch), var(--primary), var(--rough), var(--watch))",
-  disruption: "conic-gradient(from 210deg, var(--rough), var(--watch), var(--primary), var(--rough))",
+  clear:
+    "conic-gradient(from 180deg, var(--fine) 0%, oklch(0.85 0.18 155) 25%, var(--fine-soft) 50%, oklch(0.7 0.16 165) 75%, var(--fine) 100%)",
+  watch:
+    "conic-gradient(from 180deg, var(--watch) 0%, oklch(0.88 0.16 70) 25%, var(--fine) 50%, oklch(0.78 0.14 85) 75%, var(--watch) 100%)",
+  elevated:
+    "conic-gradient(from 180deg, var(--rough) 0%, oklch(0.75 0.18 35) 25%, var(--watch) 50%, oklch(0.65 0.2 20) 75%, var(--rough) 100%)",
+  disruption:
+    "conic-gradient(from 180deg, oklch(0.55 0.22 20) 0%, var(--rough) 25%, oklch(0.45 0.18 25) 50%, oklch(0.65 0.2 20) 75%, oklch(0.55 0.22 20) 100%)",
   incomplete:
-    "conic-gradient(from 210deg, var(--muted-foreground), var(--primary), var(--muted), var(--muted-foreground))",
+    "conic-gradient(from 180deg, var(--muted-foreground) 0%, oklch(0.7 0.02 250) 25%, var(--primary) 50%, oklch(0.55 0.02 260) 75%, var(--muted-foreground) 100%)",
 };
 
 const barColor: Record<BriefStatus, string> = {
