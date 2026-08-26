@@ -55,7 +55,7 @@ function WatchesPage() {
               <StatusPill status={brief.status} size="sm" />
             </div>
 
-            <p className="mt-3 text-sm text-foreground/80">{brief.statusSentence}</p>
+            <p className="mt-3 text-sm text-foreground/80">{brief.verdict}</p>
 
             <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">

@@ -28,13 +28,15 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --color-clear: var(--clear);
-  --color-clear-foreground: var(--clear-foreground);
-  --color-clear-soft: var(--clear-soft);
-  --color-elevated: var(--elevated);
-  --color-elevated-foreground: var(--elevated-foreground);
-  --color-elevated-soft: var(--elevated-soft);
-  --color-context: var(--context);
+  --color-fine: var(--fine);
+  --color-fine-foreground: var(--fine-foreground);
+  --color-fine-soft: var(--fine-soft);
+  --color-watch: var(--watch);
+  --color-watch-foreground: var(--watch-foreground);
+  --color-watch-soft: var(--watch-soft);
+  --color-rough: var(--rough);
+  --color-rough-foreground: var(--rough-foreground);
+  --color-rough-soft: var(--rough-soft);
   --color-surface: var(--surface);
   --shadow-card: var(--shadow-card);
 
@@ -75,9 +77,9 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.985 0.005 95);
-  --surface: oklch(0.995 0.003 95);
-  --foreground: oklch(0.19 0.01 260);
+  --background: oklch(0.982 0.004 250);
+  --surface: oklch(0.995 0.002 250);
+  --foreground: oklch(0.21 0.03 258);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.19 0.01 260);
   --popover: oklch(1 0 0);
@@ -92,13 +94,15 @@
   --accent-foreground: oklch(0.35 0.1 259);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --clear: oklch(0.86 0.09 155);
-  --clear-foreground: oklch(0.4 0.11 155);
-  --clear-soft: oklch(0.96 0.03 155);
-  --elevated: oklch(0.83 0.15 78);
-  --elevated-foreground: oklch(0.35 0.09 60);
-  --elevated-soft: oklch(0.97 0.03 80);
-  --context: oklch(0.6 0.11 250);
+  --fine: oklch(0.72 0.13 155);
+  --fine-foreground: oklch(0.4 0.11 155);
+  --fine-soft: oklch(0.955 0.032 155);
+  --watch: oklch(0.79 0.15 78);
+  --watch-foreground: oklch(0.44 0.11 65);
+  --watch-soft: oklch(0.96 0.045 82);
+  --rough: oklch(0.62 0.2 25);
+  --rough-foreground: oklch(0.45 0.17 26);
+  --rough-soft: oklch(0.955 0.032 25);
   --shadow-card: 0 1px 2px oklch(0.2 0.03 260 / 0.04), 0 8px 24px oklch(0.2 0.03 260 / 0.05);
   --border: oklch(0.918 0.008 250);
   --input: oklch(0.918 0.008 250);

@@ -12,18 +12,20 @@ import { briefs, defaultBrief, type Brief } from "@/lib/aircue/data";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aircue — Know what could make standby harder" },
+      { title: "Aircue — Will standby be hard today?" },
       {
         name: "description",
         content:
-          "Enter a flight number and travel date to see weather, airport operations, FAA programs, flight-chain, and destination-demand pressure around a standby attempt.",
+          "Type in a flight and we tell you, in plain English, what could make flying standby harder today: weather, delays, cancellations, and busy cities.",
       },
-      { property: "og:title", content: "Aircue — Know what could make standby harder" },
+      { property: "og:title", content: "Aircue — Will standby be hard today?" },
       {
         property: "og:description",
         content:
-          "A standby pressure monitor covering departure, arrival, and the flight chain. Not a seat predictor.",
+          "Plain-English answers about what could make your standby flight harder. You make the call.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: SearchPage,
@@ -56,11 +58,11 @@ function SearchPage() {
     <AppShell>
       <section>
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          Know what could make your standby trip harder.
+          Will standby be hard today?
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Aircue watches weather, airport operations, FAA programs, the flight chain, and
-          destination demand around a U.S. flight.
+          Enter your flight and we will tell you, in plain English, what is working for or against
+          you. The decision stays yours.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -94,19 +96,19 @@ function SearchPage() {
         </form>
 
         <p className="mt-2 text-xs text-muted-foreground">
-          Demo flights: UA782 (Elevated), DL1180 (Clear), AA2210 (Incomplete).
+          Try UA782, DL1180, or AA2210.
         </p>
       </section>
 
-      <div className="mt-6">
+      <div className="mt-7">
         {brief ? (
           <BriefView key={brief.id} brief={brief} />
         ) : (
-          <div className="rounded-xl border border-border bg-card p-6 text-sm shadow-card">
-            <p className="font-semibold">We could not resolve {unresolved}</p>
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm shadow-card">
+            <p className="font-semibold">We could not find {unresolved}</p>
             <p className="mt-1 text-muted-foreground">
-              Check the flight number and date. Aircue covers U.S. flights only during the MVP, and
-              missing data is never shown as a Clear result.
+              Double-check the flight number and date. We only cover U.S. flights right now, and we
+              would rather say nothing than guess.
             </p>
           </div>
         )}

@@ -1,21 +1,32 @@
+import { Check, CircleHelp, TriangleAlert, CircleAlert } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import type { BriefStatus } from "@/lib/aircue/data";
 
 const styles: Record<BriefStatus, string> = {
-  clear: "bg-clear text-clear-foreground",
-  watch: "bg-secondary text-secondary-foreground",
-  elevated: "bg-elevated text-elevated-foreground",
-  disruption: "bg-destructive text-destructive-foreground",
-  incomplete: "bg-muted text-muted-foreground",
+  fine: "bg-fine-soft text-fine-foreground",
+  watch: "bg-watch-soft text-watch-foreground",
+  rough: "bg-rough-soft text-rough-foreground",
+  unknown: "bg-muted text-muted-foreground",
 };
 
 const labels: Record<BriefStatus, string> = {
-  clear: "Clear",
-  watch: "Watch",
-  elevated: "Elevated",
-  disruption: "Active disruption",
-  incomplete: "Incomplete",
+  fine: "Looks fine",
+  watch: "Keep an eye on it",
+  rough: "Rough",
+  unknown: "Not enough info",
 };
+
+const icons: Record<BriefStatus, React.ComponentType<{ className?: string }>> = {
+  fine: Check,
+  watch: TriangleAlert,
+  rough: CircleAlert,
+  unknown: CircleHelp,
+};
+
+export function statusLabel(status: BriefStatus) {
+  return labels[status];
+}
 
 export function StatusPill({
   status,
@@ -26,15 +37,17 @@ export function StatusPill({
   size?: "sm" | "md";
   className?: string;
 }) {
+  const Icon = icons[status];
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full font-semibold uppercase tracking-wide",
-        size === "sm" ? "px-3 py-1 text-[11px]" : "px-4 py-1.5 text-xs",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full font-semibold",
+        size === "sm" ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm",
         styles[status],
         className,
       )}
     >
+      <Icon className={size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"} />
       {labels[status]}
     </span>
   );

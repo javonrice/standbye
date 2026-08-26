@@ -1,83 +1,66 @@
 import { useState } from "react";
-import {
-  AlertTriangle,
-  Bell,
-  BellOff,
-  Clock,
-  Info,
-  Link2,
-  PlaneTakeoff,
-} from "lucide-react";
+import { Bell, BellOff, Clock, Info, Link2, Plane } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SignalRow } from "@/components/aircue/SignalRow";
 import { StatusPill } from "@/components/aircue/StatusPill";
-import type { Brief, BriefSection } from "@/lib/aircue/data";
+import type { Brief, BriefSection, BriefStatus } from "@/lib/aircue/data";
 import { disclaimer } from "@/lib/aircue/data";
 
-const sourceStateLabel = {
-  fresh: "Fresh",
-  stale: "Stale",
-  unavailable: "Unavailable",
-} as const;
+const verdictTone: Record<BriefStatus, string> = {
+  fine: "border-fine/50 bg-fine-soft",
+  watch: "border-watch/50 bg-watch-soft",
+  rough: "border-rough/40 bg-rough-soft",
+  unknown: "border-border bg-muted",
+};
 
-const sourceStateStyle = {
-  fresh: "text-clear-foreground",
-  stale: "text-elevated-foreground",
-  unavailable: "text-destructive",
-} as const;
+const dotTone: Record<BriefStatus, string> = {
+  fine: "bg-fine",
+  watch: "bg-watch",
+  rough: "bg-rough",
+  unknown: "bg-muted-foreground",
+};
 
 function Card({
   title,
+  status,
   children,
-  aside,
 }: {
   title: string;
+  status?: BriefStatus;
   children: React.ReactNode;
-  aside?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          {title}
-        </h2>
-        {aside}
+        <h2 className="font-display text-lg font-semibold">{title}</h2>
+        {status && <StatusPill status={status} size="sm" />}
       </div>
-      <div className="mt-3">{children}</div>
+      {children}
     </section>
   );
 }
 
-function Unavailable({ items }: { items: string[] }) {
-  if (items.length === 0) return null;
+function Note({ text }: { text?: string | undefined }) {
+  if (!text) return null;
   return (
-    <ul className="mt-3 space-y-1.5 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-      {items.map((item) => (
-        <li key={item} className="flex items-start gap-2">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          {item}
-        </li>
-      ))}
-    </ul>
+    <p className="mt-4 flex items-start gap-2 rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
+      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      {text}
+    </p>
   );
 }
 
-function AirportSection({ section }: { section: BriefSection }) {
+function AirportCard({ section }: { section: BriefSection }) {
   return (
-    <Card
-      title={section.label}
-      aside={<StatusPill status={section.status} size="sm" />}
-    >
-      <h3 className="font-display text-xl font-semibold">
-        {section.place} · {section.code}
-      </h3>
-      <div className="mt-1">
+    <Card title={`${section.label} ${section.place}`} status={section.status}>
+      <p className="mt-2 text-sm text-muted-foreground">{section.summary}</p>
+      <div className="mt-5 space-y-4">
         {section.signals.map((signal) => (
           <SignalRow key={signal.id} signal={signal} />
         ))}
       </div>
-      <Unavailable items={section.unavailable} />
+      <Note text={section.note} />
     </Card>
   );
 }
@@ -87,53 +70,62 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
   const [shareOpen, setShareOpen] = useState(false);
 
   return (
-    <div className="space-y-4">
-      {/* 1. Flight header */}
-      <section className="rounded-xl border border-border bg-card p-5 shadow-card">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="font-display text-3xl font-bold tracking-tight">{brief.flightNumber}</p>
-            <p className="mt-1 flex items-center gap-2 font-display text-lg font-semibold">
-              {brief.origin} <span className="text-muted-foreground">→</span> {brief.destination}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {brief.originCity} to {brief.destinationCity}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {brief.date} · {brief.departsLocal} – {brief.arrivesLocal}
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-primary">
-              <Clock className="h-4 w-4" />
-              {brief.countdown}
-            </p>
-          </div>
+    <div className="space-y-5">
+      {/* Verdict */}
+      <section className={`rounded-2xl border p-6 sm:p-7 ${verdictTone[brief.status]}`}>
+        <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
           <StatusPill status={brief.status} />
+          <span className="flex items-center gap-1.5 text-foreground/70">
+            <Plane className="h-4 w-4" />
+            {brief.flightNumber} · {brief.originCity} to {brief.destinationCity}
+          </span>
         </div>
+
+        <h1 className="mt-4 font-display text-2xl font-bold leading-snug tracking-tight sm:text-3xl">
+          {brief.verdict}
+        </h1>
+
+        <ul className="mt-4 space-y-2">
+          {brief.reasons.map((reason) => (
+            <li key={reason} className="flex items-start gap-2.5 text-base">
+              <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${dotTone[brief.status]}`} />
+              {reason}
+            </li>
+          ))}
+        </ul>
+
+        <p className="mt-5 text-sm text-foreground/70">
+          It is still your call. We cannot see open seats or the standby list.
+        </p>
       </section>
 
-      {/* 2. Standby outlook */}
-      <section className="flex items-start gap-3 rounded-xl border border-elevated/60 bg-elevated-soft p-5">
-        <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-elevated-foreground" />
+      {/* Flight facts */}
+      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 shadow-card">
         <div>
-          <p className="font-semibold">Standby outlook</p>
-          <p className="mt-1 text-sm text-foreground/80">{brief.statusSentence}</p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Generated {brief.generatedAt}. Clear never means open seats or likely boarding.
+          <p className="font-display text-2xl font-bold tracking-tight">
+            {brief.origin} <span className="text-muted-foreground">→</span> {brief.destination}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {brief.date} · {brief.departsLocal} to {brief.arrivesLocal}
           </p>
         </div>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+          <Clock className="h-4 w-4" />
+          {brief.countdown}
+        </p>
       </section>
 
-      {/* 9. Actions */}
+      {/* Actions */}
       {!readOnly && (
-        <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-card sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-semibold">
-              {watching ? "Watching this flight" : "Not watching this flight"}
+              {watching ? "We are watching this flight" : "Not watching this flight"}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {watching && brief.watch
-                ? `Next check ${brief.watch.nextCheck} · ${brief.watch.cadence}. ${brief.watch.expires}.`
-                : "Aircue only monitors flights you choose to watch, and emails you once per material change."}
+                ? `Next check at ${brief.watch.nextCheck}. We email you only when something real changes.`
+                : "Turn this on and we will email you if something changes."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -157,90 +149,54 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
               className="h-11 font-semibold"
               onClick={() => setShareOpen((v) => !v)}
             >
-              <Link2 className="h-4 w-4" /> Share brief
+              <Link2 className="h-4 w-4" /> Share
             </Button>
           </div>
         </section>
       )}
 
       {shareOpen && brief.shareToken && (
-        <section className="rounded-xl border border-border bg-secondary p-4 text-sm">
-          <p className="font-medium">Read-only link</p>
+        <section className="rounded-2xl border border-border bg-secondary p-5 text-sm">
+          <p className="font-medium">Anyone with this link can see the brief</p>
           <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
             aircue.app/share/{brief.shareToken}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Expires after the trip. It shows the brief only and never exposes your account or email.
+            It shows this page only, never your account or email.
           </p>
         </section>
       )}
 
-      {/* 3. What changed */}
-      <Card title="What changed">
-        <ol className="space-y-3">
-          {brief.changes.map((change) => (
-            <li key={change.id} className="flex gap-3 text-sm">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span>
-                <span className="block text-xs text-muted-foreground">{change.time}</span>
-                {change.text}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </Card>
+      {/* Cards */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <AirportCard section={brief.departure} />
+        <AirportCard section={brief.arrival} />
 
-      {/* 4 & 5. Departure and arrival */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <AirportSection section={brief.departure} />
-        <AirportSection section={brief.arrival} />
-      </div>
+        <Card title="This flight">
+          <p className="mt-2 text-sm text-muted-foreground">{brief.chain.summary}</p>
+          <div className="mt-5 space-y-4">
+            {brief.chain.signals.map((signal) => (
+              <SignalRow key={signal.id} signal={signal} />
+            ))}
+          </div>
+          <Note text={brief.chain.note} />
+        </Card>
 
-      {/* 6. Flight chain */}
-      <Card title="Flight chain">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <PlaneTakeoff className="h-4 w-4" />
-          Inbound aircraft, selected-flight status, and earlier route cancellations
-        </div>
-        <div className="mt-1">
-          {brief.chain.signals.map((signal) => (
-            <SignalRow key={signal.id} signal={signal} />
-          ))}
-        </div>
-        <Unavailable items={brief.chain.unavailable} />
-      </Card>
-
-      {/* 7. Standby impact */}
-      <Card title="Standby impact">
-        <ul className="space-y-2.5 text-sm">
-          {brief.impact.map((line) => (
-            <li key={line} className="flex gap-3">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-context" />
-              {line}
-            </li>
-          ))}
-        </ul>
-      </Card>
-
-      {/* 8. Evidence */}
-      <Card title="Evidence and freshness">
-        <ul className="divide-y divide-border/70">
-          {brief.sources.map((source) => (
-            <li key={source.name} className="flex flex-wrap items-baseline justify-between gap-2 py-2.5">
-              <span>
-                <span className="text-sm font-medium">{source.name}</span>
-                <span className="block text-xs text-muted-foreground">{source.category}</span>
-              </span>
-              <span className="text-right text-xs">
-                <span className={`font-semibold uppercase tracking-wide ${sourceStateStyle[source.state]}`}>
-                  {sourceStateLabel[source.state]}
+        <Card title="What changed today">
+          <ol className="mt-3 space-y-3">
+            {brief.changes.map((change) => (
+              <li key={change.id} className="flex gap-3 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <span>
+                  <span className="block text-xs text-muted-foreground">{change.time}</span>
+                  {change.text}
                 </span>
-                <span className="block text-muted-foreground">{source.updated}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-4 text-xs text-muted-foreground">Last checked at {brief.generatedAt}.</p>
+        </Card>
+      </div>
 
       <p className="text-xs text-muted-foreground">{disclaimer}</p>
     </div>
