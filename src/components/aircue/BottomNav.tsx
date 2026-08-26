@@ -11,24 +11,26 @@ export function BottomNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-card/85 pb-[env(safe-area-inset-bottom)] shadow-card backdrop-blur-xl">
-      <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-[calc(0.75rem+env(safe-area-inset-bottom))] pointer-events-none">
+      <nav className="pointer-events-auto flex items-center gap-1 rounded-full bg-card/90 px-2 py-2 shadow-2xl ring-1 ring-border/40 backdrop-blur-xl">
         {items.map((item) => {
           const active = pathname === item.to;
           return (
             <Link
               key={item.to}
               to={item.to}
-              className={`flex flex-col items-center gap-1 rounded-xl px-4 py-1.5 transition-colors ${
-                active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              className={`flex flex-col items-center justify-center gap-1 rounded-full px-5 py-2 transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <item.icon className="h-5 w-5" />
-              <span className="text-[0.65rem] font-medium">{item.label}</span>
+              <span className="text-[0.65rem] font-medium leading-none">{item.label}</span>
             </Link>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }
