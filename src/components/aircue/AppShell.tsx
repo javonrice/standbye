@@ -11,8 +11,8 @@ export function AppShell({ children, nav = true }: { children: ReactNode; nav?: 
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
           <Link to="/" className="flex items-center gap-2.5">
-            <img src={mark.url} alt="" aria-hidden className="h-8 w-8" />
-            <img src={wordmark.url} alt="Aircue" className="h-6 w-auto" />
+            <img src={mark.url} alt="" aria-hidden className="h-8 w-8 invert" />
+            <img src={wordmark.url} alt="Aircue" className="h-6 w-auto invert" />
           </Link>
           {nav && (
             <nav className="flex items-center gap-4 text-sm font-medium">
