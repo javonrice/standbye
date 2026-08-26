@@ -12,18 +12,20 @@ import { briefs, defaultBrief, type Brief } from "@/lib/aircue/data";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aircue — Know what could make standby harder" },
+      { title: "Aircue — Will standby be hard today?" },
       {
         name: "description",
         content:
-          "Enter a flight number and travel date to see weather, airport operations, FAA programs, flight-chain, and destination-demand pressure around a standby attempt.",
+          "Type in a flight and we tell you, in plain English, what could make flying standby harder today: weather, delays, cancellations, and busy cities.",
       },
-      { property: "og:title", content: "Aircue — Know what could make standby harder" },
+      { property: "og:title", content: "Aircue — Will standby be hard today?" },
       {
         property: "og:description",
         content:
-          "A standby pressure monitor covering departure, arrival, and the flight chain. Not a seat predictor.",
+          "Plain-English answers about what could make your standby flight harder. You make the call.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: SearchPage,
