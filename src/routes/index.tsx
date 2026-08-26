@@ -6,7 +6,6 @@ import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
 import { BottomNav } from "@/components/aircue/BottomNav";
-import { StatusPill } from "@/components/aircue/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { briefs } from "@/lib/aircue/data";
@@ -117,10 +116,8 @@ function HomeScreen() {
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                       {b.date.replace(/,\s*\d{4}/, "")} · {b.departsLocal}
                     </span>
-
                   </span>
-                  <StatusPill status={b.status} size="sm" className="px-2.5 uppercase" />
-
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
               </li>
             ))}
