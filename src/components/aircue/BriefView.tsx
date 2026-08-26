@@ -255,7 +255,6 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
       <section className="glass glass-sheen mt-6 rounded-3xl p-5">
         <h2 className="font-display text-base font-bold tracking-tight">Why</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-foreground/85">{brief.outlook}</p>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{brief.impact}</p>
       </section>
 
       {(brief.changes ?? []).length > 0 && (
