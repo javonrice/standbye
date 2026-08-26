@@ -5,8 +5,8 @@ import type { BriefStatus } from "@/lib/aircue/data";
 
 const styles: Record<BriefStatus, string> = {
   clear: "bg-fine-soft text-fine-foreground",
-  watch: "bg-watch-soft text-watch-foreground",
-  elevated: "bg-rough-soft text-rough-foreground",
+  watch: "bg-accent text-accent-foreground",
+  elevated: "bg-watch-soft text-watch-foreground",
   disruption: "bg-rough-soft text-rough-foreground",
   incomplete: "bg-muted text-muted-foreground",
 };
@@ -44,8 +44,8 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full font-semibold",
-        size === "sm" ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full font-semibold uppercase tracking-wide",
+        size === "sm" ? "px-3 py-1 text-[0.7rem]" : "px-4 py-1.5 text-xs",
         styles[status],
         className,
       )}
