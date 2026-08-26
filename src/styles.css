@@ -28,13 +28,15 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --color-clear: var(--clear);
-  --color-clear-foreground: var(--clear-foreground);
-  --color-clear-soft: var(--clear-soft);
-  --color-elevated: var(--elevated);
-  --color-elevated-foreground: var(--elevated-foreground);
-  --color-elevated-soft: var(--elevated-soft);
-  --color-context: var(--context);
+  --color-fine: var(--fine);
+  --color-fine-foreground: var(--fine-foreground);
+  --color-fine-soft: var(--fine-soft);
+  --color-watch: var(--watch);
+  --color-watch-foreground: var(--watch-foreground);
+  --color-watch-soft: var(--watch-soft);
+  --color-rough: var(--rough);
+  --color-rough-foreground: var(--rough-foreground);
+  --color-rough-soft: var(--rough-soft);
   --color-surface: var(--surface);
   --shadow-card: var(--shadow-card);
 
