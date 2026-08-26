@@ -175,7 +175,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
         <Card title="This flight">
           <p className="mt-2 text-sm text-muted-foreground">{brief.chain.summary}</p>
           <div className="mt-5 space-y-4">
-            {brief.chain.signals.map((signal) => (
+            {(brief.chain?.signals ?? []).map((signal) => (
               <SignalRow key={signal.id} signal={signal} />
             ))}
           </div>
