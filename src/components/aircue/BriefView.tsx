@@ -176,9 +176,9 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
           <ChipRow brief={brief} />
         </div>
 
-        <div className="fusion-orb relative mx-auto mt-7 h-44 w-44">
+        <div className="relative mx-auto mt-7 h-44 w-44">
           <div
-            className="absolute inset-[-18%] rounded-full blur-2xl"
+            className="absolute inset-[-18%] rounded-full blur-2xl animate-[orb-pulse_4s_ease-in-out_infinite]"
             style={{ background: orbGlow[brief.status], opacity: 0.7 }}
             aria-hidden
           />
