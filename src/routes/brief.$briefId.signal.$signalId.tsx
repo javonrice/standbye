@@ -50,9 +50,7 @@ function SignalDetailPage() {
         <h1 className="font-display text-2xl font-bold tracking-tight">{signal.title}</h1>
         <div className="mt-2 flex items-center gap-2">
           <StatusPill status={signal.level} size="sm" />
-          <span className="text-xs text-muted-foreground">
-            {confidenceLabel[signal.confidence]}
-          </span>
+          <SignalMood level={signal.level} />
         </div>
 
         <p className="mt-5 text-sm leading-relaxed text-foreground/85">{signal.detail}</p>
