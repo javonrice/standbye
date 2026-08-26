@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BuddiesRouteImport } from './routes/buddies'
 import { Route as WatchesRouteImport } from './routes/watches'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
@@ -19,6 +20,11 @@ import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuddiesRoute = BuddiesRouteImport.update({
+  id: '/buddies',
+  path: '/buddies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WatchesRoute = WatchesRouteImport.update({
@@ -50,6 +56,7 @@ const BriefBriefIdSignalSignalIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/buddies': typeof BuddiesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/buddies': typeof BuddiesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
@@ -67,6 +75,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/buddies': typeof BuddiesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/buddies'
     | '/watches'
     | '/share/$token'
     | '/brief/$briefId/watch'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/buddies'
     | '/watches'
     | '/share/$token'
     | '/brief/$briefId/watch'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/buddies'
     | '/watches'
     | '/share/$token'
     | '/brief/$briefId/watch'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BuddiesRoute: typeof BuddiesRoute
   WatchesRoute: typeof WatchesRoute
   ShareTokenRoute: typeof ShareTokenRoute
   BriefBriefIdWatchRoute: typeof BriefBriefIdWatchRoute
@@ -116,6 +129,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/buddies': {
+      id: '/buddies'
+      path: '/buddies'
+      fullPath: '/buddies'
+      preLoaderRoute: typeof BuddiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/watches': {
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BuddiesRoute: BuddiesRoute,
   WatchesRoute: WatchesRoute,
   ShareTokenRoute: ShareTokenRoute,
   BriefBriefIdWatchRoute: BriefBriefIdWatchRoute,

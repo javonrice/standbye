@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Plane, Search, User, X } from "lucide-react";
+import { ArrowRight, Eye, Home, Plane, Search, User, Users, X } from "lucide-react";
 
 import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
