@@ -138,31 +138,7 @@ function HomeScreen() {
         </div>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/60 bg-card/85 pb-[env(safe-area-inset-bottom)] shadow-card backdrop-blur-xl">
-        <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
-          <Link
-            to="/"
-            className="flex flex-col items-center gap-1 rounded-xl px-4 py-1.5 text-foreground"
-          >
-            <Home className="h-5 w-5" />
-            <span className="text-[0.65rem] font-medium">Home</span>
-          </Link>
-          <Link
-            to="/watches"
-            className="flex flex-col items-center gap-1 rounded-xl px-4 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Eye className="h-5 w-5" />
-            <span className="text-[0.65rem] font-medium">Watching</span>
-          </Link>
-          <Link
-            to="/buddies"
-            className="flex flex-col items-center gap-1 rounded-xl px-4 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Users className="h-5 w-5" />
-            <span className="text-[0.65rem] font-medium">Buddies</span>
-          </Link>
-        </div>
-      </nav>
+      <BottomNav />
 
       {adding && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 backdrop-blur-sm">
