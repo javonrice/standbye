@@ -127,10 +127,8 @@ function Section({
         <h2 className="font-display text-base font-bold tracking-tight">{title}</h2>
         <StatusPill status={status} size="sm" />
       </div>
-      <p className="mt-1.5 text-sm text-muted-foreground">{summary}</p>
-
       {signals.length > 0 && (
-        <div className="mt-2 border-t border-white/10">
+        <div className="mt-3 border-t border-white/10">
           {signals.map((signal) => (
             <SignalRow key={signal.id} signal={signal} briefId={briefId} />
           ))}
