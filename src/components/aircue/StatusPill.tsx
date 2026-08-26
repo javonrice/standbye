@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
-
-export type BriefStatus = "clear" | "watch" | "elevated" | "disruption" | "incomplete";
+import type { BriefStatus } from "@/lib/aircue/data";
 
 const styles: Record<BriefStatus, string> = {
   clear: "bg-clear text-clear-foreground",
