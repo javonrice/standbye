@@ -246,9 +246,9 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
         <Link
           to="/brief/$briefId/watch"
           params={{ briefId: brief.id }}
-          className="glass-press mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 font-display text-base font-bold text-primary-foreground shadow-card"
+          className="glass-press mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-card"
         >
-          <ShieldAlert className="h-5 w-5" /> Watch this flight
+          <Bell className="h-5 w-5" /> Watch
         </Link>
       )}
 
