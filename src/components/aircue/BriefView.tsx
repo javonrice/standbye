@@ -177,14 +177,14 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
           <ChipRow brief={brief} />
         </div>
 
-        <div className="relative mx-auto mt-7 h-44 w-44">
+        <div className="fusion-orb relative mx-auto mt-7 h-44 w-44">
           <div
-            className="absolute inset-0 rounded-full blur-2xl opacity-60"
-            style={{ background: orbGradient[brief.status] }}
+            className="absolute inset-[-18%] rounded-full blur-2xl"
+            style={{ background: orbGlow[brief.status], opacity: 0.7 }}
             aria-hidden
           />
           <div
-            className="absolute inset-0 rounded-full"
+            className="absolute inset-0 rounded-full animate-[orb-spin_12s_linear_infinite]"
             style={{ background: orbGradient[brief.status] }}
             aria-hidden
           />
