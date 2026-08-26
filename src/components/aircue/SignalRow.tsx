@@ -64,12 +64,8 @@ export function SignalRow({ signal, briefId }: { signal: Signal; briefId: string
             {confidenceLabel[signal.confidence]}
           </span>
         </span>
-        <span className="mt-1 block text-sm leading-relaxed text-foreground/80">
+        <span className="mt-0.5 block truncate text-sm text-muted-foreground">
           {signal.detail}
-        </span>
-        <span className="mt-1.5 block text-sm leading-relaxed text-muted-foreground">
-          <span className="font-medium text-foreground/70">Why it matters: </span>
-          {signal.why}
         </span>
       </span>
 
