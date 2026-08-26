@@ -5,6 +5,7 @@ import { ArrowRight, Plane, Search, User, X } from "lucide-react";
 import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
+import { BottomNav } from "@/components/aircue/BottomNav";
 import { StatusPill } from "@/components/aircue/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +64,7 @@ function HomeScreen() {
         className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/40 via-background/30 to-background"
       />
 
-      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-8 pt-6">
+      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-24 pt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src={mark.url} alt="" aria-hidden className="h-8 w-8 invert" />
@@ -137,6 +138,8 @@ function HomeScreen() {
           </p>
         </div>
       </div>
+
+      <BottomNav />
 
       {adding && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 backdrop-blur-sm">
