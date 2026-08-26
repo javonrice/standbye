@@ -1,4 +1,8 @@
-export type BriefStatus = "fine" | "watch" | "rough" | "unknown";
+/** PRD status model: Clear, Watch, Elevated, Active disruption, Incomplete. */
+export type BriefStatus = "clear" | "watch" | "elevated" | "disruption" | "incomplete";
+
+/** PRD confidence classes. */
+export type Confidence = "confirmed" | "strong" | "context";
 
 export type SignalCategory =
   | "weather"
@@ -10,16 +14,23 @@ export type SignalCategory =
   | "cancellation"
   | "flight";
 
+export type SignalLocation = "departure" | "arrival" | "chain";
+
 export interface Signal {
   id: string;
   category: SignalCategory;
-  /** Short plain-language label shown on the pill, e.g. "Storms at arrival". */
+  location: SignalLocation;
+  /** Short label, e.g. "Arrival weather". */
   title: string;
-  /** One-line everyday explanation shown under the pill. */
+  /** The detected condition, one line. */
   detail: string;
-  /** Expanded paragraph: what this means for someone flying standby. */
+  /** Why it matters for a standby attempt. */
   why: string;
+  confidence: Confidence;
   level: BriefStatus;
+  /** Evidence: where it came from and when it was last checked. */
+  source: string;
+  updated: string;
 }
 
 export interface BriefSection {
@@ -27,11 +38,10 @@ export interface BriefSection {
   place: string;
   code: string;
   status: BriefStatus;
-  /** One plain sentence summing up this airport. */
   summary: string;
   signals: Signal[];
-  /** Soft note when something could not be checked. */
-  note?: string;
+  /** Categories that could not be checked at the last run. */
+  unavailable?: string[];
 }
 
 export interface ChangeEntry {
@@ -52,18 +62,19 @@ export interface Brief {
   arrivesLocal: string;
   countdown: string;
   status: BriefStatus;
-  /** The headline verdict, in everyday words. */
-  verdict: string;
-  /** Up to three short reasons, written the way a person would say them. */
-  reasons: string[];
+  /** Standby outlook headline, fixed-template copy. */
+  outlook: string;
+  /** Standby impact: why the strongest signals may matter. */
+  impact: string;
   generatedAt: string;
   changes: ChangeEntry[];
   departure: BriefSection;
   arrival: BriefSection;
   chain: {
     summary: string;
+    status: BriefStatus;
     signals: Signal[];
-    note?: string;
+    unavailable?: string[];
   };
   watch?: {
     active: boolean;
@@ -86,132 +97,170 @@ export const briefs: Brief[] = [
     date: "Sat, Aug 1, 2026",
     departsLocal: "3:15 PM MDT",
     arrivesLocal: "6:42 PM CDT",
-    countdown: "Leaves in 6h 33m",
-    status: "rough",
-    verdict: "Getting on this flight looks harder than usual.",
-    reasons: [
-      "Storms over Chicago around the time you would land",
-      "An earlier Denver to Chicago flight was cancelled today",
-      "Two big events have Chicago busy this weekend",
-    ],
-    generatedAt: "8:42 AM",
+    countdown: "Departs in 6h 33m",
+    status: "elevated",
+    outlook: "Weather and passenger-displacement pressure overlap.",
+    impact:
+      "Thunderstorms near ORD may reduce arrival capacity inside your flight window, and confirmed passengers from an earlier cancelled DEN–ORD flight may be reaccommodated onto later Chicago flights. Event demand adds context. Aircue cannot see the standby list.",
+    generatedAt: "Last checked 8:42 AM MDT",
     changes: [
       {
         id: "c1",
         time: "8:42 AM",
-        text: "Things got tougher: an earlier Denver to Chicago flight was cancelled.",
+        text: "Elevated: an earlier DEN–ORD flight was cancelled today.",
       },
-      { id: "c2", time: "6:10 AM", text: "Storms showed up in the Chicago forecast for this evening." },
-      { id: "c3", time: "Yesterday, 7:02 PM", text: "We started watching. Nothing looked unusual then." },
+      { id: "c2", time: "6:10 AM", text: "Watch: thunderstorms entered the ORD arrival window." },
+      { id: "c3", time: "Yesterday, 7:02 PM", text: "Watch started. No material pressure detected." },
     ],
     departure: {
-      label: "Leaving",
+      label: "Departure",
       place: "Denver",
       code: "DEN",
-      status: "fine",
-      summary: "Denver looks normal today.",
+      status: "clear",
+      summary: "No material departure pressure detected at the last check.",
       signals: [
         {
           id: "dep-weather",
           category: "weather",
-          title: "Weather looks fine",
-          detail: "Nothing rough in the forecast around your departure time.",
-          why: "Clear weather at your departure airport means flights are less likely to bunch up or sit on the ground, so the boarding process should run on time.",
-          level: "fine",
+          location: "departure",
+          title: "Departure weather",
+          detail: "No adverse conditions in the DEN forecast during the departure window.",
+          why: "Clear conditions at departure make ground delay programs and departure holds less likely during your window.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Aviation weather (TAF/METAR)",
+          updated: "8:35 AM",
         },
         {
           id: "dep-airport",
           category: "airport",
-          title: "Airport running normally",
-          detail: "Flights are leaving Denver about on time.",
-          why: "When an airport is running on time, there are fewer stranded passengers competing for later seats, which usually helps standby.",
-          level: "fine",
+          location: "departure",
+          title: "Airport operations",
+          detail: "DEN departure delays are within normal range today.",
+          why: "A stable airport means fewer displaced confirmed passengers competing for later seats.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Airport operations feed",
+          updated: "8:40 AM",
         },
         {
           id: "dep-faa",
           category: "faa",
-          title: "No air traffic holds",
-          detail: "No ground stops or delay programs in Denver right now.",
-          why: "Air traffic holds pause departures and back everything up. There are none here at the moment.",
-          level: "fine",
+          location: "departure",
+          title: "FAA programs",
+          detail: "No ground stop, ground delay program, or closure at DEN.",
+          why: "FAA programs pause or meter departures, which compresses the schedule and reduces flexibility.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "FAA operations status",
+          updated: "8:41 AM",
         },
       ],
     },
     arrival: {
-      label: "Arriving",
+      label: "Arrival",
       place: "Chicago",
       code: "ORD",
-      status: "rough",
-      summary: "Chicago is the problem today, not Denver.",
+      status: "elevated",
+      summary: "Multiple arrival conditions overlap inside the flight window.",
       signals: [
         {
           id: "arr-weather",
           category: "weather",
-          title: "Storms at arrival",
-          detail: "Thunderstorms are expected in Chicago right around when you would land.",
-          why: "Storms slow down how many planes can land per hour. Your flight could be delayed, circle, or get held on the ground in Denver. Delays like this also push other passengers onto later flights, which crowds standby lists.",
-          level: "rough",
+          location: "arrival",
+          title: "Arrival weather",
+          detail: "Thunderstorms expected near ORD around the scheduled arrival.",
+          why: "Arrival capacity may fall during the flight window, which can produce holds, diversions, or a ground delay program upstream at DEN.",
+          confidence: "confirmed",
+          level: "elevated",
+          source: "Aviation weather (TAF)",
+          updated: "8:20 AM",
         },
         {
           id: "arr-airport",
           category: "airport",
-          title: "Delays building",
-          detail: "Arrival delays in Chicago have been climbing all morning.",
-          why: "A slow airport gets slower as the day goes on. Later flights are the ones most likely to be delayed or cancelled, which is exactly where standby travelers end up.",
-          level: "rough",
+          location: "arrival",
+          title: "Airport operations",
+          detail: "ORD arrival delays have deteriorated through the morning.",
+          why: "Deteriorating airport performance tends to worsen later in the day, and later flights are where standby travelers end up.",
+          confidence: "strong",
+          level: "elevated",
+          source: "Airport operations feed",
+          updated: "8:38 AM",
         },
         {
           id: "arr-event",
           category: "event",
-          title: "Lollapalooza starts tomorrow",
-          detail: "A lot of people are heading into Chicago this weekend.",
-          why: "A big event usually means more people flying in. It does not prove your flight is full, but flights into town are more likely to be booked up than on a normal Saturday.",
+          location: "arrival",
+          title: "Destination event",
+          detail: "Lollapalooza begins tomorrow in Chicago.",
+          why: "Inbound demand may be elevated before the event starts. This is demand context, not proof that the flight is full.",
+          confidence: "context",
           level: "watch",
+          source: "Event calendar",
+          updated: "Yesterday, 9:00 PM",
         },
         {
           id: "arr-convention",
           category: "event",
-          title: "Convention downtown",
-          detail: "A large convention is running in the city through Sunday.",
-          why: "Another reason there is extra demand into Chicago right now. Again, this is context about the city, not a look at your flight's seat count.",
+          location: "arrival",
+          title: "Destination event",
+          detail: "A large downtown convention runs through Sunday.",
+          why: "Additional inbound demand context for Chicago. Attendance is unverified, so scale is not claimed.",
+          confidence: "context",
           level: "watch",
+          source: "Event calendar",
+          updated: "Yesterday, 9:00 PM",
         },
       ],
     },
     chain: {
-      summary: "Your plane is running late and the route already lost a flight today.",
+      status: "elevated",
+      summary: "Inbound aircraft is late and the route has already lost a flight today.",
       signals: [
         {
           id: "chain-inbound",
           category: "aircraft",
-          title: "Your plane is running late",
-          detail: "The aircraft flying this route is arriving in Denver about 34 minutes behind.",
-          why: "The plane has to land before it can leave again. A late arrival often means a late departure, which eats into the time you would have to try a backup flight.",
+          location: "chain",
+          title: "Inbound aircraft",
+          detail: "The inbound aircraft is arriving into DEN about 34 minutes late.",
+          why: "A late inbound may reach your flight as a departure delay, reducing the time available to attempt a later flight.",
+          confidence: "strong",
           level: "watch",
+          source: "Flight status feed",
+          updated: "8:36 AM",
         },
         {
           id: "chain-status",
           category: "flight",
-          title: "Still on schedule",
-          detail: "The airline has not posted a delay for UA782 yet.",
-          why: "Officially the flight is still on time. That can change quickly when the inbound plane is late.",
-          level: "fine",
+          location: "chain",
+          title: "Selected flight",
+          detail: "No delay posted for UA782.",
+          why: "The airline has not filed a delay yet. This can change quickly when the inbound aircraft is late.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Flight status feed",
+          updated: "8:42 AM",
         },
         {
           id: "chain-cancel",
           category: "cancellation",
-          title: "Earlier flight cancelled",
-          detail: "One earlier Denver to Chicago flight was cancelled today.",
-          why: "Everyone booked on that flight has to get rebooked, and the airline puts them on later flights to Chicago. Those paying passengers get seats before standby does.",
-          level: "rough",
+          location: "chain",
+          title: "Earlier route cancellation",
+          detail: "One earlier DEN–ORD flight was cancelled today.",
+          why: "Confirmed passengers may be reaccommodated onto later Chicago flights, and confirmed travelers are handled before standby.",
+          confidence: "confirmed",
+          level: "elevated",
+          source: "Flight status feed",
+          updated: "8:42 AM",
         },
       ],
     },
     watch: {
       active: true,
       nextCheck: "9:15 AM",
-      cadence: "About every half hour on the day you fly",
-      expires: "Stops on its own after your flight",
+      cadence: "Every 30 minutes on the day of travel",
+      expires: "Ends automatically after arrival",
       email: "jordan@example.com",
     },
     shareToken: "b7f2c1",
@@ -226,96 +275,118 @@ export const briefs: Brief[] = [
     date: "Tue, Aug 4, 2026",
     departsLocal: "11:05 AM EDT",
     arrivesLocal: "12:34 PM CDT",
-    countdown: "Leaves in 3 days",
-    status: "fine",
-    verdict: "Nothing unusual is working against this flight.",
-    reasons: [
-      "Good weather on both ends",
-      "Both airports are running on time",
-      "No cancellations on this route today",
-    ],
-    generatedAt: "8:31 AM",
+    countdown: "Departs in 3 days",
+    status: "clear",
+    outlook: "No material external pressure detected at the last check.",
+    impact:
+      "Nothing in weather, airport operations, FAA programs, or route cancellations currently indicates added standby pressure. Clear does not mean open seats.",
+    generatedAt: "Last checked 8:31 AM EDT",
     changes: [
-      { id: "d1", time: "8:31 AM", text: "Checked again. Nothing has changed." },
-      { id: "d2", time: "Yesterday, 8:30 PM", text: "We started watching. Everything looked calm." },
+      { id: "d1", time: "8:31 AM", text: "Rechecked. No material change." },
+      { id: "d2", time: "Yesterday, 8:30 PM", text: "Watch started. No material pressure detected." },
     ],
     departure: {
-      label: "Leaving",
+      label: "Departure",
       place: "Atlanta",
       code: "ATL",
-      status: "fine",
-      summary: "Atlanta looks calm for your departure.",
+      status: "clear",
+      summary: "No material departure pressure detected.",
       signals: [
         {
           id: "d-dep-weather",
           category: "weather",
-          title: "Weather looks fine",
-          detail: "Nothing in the forecast around your departure time.",
-          why: "Good weather at departure keeps the schedule moving, so fewer passengers get bumped around.",
-          level: "fine",
+          location: "departure",
+          title: "Departure weather",
+          detail: "No adverse conditions forecast at ATL during the departure window.",
+          why: "Stable departure weather keeps the schedule intact and limits reaccommodation.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Aviation weather (TAF/METAR)",
+          updated: "8:25 AM",
         },
         {
           id: "d-dep-faa",
           category: "faa",
-          title: "No air traffic holds",
-          detail: "No ground stops or delay programs in Atlanta.",
-          why: "Nothing is currently slowing departures out of Atlanta.",
-          level: "fine",
+          location: "departure",
+          title: "FAA programs",
+          detail: "No ground stop or delay program at ATL.",
+          why: "No metering is currently restricting departures.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "FAA operations status",
+          updated: "8:30 AM",
         },
       ],
     },
     arrival: {
-      label: "Arriving",
+      label: "Arrival",
       place: "Austin",
       code: "AUS",
-      status: "fine",
-      summary: "Austin looks calm too.",
+      status: "clear",
+      summary: "No material arrival pressure detected.",
       signals: [
         {
           id: "d-arr-weather",
           category: "weather",
-          title: "Weather looks fine",
-          detail: "Nothing rough expected in Austin when you would land.",
-          why: "Calm arrival weather means the airport can take its normal number of landings, so delays are less likely.",
-          level: "fine",
+          location: "arrival",
+          title: "Arrival weather",
+          detail: "No adverse conditions forecast at AUS during the arrival window.",
+          why: "Normal arrival capacity is expected, so holds and diversions are less likely.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Aviation weather (TAF)",
+          updated: "8:25 AM",
         },
         {
           id: "d-arr-event",
           category: "event",
-          title: "Quiet week in town",
-          detail: "No big events pulling extra people into Austin that day.",
-          why: "Fewer people flying in usually means a little more room, though it is never a guarantee of an open seat.",
-          level: "fine",
+          location: "arrival",
+          title: "Destination event",
+          detail: "No major events detected in Austin on the travel date.",
+          why: "No directional inbound demand context was found for this date.",
+          confidence: "context",
+          level: "clear",
+          source: "Event calendar",
+          updated: "Yesterday, 8:00 PM",
         },
       ],
     },
     chain: {
-      summary: "The route is having a normal day.",
+      status: "clear",
+      summary: "No route disruption detected today.",
       signals: [
         {
           id: "d-chain-status",
           category: "flight",
-          title: "On schedule",
+          location: "chain",
+          title: "Selected flight",
           detail: "No delay posted for DL1180.",
-          why: "The airline has not flagged anything on this flight.",
-          level: "fine",
+          why: "The airline has not filed a delay for this flight.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Flight status feed",
+          updated: "8:31 AM",
         },
         {
           id: "d-chain-cancel",
           category: "cancellation",
-          title: "No cancellations today",
-          detail: "Nothing has been cancelled on Atlanta to Austin.",
-          why: "No extra passengers are being pushed onto later flights, so the standby list should look normal.",
-          level: "fine",
+          location: "chain",
+          title: "Earlier route cancellation",
+          detail: "No ATL–AUS cancellations detected today.",
+          why: "No confirmed passengers appear to be displaced onto later flights on this route.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Flight status feed",
+          updated: "8:31 AM",
         },
       ],
-      note: "We cannot tell which plane will fly this route yet. That usually shows up the day before.",
+      unavailable: ["Inbound aircraft assignment (published closer to departure)"],
     },
     watch: {
       active: true,
       nextCheck: "8:30 PM",
-      cadence: "Twice a day until you get closer to the trip",
-      expires: "Stops on its own after your flight",
+      cadence: "Twice daily until 24 hours before departure",
+      expires: "Ends automatically after arrival",
       email: "jordan@example.com",
     },
   },
@@ -329,74 +400,84 @@ export const briefs: Brief[] = [
     date: "Sat, Aug 1, 2026",
     departsLocal: "1:40 PM CDT",
     arrivesLocal: "5:58 PM EDT",
-    countdown: "Leaves in 4h 58m",
-    status: "unknown",
-    verdict: "We cannot give you a straight answer on this one yet.",
-    reasons: [
-      "We could not check air traffic holds right now",
-      "Storms are possible in Dallas near your departure",
-      "New York arrivals are a little slower than normal",
-    ],
-    generatedAt: "8:39 AM",
+    countdown: "Departs in 4h 58m",
+    status: "incomplete",
+    outlook: "A required source is unavailable, so no reliable outlook can be produced.",
+    impact:
+      "FAA program status could not be retrieved for either airport, and the inbound aircraft assignment is unknown. Detected conditions are shown, but the overall picture is incomplete.",
+    generatedAt: "Last checked 8:39 AM CDT",
     changes: [
-      { id: "a1", time: "8:39 AM", text: "We lost access to air traffic information, so we stopped guessing." },
-      { id: "a2", time: "7:05 AM", text: "We started watching this flight." },
+      { id: "a1", time: "8:39 AM", text: "Incomplete: FAA operations status is unavailable." },
+      { id: "a2", time: "7:05 AM", text: "Watch started. Watch-level conditions detected." },
     ],
     departure: {
-      label: "Leaving",
+      label: "Departure",
       place: "Dallas–Fort Worth",
       code: "DFW",
       status: "watch",
-      summary: "Dallas could get bumpy this afternoon.",
+      summary: "One developing condition detected at DFW.",
       signals: [
         {
           id: "a-dep-weather",
           category: "weather",
-          title: "Storms possible",
-          detail: "Scattered afternoon storms could pop up near your departure time.",
-          why: "Afternoon storms in Dallas can pause departures for a while. Even a short pause backs up the rest of the day and pushes passengers onto later flights.",
+          location: "departure",
+          title: "Departure weather",
+          detail: "Scattered afternoon thunderstorms possible near the DFW departure window.",
+          why: "Convective activity may pause departures and compress the remaining schedule, which can reduce backup options later in the day.",
+          confidence: "strong",
           level: "watch",
+          source: "Aviation weather (TAF)",
+          updated: "8:15 AM",
         },
       ],
-      note: "We could not check air traffic holds for Dallas right now.",
+      unavailable: ["FAA programs"],
     },
     arrival: {
-      label: "Arriving",
+      label: "Arrival",
       place: "New York",
       code: "LGA",
       status: "watch",
-      summary: "New York is a bit slower than normal.",
+      summary: "Arrival operations are running behind normal.",
       signals: [
         {
           id: "a-arr-airport",
           category: "airport",
-          title: "Slightly slow arrivals",
-          detail: "Flights into New York are running a little behind this morning.",
-          why: "A busy arrival airport leaves less wiggle room later in the day, which can matter if you need a backup flight.",
+          location: "arrival",
+          title: "Airport operations",
+          detail: "LGA arrival delays are moderately above normal this morning.",
+          why: "A congested arrival airport reduces schedule flexibility later in the day.",
+          confidence: "strong",
           level: "watch",
+          source: "Airport operations feed",
+          updated: "8:33 AM",
         },
       ],
-      note: "We could not check air traffic holds for New York right now.",
+      unavailable: ["FAA programs"],
     },
     chain: {
-      summary: "The flight is on schedule, but we are missing part of the picture.",
+      status: "incomplete",
+      summary: "Flight status is available, but the aircraft chain cannot be evaluated.",
       signals: [
         {
           id: "a-chain-status",
           category: "flight",
-          title: "On schedule",
-          detail: "No delay posted for AA2210 yet.",
-          why: "The airline has not flagged this flight, though that can change.",
-          level: "fine",
+          location: "chain",
+          title: "Selected flight",
+          detail: "No delay posted for AA2210.",
+          why: "The airline has not filed a delay. This may change as the day develops.",
+          confidence: "confirmed",
+          level: "clear",
+          source: "Flight status feed",
+          updated: "8:39 AM",
         },
       ],
-      note: "We could not tell which plane is flying this route today.",
+      unavailable: ["Inbound aircraft assignment"],
     },
     watch: {
       active: true,
       nextCheck: "9:10 AM",
-      cadence: "About every half hour on the day you fly",
-      expires: "Stops on its own after your flight",
+      cadence: "Every 30 minutes on the day of travel",
+      expires: "Ends automatically after arrival",
       email: "jordan@example.com",
     },
   },
@@ -409,4 +490,4 @@ export function getBrief(id: string): Brief | undefined {
 export const defaultBrief = briefs[0]!;
 
 export const disclaimer =
-  "Aircue cannot see how many seats are open or where you sit on the standby list. We show what is happening around your flight so you can decide for yourself.";
+  "Aircue does not include airline load data, standby priority, or a prediction that you will receive a seat.";
