@@ -6,7 +6,6 @@ import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
 import { BottomNav } from "@/components/aircue/BottomNav";
-import { StatusPill } from "@/components/aircue/StatusPill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { briefs } from "@/lib/aircue/data";
