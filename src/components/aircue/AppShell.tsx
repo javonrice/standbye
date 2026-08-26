@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
 import mark from "@/assets/aircue-mark.png.asset.json";
-import { disclaimer } from "@/lib/aircue/data";
 
 export function AppShell({ children, nav = true }: { children: ReactNode; nav?: boolean }) {
   return (
@@ -31,8 +30,7 @@ export function AppShell({ children, nav = true }: { children: ReactNode; nav?: 
 
       <footer className="border-t border-border bg-surface">
         <div className="mx-auto max-w-5xl px-4 py-6 text-xs text-muted-foreground sm:px-6">
-          <p>{disclaimer}</p>
-          <p className="mt-2">
+          <p>
             Conditions are informational and may change. Aircue is not affiliated with any airline,
             the FAA, or a data provider.
           </p>
