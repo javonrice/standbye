@@ -28,13 +28,6 @@ const categoryIcon: Record<SignalCategory, React.ComponentType<{ className?: str
   flight: PlaneTakeoff,
 };
 
-const dotColor: Record<BriefStatus, string> = {
-  clear: "bg-fine",
-  watch: "bg-primary",
-  elevated: "bg-watch",
-  disruption: "bg-rough",
-  incomplete: "bg-muted-foreground",
-};
 
 const moodIcon: Record<BriefStatus, React.ComponentType<{ className?: string }>> = {
   clear: Smile,
@@ -66,15 +59,7 @@ export function SignalRow({ signal, briefId }: { signal: Signal; briefId: string
       params={{ briefId, signalId: signal.id }}
       className="flex items-start gap-3 border-b border-border py-4 last:border-b-0"
     >
-      <span className="relative mt-0.5 shrink-0">
-        <Icon className="h-5 w-5 text-muted-foreground" />
-        <span
-          className={cn(
-            "absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-2 ring-card",
-            dotColor[signal.level],
-          )}
-        />
-      </span>
+      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
 
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-3">
