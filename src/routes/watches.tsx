@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Bell, Clock } from "lucide-react";
 
 import { AppShell } from "@/components/aircue/AppShell";
+import { BottomNav } from "@/components/aircue/BottomNav";
 import { StatusPill } from "@/components/aircue/StatusPill";
 import { Button } from "@/components/ui/button";
 import { briefs } from "@/lib/aircue/data";
