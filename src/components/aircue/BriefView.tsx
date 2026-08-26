@@ -56,7 +56,7 @@ function AirportCard({ section }: { section: BriefSection }) {
     <Card title={`${section.label} ${section.place}`} status={section.status}>
       <p className="mt-2 text-sm text-muted-foreground">{section.summary}</p>
       <div className="mt-5 space-y-4">
-        {section.signals.map((signal) => (
+        {(section.signals ?? []).map((signal) => (
           <SignalRow key={signal.id} signal={signal} />
         ))}
       </div>
