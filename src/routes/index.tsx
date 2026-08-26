@@ -98,17 +98,18 @@ function HomeScreen() {
                     <Plane className="h-4.5 w-4.5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline gap-2">
+                    <span className="flex items-center gap-2">
                       <span className="font-display text-base font-semibold">{b.flightNumber}</span>
-                      <span className="truncate text-sm text-muted-foreground">
+                      <span className="whitespace-nowrap text-sm text-muted-foreground">
                         {b.origin} → {b.destination}
                       </span>
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                       {b.date} · {b.departsLocal}
                     </span>
                   </span>
-                  <StatusPill status={b.status} size="sm" />
+                  <StatusPill status={b.status} size="sm" className="px-2.5 uppercase" />
+
                 </Link>
               </li>
             ))}
