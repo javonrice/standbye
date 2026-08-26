@@ -1,11 +1,99 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, ChevronLeft, Share2 } from "lucide-react";
+import {
+  Bell,
+  ChevronLeft,
+  Clock3,
+  History,
+  Info,
+  Share2,
+  ShieldAlert,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { SignalRow } from "@/components/aircue/SignalRow";
-import { StatusPill } from "@/components/aircue/StatusPill";
+import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
+import { cn } from "@/lib/utils";
 import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
-import { disclaimer, missingSources, statusMeaning } from "@/lib/aircue/data";
+import { disclaimer, statusMeaning } from "@/lib/aircue/data";
+
+const pressureScore: Record<BriefStatus, number> = {
+  clear: 12,
+  watch: 38,
+  elevated: 68,
+  disruption: 90,
+  incomplete: 45,
+};
+
+const orbGradient: Record<BriefStatus, string> = {
+  clear: "conic-gradient(from 210deg, var(--fine), var(--primary), var(--fine-soft), var(--fine))",
+  watch: "conic-gradient(from 210deg, var(--primary), var(--watch), var(--fine), var(--primary))",
+  elevated: "conic-gradient(from 210deg, var(--watch), var(--primary), var(--rough), var(--watch))",
+  disruption: "conic-gradient(from 210deg, var(--rough), var(--watch), var(--primary), var(--rough))",
+  incomplete:
+    "conic-gradient(from 210deg, var(--muted-foreground), var(--primary), var(--muted), var(--muted-foreground))",
+};
+
+const barColor: Record<BriefStatus, string> = {
+  clear: "bg-fine",
+  watch: "bg-primary",
+  elevated: "bg-watch",
+  disruption: "bg-rough",
+  incomplete: "bg-muted-foreground",
+};
+
+function ChipRow({ brief }: { brief: Brief }) {
+  const items: { key: string; label: string; status: BriefStatus }[] = [
+    { key: "dep", label: brief.origin, status: brief.departure.status },
+    { key: "arr", label: brief.destination, status: brief.arrival.status },
+    { key: "chain", label: "Chain", status: brief.chain.status },
+  ];
+
+  return (
+    <div className="flex items-center justify-center gap-3">
+      {items.map((item) => (
+        <div key={item.key} className="flex flex-col items-center gap-1.5">
+          <span
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-full border border-white/15",
+              "glass-soft",
+            )}
+          >
+            <span className={cn("h-2.5 w-2.5 rounded-full", barColor[item.status])} />
+          </span>
+          <span className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+            {item.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function QuickAction({
+  icon: Icon,
+  label,
+  to,
+  params,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  to: string;
+  params?: Record<string, string>;
+}) {
+  return (
+    <Link
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      to={to as any}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      params={params as any}
+      className="flex flex-1 flex-col items-center gap-2"
+    >
+      <span className="glass glass-press glass-sheen flex h-14 w-14 items-center justify-center rounded-full">
+        <Icon className="h-5 w-5 text-foreground" />
+      </span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </Link>
+  );
+}
 
 function Section({
   title,
@@ -23,7 +111,7 @@ function Section({
   unavailable?: string[] | undefined;
 }) {
   return (
-    <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-card">
+    <section className="glass glass-sheen mt-4 rounded-3xl p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-base font-bold tracking-tight">{title}</h2>
         <StatusPill status={status} size="sm" />
@@ -31,7 +119,7 @@ function Section({
       <p className="mt-1.5 text-sm text-muted-foreground">{summary}</p>
 
       {signals.length > 0 && (
-        <div className="mt-2 border-t border-border">
+        <div className="mt-2 border-t border-white/10">
           {signals.map((signal) => (
             <SignalRow key={signal.id} signal={signal} briefId={briefId} />
           ))}
@@ -48,76 +136,125 @@ function Section({
 }
 
 export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?: boolean }) {
-  const missing = missingSources(brief);
+  const score = pressureScore[brief.status];
 
   return (
-    <div className="mx-auto w-full max-w-md">
-      <div className="flex items-center justify-between gap-3 pb-4">
-        <Link
-          to="/"
-          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" /> Back
-        </Link>
-      </div>
-
-      {/* Flight header */}
-      <header>
-        <h1 className="font-display text-2xl font-bold tracking-tight">
-          {brief.flightNumber} · {brief.origin} → {brief.destination}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {brief.date} · Departs {brief.departsLocal}
-        </p>
-        <p className="text-sm text-muted-foreground">Arrives {brief.arrivesLocal}</p>
-        <p className="mt-1 text-sm font-medium">{brief.countdown}</p>
-      </header>
-
-      {/* Status first */}
-      <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-card">
-        <StatusPill status={brief.status} />
-        <p className="mt-3 font-display text-xl font-bold leading-snug tracking-tight">
-          {brief.outlook}
-        </p>
-      </section>
-
-      {/* What this means */}
-      <section className="mt-6">
-        <h2 className="font-display text-base font-bold tracking-tight">What this means</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-foreground/85">
-          {statusMeaning[brief.status]}
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-foreground/85">{brief.impact}</p>
-      </section>
-
-      {brief.status === "incomplete" && (
-        <section className="mt-6 rounded-2xl border border-border bg-secondary p-5 text-sm">
-          <p className="font-semibold">Missing</p>
-          <ul className="mt-1 list-disc pl-5 text-muted-foreground">
-            {(missing.length > 0 ? missing : ["Live flight status unavailable"]).map((m) => (
-              <li key={m}>{m}</li>
-            ))}
-          </ul>
-          <p className="mt-3 font-semibold">Still available</p>
-          <ul className="mt-1 list-disc pl-5 text-muted-foreground">
-            <li>{brief.arrival.summary}</li>
-            <li>{brief.departure.summary}</li>
-          </ul>
-          <p className="mt-3 text-muted-foreground">
-            We will not say “Clear” when required data is missing.
-          </p>
-        </section>
+    <div className="aurora relative mx-auto w-full max-w-md px-1">
+      {!readOnly && (
+        <div className="flex items-center justify-between gap-3 pb-2 pt-1">
+          <Link
+            to="/"
+            className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" /> Flights
+          </Link>
+          <span className="text-xs text-muted-foreground">{brief.generatedAt}</span>
+        </div>
       )}
 
-      {/* What changed */}
+      {/* Hero */}
+      <div className="pt-2 text-center">
+        <h1 className="font-display text-lg font-bold tracking-tight">
+          {brief.flightNumber} · {brief.origin} → {brief.destination}
+        </h1>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {brief.date} · {brief.departsLocal}
+        </p>
+
+        <div className="mt-5">
+          <ChipRow brief={brief} />
+        </div>
+
+        <div className="relative mx-auto mt-7 h-44 w-44">
+          <div
+            className="absolute inset-0 rounded-full blur-2xl opacity-60"
+            style={{ background: orbGradient[brief.status] }}
+            aria-hidden
+          />
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{ background: orbGradient[brief.status] }}
+            aria-hidden
+          />
+          <div className="glass-soft absolute inset-0 rounded-full" aria-hidden />
+        </div>
+
+        <p className="mt-7 text-sm text-muted-foreground">Standby pressure looks</p>
+        <p className="mt-1 font-display text-5xl font-bold tracking-tight">
+          {statusLabel(brief.status)}
+        </p>
+
+        <div className="glass-soft mx-auto mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm">
+          <Clock3 className="h-4 w-4 text-muted-foreground" />
+          {brief.countdown}
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      {!readOnly && (
+        <div className="mt-7 flex items-start gap-2">
+          <QuickAction
+            icon={Bell}
+            label="Watch"
+            to="/brief/$briefId/watch"
+            params={{ briefId: brief.id }}
+          />
+          {brief.shareToken && (
+            <QuickAction
+              icon={Share2}
+              label="Share"
+              to="/share/$token"
+              params={{ token: brief.shareToken }}
+            />
+          )}
+          <QuickAction icon={History} label="Changes" to="/watches" />
+          <QuickAction icon={Info} label="More" to="/buddies" />
+        </div>
+      )}
+
+      {/* Pressure bar */}
+      <div className="glass mt-7 rounded-2xl px-4 py-3.5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">Standby pressure</span>
+          <span className="text-muted-foreground">{score}%</span>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className={cn("h-full rounded-full transition-all", barColor[brief.status])}
+            style={{ width: `${score}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          {statusMeaning[brief.status]}
+        </p>
+      </div>
+
+      {/* Primary CTA */}
+      {!readOnly && (
+        <Link
+          to="/brief/$briefId/watch"
+          params={{ briefId: brief.id }}
+          className="glass-press mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 font-display text-base font-bold text-primary-foreground shadow-card"
+        >
+          <ShieldAlert className="h-5 w-5" /> Watch this flight
+        </Link>
+      )}
+
+      {/* Why */}
+      <section className="glass glass-sheen mt-6 rounded-3xl p-5">
+        <h2 className="font-display text-base font-bold tracking-tight">Why</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-foreground/85">{brief.outlook}</p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{brief.impact}</p>
+      </section>
+
       {(brief.changes ?? []).length > 0 && (
-        <section className="mt-6">
+        <section className="glass glass-sheen mt-4 rounded-3xl p-5">
           <h2 className="font-display text-base font-bold tracking-tight">What changed</h2>
-          <ul className="mt-2 border-t border-border">
+          <ul className="mt-2 border-t border-white/10">
             {(brief.changes ?? []).map((change) => (
               <li
                 key={change.id}
-                className="flex gap-3 border-b border-border py-3 text-sm last:border-b-0"
+                className="flex gap-3 border-b border-white/10 py-3 text-sm last:border-b-0"
               >
                 <span className="w-24 shrink-0 text-xs text-muted-foreground">{change.time}</span>
                 <span className="text-foreground/85">{change.text}</span>
@@ -152,25 +289,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
         briefId={brief.id}
       />
 
-      {!readOnly && (
-        <div className="mt-6 space-y-3">
-          <Button asChild className="h-12 w-full text-sm font-semibold">
-            <Link to="/brief/$briefId/watch" params={{ briefId: brief.id }}>
-              <Bell className="h-4 w-4" /> Watch this flight
-            </Link>
-          </Button>
-          {brief.shareToken && (
-            <Button asChild variant="secondary" className="h-12 w-full text-sm font-semibold">
-              <Link to="/share/$token" params={{ token: brief.shareToken }}>
-                <Share2 className="h-4 w-4" /> Share brief
-              </Link>
-            </Button>
-          )}
-        </div>
-      )}
-
-      <p className="mt-6 text-xs leading-relaxed text-muted-foreground">{brief.generatedAt}</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{disclaimer}</p>
+      <p className="mt-6 text-xs leading-relaxed text-muted-foreground">{disclaimer}</p>
     </div>
   );
 }
