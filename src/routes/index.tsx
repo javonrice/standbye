@@ -105,8 +105,9 @@ function HomeScreen() {
                       </span>
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      {b.date} · {b.departsLocal}
+                      {b.date.replace(/,\s*\d{4}/, "")} · {b.departsLocal}
                     </span>
+
                   </span>
                   <StatusPill status={b.status} size="sm" className="px-2.5 uppercase" />
 
