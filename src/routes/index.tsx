@@ -64,9 +64,18 @@ function HomeScreen() {
       />
 
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-8 pt-6">
-        <div className="flex items-center gap-2.5">
-          <img src={mark.url} alt="" aria-hidden className="h-8 w-8 invert" />
-          <img src={wordmark.url} alt="Aircue" className="h-5 w-auto invert" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <img src={mark.url} alt="" aria-hidden className="h-8 w-8 invert" />
+            <img src={wordmark.url} alt="Aircue" className="h-5 w-auto invert" />
+          </div>
+          <button
+            type="button"
+            aria-label="Profile"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-card/60 text-foreground backdrop-blur-md transition-colors hover:bg-card"
+          >
+            <User className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="mt-auto rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl">
