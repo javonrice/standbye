@@ -98,8 +98,8 @@ function StandbyBrief() {
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <img src={mark.url} alt="" aria-hidden className="h-8 w-8" />
-            <img src={wordmark.url} alt="Aircue" className="h-6 w-auto" />
+            <img src={mark.url} alt="" aria-hidden className="h-9 w-9" />
+            <img src={wordmark.url} alt="Aircue" className="h-7 w-auto" />
           </div>
           <div className="flex items-center gap-4">
             <button type="button" className="text-sm font-medium hover:text-primary">
