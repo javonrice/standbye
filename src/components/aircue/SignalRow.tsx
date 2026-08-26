@@ -4,14 +4,18 @@ import {
   CalendarDays,
   ChevronRight,
   CloudSun,
+  Frown,
+  HelpCircle,
+  Meh,
   PlaneLanding,
   PlaneTakeoff,
   Radio,
+  Smile,
   XCircle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { BriefStatus, Confidence, Signal, SignalCategory } from "@/lib/aircue/data";
+import type { BriefStatus, Signal, SignalCategory } from "@/lib/aircue/data";
 
 const categoryIcon: Record<SignalCategory, React.ComponentType<{ className?: string }>> = {
   weather: CloudSun,
@@ -32,11 +36,26 @@ const dotColor: Record<BriefStatus, string> = {
   incomplete: "bg-muted-foreground",
 };
 
-export const confidenceLabel: Record<Confidence, string> = {
-  confirmed: "Confirmed",
-  strong: "Strong",
-  context: "Context",
+const moodIcon: Record<BriefStatus, React.ComponentType<{ className?: string }>> = {
+  clear: Smile,
+  watch: Meh,
+  elevated: Frown,
+  disruption: Frown,
+  incomplete: HelpCircle,
 };
+
+const moodColor: Record<BriefStatus, string> = {
+  clear: "text-fine",
+  watch: "text-watch",
+  elevated: "text-rough",
+  disruption: "text-rough",
+  incomplete: "text-muted-foreground",
+};
+
+export function SignalMood({ level, className }: { level: BriefStatus; className?: string }) {
+  const Icon = moodIcon[level];
+  return <Icon className={cn("h-4 w-4", moodColor[level], className)} />;
+}
 
 export function SignalRow({ signal, briefId }: { signal: Signal; briefId: string }) {
   const Icon = categoryIcon[signal.category];
@@ -60,9 +79,7 @@ export function SignalRow({ signal, briefId }: { signal: Signal; briefId: string
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-3">
           <span className="text-sm font-semibold">{signal.title}</span>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {confidenceLabel[signal.confidence]}
-          </span>
+          <SignalMood level={signal.level} />
         </span>
         <span className="mt-0.5 block truncate text-sm text-muted-foreground">
           {signal.detail}

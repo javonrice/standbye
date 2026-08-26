@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { AppShell } from "@/components/aircue/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/aircue/StatusPill";
-import { confidenceLabel } from "@/components/aircue/SignalRow";
+import { SignalMood } from "@/components/aircue/SignalRow";
 import { getBrief, getSignal } from "@/lib/aircue/data";
 
 export const Route = createFileRoute("/brief/$briefId/signal/$signalId")({
@@ -50,9 +50,7 @@ function SignalDetailPage() {
         <h1 className="font-display text-2xl font-bold tracking-tight">{signal.title}</h1>
         <div className="mt-2 flex items-center gap-2">
           <StatusPill status={signal.level} size="sm" />
-          <span className="text-xs text-muted-foreground">
-            {confidenceLabel[signal.confidence]}
-          </span>
+          <SignalMood level={signal.level} />
         </div>
 
         <p className="mt-5 text-sm leading-relaxed text-foreground/85">{signal.detail}</p>
