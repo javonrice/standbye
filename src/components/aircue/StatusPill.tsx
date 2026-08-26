@@ -1,27 +1,30 @@
-import { Check, CircleHelp, TriangleAlert, CircleAlert } from "lucide-react";
+import { Check, CircleHelp, TriangleAlert, CircleAlert, OctagonAlert } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { BriefStatus } from "@/lib/aircue/data";
 
 const styles: Record<BriefStatus, string> = {
-  fine: "bg-fine-soft text-fine-foreground",
+  clear: "bg-fine-soft text-fine-foreground",
   watch: "bg-watch-soft text-watch-foreground",
-  rough: "bg-rough-soft text-rough-foreground",
-  unknown: "bg-muted text-muted-foreground",
+  elevated: "bg-rough-soft text-rough-foreground",
+  disruption: "bg-rough-soft text-rough-foreground",
+  incomplete: "bg-muted text-muted-foreground",
 };
 
 const labels: Record<BriefStatus, string> = {
-  fine: "Looks fine",
-  watch: "Keep an eye on it",
-  rough: "Rough",
-  unknown: "Not enough info",
+  clear: "Clear",
+  watch: "Watch",
+  elevated: "Elevated",
+  disruption: "Active disruption",
+  incomplete: "Incomplete",
 };
 
 const icons: Record<BriefStatus, React.ComponentType<{ className?: string }>> = {
-  fine: Check,
+  clear: Check,
   watch: TriangleAlert,
-  rough: CircleAlert,
-  unknown: CircleHelp,
+  elevated: CircleAlert,
+  disruption: OctagonAlert,
+  incomplete: CircleHelp,
 };
 
 export function statusLabel(status: BriefStatus) {
