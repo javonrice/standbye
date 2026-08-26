@@ -12,7 +12,7 @@ import { SignalRow } from "@/components/aircue/SignalRow";
 import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
 import { cn } from "@/lib/utils";
 import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
-import { disclaimer, statusMeaning } from "@/lib/aircue/data";
+import { disclaimer } from "@/lib/aircue/data";
 
 const pressureScore: Record<BriefStatus, number> = {
   clear: 12,
@@ -109,14 +109,12 @@ function QuickAction({
 function Section({
   title,
   status,
-  summary,
   signals,
   briefId,
   unavailable,
 }: {
   title: string;
   status: BriefStatus;
-  summary: string;
   signals: Signal[];
   briefId: string;
   unavailable?: string[] | undefined;
@@ -233,9 +231,6 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
             style={{ width: `${score}%` }}
           />
         </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {statusMeaning[brief.status]}
-        </p>
       </div>
 
       {/* Primary CTA */}
@@ -275,7 +270,6 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
       <Section
         title={`Departure · ${brief.departure.place}`}
         status={brief.departure.status}
-        summary={brief.departure.summary}
         signals={brief.departure.signals ?? []}
         unavailable={brief.departure.unavailable}
         briefId={brief.id}
@@ -283,7 +277,6 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
       <Section
         title={`Arrival · ${brief.arrival.place}`}
         status={brief.arrival.status}
-        summary={brief.arrival.summary}
         signals={brief.arrival.signals ?? []}
         unavailable={brief.arrival.unavailable}
         briefId={brief.id}
@@ -291,7 +284,6 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
       <Section
         title="Flight chain"
         status={brief.chain.status}
-        summary={brief.chain.summary}
         signals={brief.chain.signals ?? []}
         unavailable={brief.chain.unavailable}
         briefId={brief.id}
