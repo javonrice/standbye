@@ -86,3 +86,15 @@ function WatchesPage() {
     </AppShell>
   );
 }
+
+function WatchesPage() {
+  const watched = briefs.filter((b) => b.watch?.active);
+
+  return (
+    <>
+      <WatchesContent />
+      <BottomNav />
+    </>
+  );
+}
+
