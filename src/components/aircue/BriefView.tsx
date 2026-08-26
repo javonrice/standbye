@@ -6,7 +6,6 @@ import {
   History,
   Info,
   Share2,
-  ShieldAlert,
 } from "lucide-react";
 
 import { SignalRow } from "@/components/aircue/SignalRow";
