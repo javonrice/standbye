@@ -96,19 +96,19 @@ function SearchPage() {
         </form>
 
         <p className="mt-2 text-xs text-muted-foreground">
-          Demo flights: UA782 (Elevated), DL1180 (Clear), AA2210 (Incomplete).
+          Try UA782, DL1180, or AA2210.
         </p>
       </section>
 
-      <div className="mt-6">
+      <div className="mt-7">
         {brief ? (
           <BriefView key={brief.id} brief={brief} />
         ) : (
-          <div className="rounded-xl border border-border bg-card p-6 text-sm shadow-card">
-            <p className="font-semibold">We could not resolve {unresolved}</p>
+          <div className="rounded-2xl border border-border bg-card p-6 text-sm shadow-card">
+            <p className="font-semibold">We could not find {unresolved}</p>
             <p className="mt-1 text-muted-foreground">
-              Check the flight number and date. Aircue covers U.S. flights only during the MVP, and
-              missing data is never shown as a Clear result.
+              Double-check the flight number and date. We only cover U.S. flights right now, and we
+              would rather say nothing than guess.
             </p>
           </div>
         )}
