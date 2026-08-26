@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { AppShell } from "@/components/aircue/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/aircue/StatusPill";
-import { confidenceLabel } from "@/components/aircue/SignalRow";
+import { SignalMood } from "@/components/aircue/SignalRow";
 import { getBrief, getSignal } from "@/lib/aircue/data";
 
 export const Route = createFileRoute("/brief/$briefId/signal/$signalId")({
