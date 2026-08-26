@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Users } from "lucide-react";
 
+import { BottomNav } from "@/components/aircue/BottomNav";
+
 export const Route = createFileRoute("/buddies")({
   head: () => ({
     meta: [
