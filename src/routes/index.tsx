@@ -58,11 +58,11 @@ function SearchPage() {
     <AppShell>
       <section>
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          Know what could make your standby trip harder.
+          Will standby be hard today?
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Aircue watches weather, airport operations, FAA programs, the flight chain, and
-          destination demand around a U.S. flight.
+          Enter your flight and we will tell you, in plain English, what is working for or against
+          you. The decision stays yours.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
