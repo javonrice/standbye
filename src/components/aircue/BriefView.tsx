@@ -19,7 +19,7 @@ function Module({
   status: BriefSection["status"];
   summary: string;
   signals: Signal[];
-  unavailable?: string[];
+  unavailable?: string[] | undefined;
 }) {
   return (
     <section className="mt-7">
