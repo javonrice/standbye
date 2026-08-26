@@ -1,28 +1,26 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/aircue/AppShell";
-import { BriefView } from "@/components/aircue/BriefView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { briefs, defaultBrief, type Brief } from "@/lib/aircue/data";
+import { briefs, searchDisclaimer } from "@/lib/aircue/data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aircue — Will standby be hard today?" },
+      { title: "Aircue — Know what could make your standby trip harder" },
       {
         name: "description",
         content:
-          "Type in a flight and we tell you, in plain English, what could make flying standby harder today: weather, delays, cancellations, and busy cities.",
+          "Check a flight and see, in plain language, what outside conditions could make a standby attempt harder: weather, airport operations, FAA programs, and route cancellations.",
       },
-      { property: "og:title", content: "Aircue — Will standby be hard today?" },
+      { property: "og:title", content: "Aircue — Know what could make your standby trip harder" },
       {
         property: "og:description",
         content:
-          "Plain-English answers about what could make your standby flight harder. You make the call.",
+          "Plain-language standby briefs. Aircue does not show seats, list position, or whether you will clear.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -31,87 +29,69 @@ export const Route = createFileRoute("/")({
   component: SearchPage,
 });
 
-function resolveFlight(flightNumber: string): Brief | undefined {
-  const normalized = flightNumber.replace(/\s+/g, "").toUpperCase();
-  return briefs.find((b) => b.flightNumber === normalized);
-}
-
 function SearchPage() {
-  const [flightNumber, setFlightNumber] = useState(defaultBrief.flightNumber);
+  const navigate = useNavigate();
+  const [flightNumber, setFlightNumber] = useState("UA782");
   const [travelDate, setTravelDate] = useState("2026-08-01");
-  const [brief, setBrief] = useState<Brief | undefined>(defaultBrief);
-  const [unresolved, setUnresolved] = useState<string | null>(null);
+  const [notFoundFor, setNotFoundFor] = useState<string | null>(null);
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const found = resolveFlight(flightNumber);
+    const normalized = flightNumber.replace(/\s+/g, "").toUpperCase();
+    const found = briefs.find((b) => b.flightNumber === normalized);
     if (found) {
-      setBrief(found);
-      setUnresolved(null);
+      setNotFoundFor(null);
+      void navigate({ to: "/brief/$briefId", params: { briefId: found.id } });
     } else {
-      setBrief(undefined);
-      setUnresolved(flightNumber.toUpperCase());
+      setNotFoundFor(normalized);
     }
   }
 
   return (
     <AppShell>
-      <section>
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          Will standby be hard today?
+      <div className="mx-auto w-full max-w-md">
+        <h1 className="font-display text-3xl font-bold leading-tight tracking-tight">
+          Know what could make your standby trip harder.
         </h1>
-        <p className="mt-2 text-muted-foreground">
-          Enter your flight and we will tell you, in plain English, what is working for or against
-          you. The decision stays yours.
-        </p>
 
-        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <Label htmlFor="flight" className="text-xs text-muted-foreground">
-              Flight number
-            </Label>
-            <Input
-              id="flight"
-              value={flightNumber}
-              onChange={(e) => setFlightNumber(e.target.value)}
-              placeholder="UA782"
-              className="mt-1.5 h-12 bg-card text-base"
-            />
-          </div>
-          <div className="flex-1">
-            <Label htmlFor="date" className="text-xs text-muted-foreground">
-              Travel date
-            </Label>
-            <Input
-              id="date"
-              type="date"
-              value={travelDate}
-              onChange={(e) => setTravelDate(e.target.value)}
-              className="mt-1.5 h-12 bg-card text-base"
-            />
-          </div>
-          <Button type="submit" size="lg" className="h-12 px-6 text-base font-semibold">
-            <Search className="h-4 w-4" /> Check flight
+        <form onSubmit={handleSubmit} className="mt-6">
+          <Label htmlFor="flight" className="text-xs text-muted-foreground">
+            Flight number
+          </Label>
+          <Input
+            id="flight"
+            value={flightNumber}
+            onChange={(e) => setFlightNumber(e.target.value)}
+            placeholder="UA782"
+            className="mt-1.5 h-12 bg-card text-base"
+          />
+
+          <Label htmlFor="date" className="mt-4 block text-xs text-muted-foreground">
+            Travel date
+          </Label>
+          <Input
+            id="date"
+            type="date"
+            value={travelDate}
+            onChange={(e) => setTravelDate(e.target.value)}
+            className="mt-1.5 h-12 bg-card text-base"
+          />
+
+          <Button type="submit" className="mt-5 h-12 w-full text-sm font-semibold">
+            Check this flight
           </Button>
         </form>
 
-        <p className="mt-2 text-xs text-muted-foreground">
-          Try UA782, DL1180, or AA2210.
-        </p>
-      </section>
-
-      <div className="mt-7">
-        {brief ? (
-          <BriefView key={brief.id} brief={brief} />
-        ) : (
-          <div className="rounded-2xl border border-border bg-card p-6 text-sm shadow-card">
-            <p className="font-semibold">We could not find {unresolved}</p>
+        {notFoundFor && (
+          <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm shadow-card">
+            <p className="font-semibold">We could not find {notFoundFor}</p>
             <p className="mt-1 text-muted-foreground">
-              Double-check the flight number and date. We only cover U.S. flights right now, and we
-              would rather say nothing than guess.
+              Try UA782, DL1180, or AA2210. We would rather say nothing than guess.
             </p>
           </div>
         )}
+
+        <p className="mt-6 text-xs leading-relaxed text-muted-foreground">{searchDisclaimer}</p>
       </div>
     </AppShell>
   );

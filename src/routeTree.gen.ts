@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchesRouteImport } from './routes/watches'
 import { Route as BriefBriefIdRouteImport } from './routes/brief.$briefId'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
+import { Route as BriefBriefIdWatchRouteImport } from './routes/brief.$briefId.watch'
+import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,38 +36,74 @@ const ShareTokenRoute = ShareTokenRouteImport.update({
   path: '/share/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BriefBriefIdWatchRoute = BriefBriefIdWatchRouteImport.update({
+  id: '/watch',
+  path: '/watch',
+  getParentRoute: () => BriefBriefIdRoute,
+} as any)
+const BriefBriefIdSignalSignalIdRoute =
+  BriefBriefIdSignalSignalIdRouteImport.update({
+    id: '/signal/$signalId',
+    path: '/signal/$signalId',
+    getParentRoute: () => BriefBriefIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/watches': typeof WatchesRoute
-  '/brief/$briefId': typeof BriefBriefIdRoute
+  '/brief/$briefId': typeof BriefBriefIdRouteWithChildren
   '/share/$token': typeof ShareTokenRoute
+  '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
+  '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/watches': typeof WatchesRoute
-  '/brief/$briefId': typeof BriefBriefIdRoute
+  '/brief/$briefId': typeof BriefBriefIdRouteWithChildren
   '/share/$token': typeof ShareTokenRoute
+  '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
+  '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/watches': typeof WatchesRoute
-  '/brief/$briefId': typeof BriefBriefIdRoute
+  '/brief/$briefId': typeof BriefBriefIdRouteWithChildren
   '/share/$token': typeof ShareTokenRoute
+  '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
+  '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/watches' | '/brief/$briefId' | '/share/$token'
+  fullPaths:
+    | '/'
+    | '/watches'
+    | '/brief/$briefId'
+    | '/share/$token'
+    | '/brief/$briefId/watch'
+    | '/brief/$briefId/signal/$signalId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/watches' | '/brief/$briefId' | '/share/$token'
-  id: '__root__' | '/' | '/watches' | '/brief/$briefId' | '/share/$token'
+  to:
+    | '/'
+    | '/watches'
+    | '/brief/$briefId'
+    | '/share/$token'
+    | '/brief/$briefId/watch'
+    | '/brief/$briefId/signal/$signalId'
+  id:
+    | '__root__'
+    | '/'
+    | '/watches'
+    | '/brief/$briefId'
+    | '/share/$token'
+    | '/brief/$briefId/watch'
+    | '/brief/$briefId/signal/$signalId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   WatchesRoute: typeof WatchesRoute
-  BriefBriefIdRoute: typeof BriefBriefIdRoute
+  BriefBriefIdRoute: typeof BriefBriefIdRouteWithChildren
   ShareTokenRoute: typeof ShareTokenRoute
 }
 
@@ -99,13 +137,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/brief/$briefId/watch': {
+      id: '/brief/$briefId/watch'
+      path: '/watch'
+      fullPath: '/brief/$briefId/watch'
+      preLoaderRoute: typeof BriefBriefIdWatchRouteImport
+      parentRoute: typeof BriefBriefIdRoute
+    }
+    '/brief/$briefId/signal/$signalId': {
+      id: '/brief/$briefId/signal/$signalId'
+      path: '/signal/$signalId'
+      fullPath: '/brief/$briefId/signal/$signalId'
+      preLoaderRoute: typeof BriefBriefIdSignalSignalIdRouteImport
+      parentRoute: typeof BriefBriefIdRoute
+    }
   }
 }
+
+interface BriefBriefIdRouteChildren {
+  BriefBriefIdWatchRoute: typeof BriefBriefIdWatchRoute
+  BriefBriefIdSignalSignalIdRoute: typeof BriefBriefIdSignalSignalIdRoute
+}
+
+const BriefBriefIdRouteChildren: BriefBriefIdRouteChildren = {
+  BriefBriefIdWatchRoute: BriefBriefIdWatchRoute,
+  BriefBriefIdSignalSignalIdRoute: BriefBriefIdSignalSignalIdRoute,
+}
+
+const BriefBriefIdRouteWithChildren = BriefBriefIdRoute._addFileChildren(
+  BriefBriefIdRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   WatchesRoute: WatchesRoute,
-  BriefBriefIdRoute: BriefBriefIdRoute,
+  BriefBriefIdRoute: BriefBriefIdRouteWithChildren,
   ShareTokenRoute: ShareTokenRoute,
 }
 export const routeTree = rootRouteImport
