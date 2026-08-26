@@ -184,7 +184,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
 
         <Card title="What changed today">
           <ol className="mt-3 space-y-3">
-            {brief.changes.map((change) => (
+            {(brief.changes ?? []).map((change) => (
               <li key={change.id} className="flex gap-3 text-sm">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <span>
