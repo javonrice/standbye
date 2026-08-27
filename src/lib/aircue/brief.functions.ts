@@ -36,7 +36,11 @@ export interface FlightLeg {
   depLocalTime?: string;
 
   airlineName?: string;
+  /** Present when the leg came from a route search rather than a flight number. */
+  airlineCode?: string;
+  flightNumber?: string;
 }
+
 
 export interface ResolvedFlight {
   ok: boolean;
