@@ -23,7 +23,8 @@ export const Route = createFileRoute("/brief/$briefId/")({
   loader: async ({ params }) => {
     const brief = await getBrief({ data: { tripId: params.briefId } });
     if (!brief) throw notFound();
-    return brief;
+    const history = await getTripHistory({ data: { tripId: params.briefId } }).catch(() => null);
+    return { brief, history };
   },
   errorComponent: () => (
     <AppShell>
