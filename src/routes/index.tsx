@@ -271,7 +271,7 @@ function SearchScreen() {
         className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/40 via-background/30 to-background"
       />
 
-      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-12 pt-6 md:max-w-[calc(72rem-5.5rem)] md:px-10">
+      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-6 md:max-w-[calc(72rem-5.5rem)] md:px-10 md:pb-12">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src={mark.url} alt="" aria-hidden className="h-8 w-8 invert" />
