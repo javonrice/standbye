@@ -185,154 +185,142 @@ function SearchScreen() {
           </button>
         </div>
 
-        <div className="mt-auto md:mt-12 md:flex md:flex-1 md:items-center md:gap-12">
-        <div className="hidden md:block md:flex-1">
-          <p className="font-display text-4xl font-bold leading-tight tracking-tight lg:text-5xl">
-            Know what you are walking into
-            <br />
-            before you list standby.
-          </p>
-          <p className="mt-4 max-w-md text-base text-muted-foreground">
-            Aircue reads live airport, weather, and flight-chain conditions and tells you, in plain
-            language, what could make today harder.
-          </p>
-        </div>
+        <div className="mt-auto md:mt-auto md:flex md:flex-1 md:items-center md:justify-center">
+          <div className="rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl md:w-[26rem] md:p-6">
+            <h1 className="font-display text-2xl font-bold tracking-tight">Check a flight</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              What could make getting on standby harder today.
+            </p>
 
-        <div className="rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl md:w-[26rem] md:shrink-0 md:p-6">
-          <h1 className="font-display text-2xl font-bold tracking-tight">Check a flight</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            What could make getting on standby harder today.
-          </p>
-
-          <form
-            className="mt-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setError(null);
-              setNotice(null);
-              mutation.mutate();
-            }}
-          >
-            <div className="flex gap-3">
-              <div className="w-[9.5rem]">
-                <Label htmlFor="airline" className="text-xs text-muted-foreground">
-                  Airline
-                </Label>
-                <Select value={airline} onValueChange={setAirline}>
-                  <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
-                    <SelectValue placeholder="Airline" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AIRLINES.filter((a) => a.code !== ALL_AIRLINES || manual).map((a) => (
-                      <SelectItem key={a.code} value={a.code}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-1">
-                <Label htmlFor="flight-number" className="text-xs text-muted-foreground">
-                  Flight number
-                </Label>
-                <Input
-                  id="flight-number"
-                  inputMode="numeric"
-                  maxLength={4}
-                  autoComplete="off"
-                  value={flightNumber}
-                  onChange={(e) => setFlightNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="782"
-                  className="mt-1.5 h-12 bg-surface text-base"
-                />
-              </div>
-            </div>
-
-            <div className="mt-3">
-              <Label htmlFor="date" className="text-xs text-muted-foreground">
-                Travel date
-              </Label>
-              <Input
-                id="date"
-                type="date"
-                required
-                value={travelDate}
-                onChange={(e) => setTravelDate(e.target.value)}
-                className="mt-1.5 h-12 bg-surface text-base"
-              />
-            </div>
-
-            {manual && (
-              <>
-                <div className="mt-3 flex gap-3">
-                  <AirportField id="origin" label="From" value={origin} onChange={setOrigin} />
-                  <AirportField id="dest" label="To" value={dest} onChange={setDest} />
+            <form
+              className="mt-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setError(null);
+                setNotice(null);
+                mutation.mutate();
+              }}
+            >
+              <div className="flex gap-3">
+                <div className="w-[9.5rem]">
+                  <Label htmlFor="airline" className="text-xs text-muted-foreground">
+                    Airline
+                  </Label>
+                  <Select value={airline} onValueChange={setAirline}>
+                    <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
+                      <SelectValue placeholder="Airline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AIRLINES.filter((a) => a.code !== ALL_AIRLINES || manual).map((a) => (
+                        <SelectItem key={a.code} value={a.code}>
+                          {a.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="mt-3">
-                  <Label htmlFor="time" className="text-xs text-muted-foreground">
-                    Departs (optional)
+                <div className="flex-1">
+                  <Label htmlFor="flight-number" className="text-xs text-muted-foreground">
+                    Flight number
                   </Label>
                   <Input
-                    id="time"
-                    type="time"
-                    value={depTime}
-                    onChange={(e) => setDepTime(e.target.value)}
+                    id="flight-number"
+                    inputMode="numeric"
+                    maxLength={4}
+                    autoComplete="off"
+                    value={flightNumber}
+                    onChange={(e) => setFlightNumber(e.target.value.replace(/\D/g, ""))}
+                    placeholder="782"
                     className="mt-1.5 h-12 bg-surface text-base"
                   />
                 </div>
-              </>
-            )}
+              </div>
 
-            <div className="mt-3">
-              <Label htmlFor="trip-name" className="text-xs text-muted-foreground">
-                Trip name (optional)
-              </Label>
-              <Input
-                id="trip-name"
-                value={tripName}
-                autoComplete="off"
-                maxLength={40}
-                onChange={(e) => setTripName(e.target.value)}
-                placeholder="Morning to Chicago"
-                className="mt-1.5 h-12 bg-surface text-base"
-              />
-            </div>
+              <div className="mt-3">
+                <Label htmlFor="date" className="text-xs text-muted-foreground">
+                  Travel date
+                </Label>
+                <Input
+                  id="date"
+                  type="date"
+                  required
+                  value={travelDate}
+                  onChange={(e) => setTravelDate(e.target.value)}
+                  className="mt-1.5 h-12 bg-surface text-base"
+                />
+              </div>
 
-            {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
-
-            <Button
-              type="submit"
-              disabled={mutation.isPending}
-              className="mt-4 h-12 w-full text-sm font-semibold"
-            >
-              {mutation.isPending ? (
+              {manual && (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Checking conditions
-                </>
-              ) : (
-                <>
-                  <Plane className="h-4 w-4" /> Check standby pressure
+                  <div className="mt-3 flex gap-3">
+                    <AirportField id="origin" label="From" value={origin} onChange={setOrigin} />
+                    <AirportField id="dest" label="To" value={dest} onChange={setDest} />
+                  </div>
+                  <div className="mt-3">
+                    <Label htmlFor="time" className="text-xs text-muted-foreground">
+                      Departs (optional)
+                    </Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={depTime}
+                      onChange={(e) => setDepTime(e.target.value)}
+                      className="mt-1.5 h-12 bg-surface text-base"
+                    />
+                  </div>
                 </>
               )}
-            </Button>
 
-            {!manual && (
-              <button
-                type="button"
-                onClick={() => setManual(true)}
-                className="mt-3 w-full text-center text-xs text-muted-foreground underline underline-offset-4"
+              <div className="mt-3">
+                <Label htmlFor="trip-name" className="text-xs text-muted-foreground">
+                  Trip name (optional)
+                </Label>
+                <Input
+                  id="trip-name"
+                  value={tripName}
+                  autoComplete="off"
+                  maxLength={40}
+                  onChange={(e) => setTripName(e.target.value)}
+                  placeholder="Morning to Chicago"
+                  className="mt-1.5 h-12 bg-surface text-base"
+                />
+              </div>
+
+              {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
+
+              <Button
+                type="submit"
+                disabled={mutation.isPending}
+                className="mt-4 h-12 w-full text-sm font-semibold"
               >
-                Enter route manually
-              </button>
-            )}
-          </form>
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Checking conditions
+                  </>
+                ) : (
+                  <>
+                    <Plane className="h-4 w-4" /> Check standby pressure
+                  </>
+                )}
+              </Button>
 
-          {error && <p className="mt-3 text-sm text-rough">{error}</p>}
+              {!manual && (
+                <button
+                  type="button"
+                  onClick={() => setManual(true)}
+                  className="mt-3 w-full text-center text-xs text-muted-foreground underline underline-offset-4"
+                >
+                  Enter route manually
+                </button>
+              )}
+            </form>
 
-          <p className="mt-3 text-center text-[0.7rem] leading-relaxed text-muted-foreground">
-            {searchDisclaimer}
-          </p>
-        </div>
+            {error && <p className="mt-3 text-sm text-rough">{error}</p>}
+
+            <p className="mt-3 text-center text-[0.7rem] leading-relaxed text-muted-foreground">
+              {searchDisclaimer}
+            </p>
+          </div>
         </div>
       </div>
 
