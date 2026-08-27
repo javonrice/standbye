@@ -266,6 +266,8 @@ export async function getRouteHistory(input: {
     recentMonths,
     load: loadRow ? toLoad(loadRow, `${monthName} ${loadRow.year}`) : null,
     loadPriorYears,
+    loadRecentMonths,
+    loadTypical,
     notes,
   };
 }
