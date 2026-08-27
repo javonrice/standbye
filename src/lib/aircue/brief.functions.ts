@@ -100,9 +100,50 @@ export const resolveFlight = createServerFn({ method: "POST" })
   });
 
 
-export const createBrief = createServerFn({ method: "POST" })
+
+/** Route search: the flights leaving `origin` for `dest` that day, for the picker. */
+export const resolveRoute = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
+      .object({
+        origin: iata,
+        dest: iata,
+        travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a travel date"),
+        airline: z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[A-Z0-9]{2,3}$/, "Pick an airline")
+          .optional(),
+        depTime: z
+          .string()
+          .regex(/^\d{2}:\d{2}$/)
+          .optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }): Promise<ResolvedFlight> => {
+    const { aeroDataBoxEnabled } = await import("@/lib/aircue/aerodatabox.server");
+    if (!aeroDataBoxEnabled()) return { ok: false, reason: "quota" };
+
+    const { findRouteLegs } = await import("@/lib/aircue/route-search.server");
+    try {
+      const { legs, budgetBlocked } = await findRouteLegs(
+        data.origin,
+        data.dest,
+        data.travelDate,
+        data.airline || "ALL",
+        data.depTime,
+      );
+      if (legs.length === 0) return { ok: false, reason: budgetBlocked ? "quota" : "not_found" };
+      return { ok: true, legs };
+    } catch (error) {
+      console.error("resolveRoute failed", error);
+      return { ok: false, reason: "error" };
+    }
+  });
+
+
       .object({
         tripName: z.string().trim().max(40, "Keep the trip name short").optional(),
         travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a travel date"),
