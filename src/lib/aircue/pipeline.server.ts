@@ -305,7 +305,7 @@ function eventSignals(
 function chainStub(retrievedAt: string, tripId: string, reason: string): SignalDraft {
   return {
     location: "chain",
-    category: "chain_status",
+    category: "flight",
     confidence: "context",
     severity: 0,
     title: "Flight status not available",
