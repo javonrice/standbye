@@ -18,6 +18,26 @@ export interface HistoryLoadRow {
   sourcePeriod: string;
 }
 
+export const TIME_BLOCKS = ["morning", "midday", "evening", "late"] as const;
+
+export type TimeBlock = (typeof TIME_BLOCKS)[number];
+
+/** Short, plain-language names for each departure window. */
+export const timeBlockShort: Record<string, string> = {
+  morning: "Morning",
+  midday: "Afternoon",
+  evening: "Evening",
+  late: "Night",
+};
+
+/** Local-time range each departure window covers. */
+export const timeBlockRange: Record<string, string> = {
+  morning: "before 11am",
+  midday: "11am – 4pm",
+  evening: "4pm – 9pm",
+  late: "after 9pm",
+};
+
 export interface RouteHistory {
   origin: string;
   dest: string;
