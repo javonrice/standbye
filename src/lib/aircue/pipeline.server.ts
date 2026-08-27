@@ -516,13 +516,11 @@ export async function generateBrief(tripId: string): Promise<void> {
       pressure_index: pressure,
       headline: headlineFor(status, finalDrafts),
       why_summary: whySummary(finalDrafts, status),
-      dep_card_status: cardStatus(
-        finalDrafts.filter((d) => d.location === "departure"),
-        depSourcesOk,
+      dep_card_status: toDbStatus(
+        cardStatus(finalDrafts.filter((d) => d.location === "departure"), depSourcesOk),
       ),
-      arr_card_status: cardStatus(
-        finalDrafts.filter((d) => d.location === "arrival"),
-        arrSourcesOk,
+      arr_card_status: toDbStatus(
+        cardStatus(finalDrafts.filter((d) => d.location === "arrival"), arrSourcesOk),
       ),
       chain_card_status: chainStatus ? "clear" : "incomplete",
       generated_at: retrievedAt,
