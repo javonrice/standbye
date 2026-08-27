@@ -63,7 +63,7 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
 
       {headline ? (
         <p className="mt-2 text-sm leading-relaxed text-foreground/85">
-          On {history.origin} → {history.dest}, {headline.label.toLowerCase()} have historically
+          On {history.origin} → {history.dest}, {headline.label} have historically
           been cancelled {pct(headline.cancelRate)} of the time and left 15+ minutes late{" "}
           {pct(headline.dep15Rate)} of the time, with a typical{" "}
           {headline.medianLaterBackups === 0
@@ -79,7 +79,7 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
 
       {history.byTimeBlock && history.typical && (
         <p className="mt-2 text-sm leading-relaxed text-foreground/85">
-          Looking just at {history.byTimeBlock.label.toLowerCase()}:{" "}
+          Looking just at {history.byTimeBlock.label}:{" "}
           {pct(history.byTimeBlock.cancelRate)} cancelled, {pct(history.byTimeBlock.dep15Rate)} late.
         </p>
       )}
