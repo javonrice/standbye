@@ -928,7 +928,7 @@ async function recordChanges(
 
   const { data: prevSignals } = await supabaseAdmin
     .from("signals")
-    .select("fingerprint,summary,category,evidence")
+    .select("fingerprint,summary,category,evidence,severity")
     .eq("briefing_id", previous.id);
   const before = new Set((prevSignals ?? []).map((s) => s.fingerprint));
   const after = new Set(drafts.map((d) => d.fingerprint));
@@ -965,7 +965,7 @@ async function recordChanges(
   for (const prev of prevSignals ?? []) {
     if (after.has(prev.fingerprint)) continue;
     // Context-only chain rows (aircraft, "not available") are noise, not resolutions.
-    if (prev.category === "aircraft") continue;
+    if (prev.category === "aircraft" || (prev.severity ?? 0) < 30) continue;
     events.push({
       trip_id: tripId,
       briefing_id: briefingId,
