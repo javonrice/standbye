@@ -21,6 +21,8 @@ export interface HistoryLoadRow {
 export interface RouteHistory {
   origin: string;
   dest: string;
+  /** Marketing airline the figures cover, or "ALL" when pooled. */
+  carrier: string;
   month: number;
   monthName: string;
   dow: number;
