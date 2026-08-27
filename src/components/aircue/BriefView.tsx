@@ -272,14 +272,24 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
 
       {/* Primary CTA */}
       {!readOnly && (
-        <Link
-          to="/brief/$briefId/watch"
-          params={{ briefId: brief.id }}
-          className="glass-press mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-card"
+        <button
+          type="button"
+          onClick={watch.start}
+          disabled={watch.pending}
+          className="glass-press mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-card disabled:opacity-70"
         >
-          <Bell className="h-5 w-5" /> Watch
-        </Link>
+          {watch.pending ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" /> Adding to Watching
+            </>
+          ) : (
+            <>
+              <Bell className="h-5 w-5" /> Watch this flight
+            </>
+          )}
+        </button>
       )}
+
 
       {/* Why */}
       <section className="glass glass-sheen mt-6 rounded-3xl p-5">
