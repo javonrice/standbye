@@ -106,12 +106,31 @@ function QuickAction({
   label,
   to,
   params,
+  onClick,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  to: string;
+  to?: string;
   params?: Record<string, string>;
+  onClick?: () => void;
 }) {
+  const inner = (
+    <>
+      <span className="glass glass-press glass-sheen flex h-14 w-14 items-center justify-center rounded-full">
+        <Icon className="h-5 w-5 text-foreground" />
+      </span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className="flex flex-1 flex-col items-center gap-2">
+        {inner}
+      </button>
+    );
+  }
+
   return (
     <Link
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,13 +139,11 @@ function QuickAction({
       params={params as any}
       className="flex flex-1 flex-col items-center gap-2"
     >
-      <span className="glass glass-press glass-sheen flex h-14 w-14 items-center justify-center rounded-full">
-        <Icon className="h-5 w-5 text-foreground" />
-      </span>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      {inner}
     </Link>
   );
 }
+
 
 function Section({
   title,
