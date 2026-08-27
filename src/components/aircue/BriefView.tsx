@@ -183,6 +183,8 @@ function Section({
 
 export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?: boolean }) {
   const score = brief.pressure;
+  const watch = useWatchAction(brief.id);
+
 
   return (
     <div className="aurora relative mx-auto w-full max-w-md px-1">
