@@ -266,3 +266,104 @@
   0%, 100% { transform: scale(1); opacity: 0.75; }
   50% { transform: scale(1.08); opacity: 1; }
 }
+
+/* --- Searching overlay: radar sweep + route arc --- */
+@keyframes cue-radar-out {
+  0% { transform: scale(0.45); opacity: 0.55; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@keyframes cue-sweep {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes cue-arc-draw {
+  0% { stroke-dashoffset: 100; }
+  55%, 100% { stroke-dashoffset: 0; }
+}
+
+@keyframes cue-plane-fly {
+  0% { offset-distance: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+@keyframes cue-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.9); opacity: 0.5; }
+}
+
+.cue-radar-ring {
+  position: absolute;
+  height: 14rem;
+  width: 14rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--primary) 45%, transparent);
+  animation: cue-radar-out 3s ease-out infinite;
+}
+
+.cue-radar-sweep {
+  position: absolute;
+  height: 14rem;
+  width: 14rem;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in oklab, var(--primary) 30%, transparent),
+    transparent 28%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(circle, transparent 18%, #000 22%, #000 96%, transparent 100%);
+  animation: cue-sweep 3.4s linear infinite;
+}
+
+.cue-radar-grid {
+  fill: none;
+  stroke: color-mix(in oklab, var(--foreground) 12%, transparent);
+  stroke-width: 1;
+}
+
+.cue-arc-track {
+  stroke: color-mix(in oklab, var(--foreground) 14%, transparent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.cue-arc-draw {
+  stroke: var(--primary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  animation: cue-arc-draw 3s ease-in-out infinite;
+}
+
+.cue-node {
+  fill: var(--primary);
+}
+
+.cue-plane {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: 1.25rem;
+  width: 1.25rem;
+  offset-path: path("M32 132 C 70 60, 130 60, 168 132");
+  offset-rotate: auto;
+  animation: cue-plane-fly 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--primary) 70%, transparent));
+}
+
+.cue-dot-pulse {
+  animation: cue-dot-pulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cue-radar-ring,
+  .cue-radar-sweep,
+  .cue-arc-draw,
+  .cue-plane,
+  .cue-dot-pulse {
+    animation: none;
+  }
+}
