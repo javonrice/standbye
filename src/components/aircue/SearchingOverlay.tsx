@@ -2,15 +2,13 @@ import { useEffect, useState } from "react";
 import { Check, Plane } from "lucide-react";
 
 /**
- * Full-screen "we are working" screen shown while a flight is being resolved
- * and while its brief is being built. Reads like a departure board coming to
- * life: a radar sweep over a great-circle arc, a plane tracing the route, and
- * the checks ticking off as they run.
+ * Full-screen "we are working" screen shown once a specific flight leg is
+ * confirmed and its brief is being built. Reads like a departure board coming
+ * to life: a radar sweep over a great-circle arc, a plane tracing the route,
+ * and the checks ticking off as they run.
  */
 
-export type SearchingPhase = "resolving" | "building";
-
-const RESOLVING_STEPS = ["Looking up your flight", "Finding today's legs"] as const;
+export type SearchingPhase = "building";
 
 const BUILDING_STEPS = [
   "Reading airport conditions",
@@ -32,7 +30,7 @@ interface SearchingOverlayProps {
 }
 
 export function SearchingOverlay({ phase, flightLabel, origin, dest }: SearchingOverlayProps) {
-  const steps = phase === "resolving" ? RESOLVING_STEPS : BUILDING_STEPS;
+  const steps = BUILDING_STEPS;
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -97,7 +95,7 @@ export function SearchingOverlay({ phase, flightLabel, origin, dest }: Searching
         ) : null}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {phase === "resolving" ? "Finding your flight" : "Building your standby brief"}
+        Building your standby brief
       </p>
 
       <ul className="mt-6 w-full max-w-xs space-y-2">

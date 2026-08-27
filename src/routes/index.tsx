@@ -168,7 +168,6 @@ function SearchScreen() {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!manual && flightNumber) {
-        setPhase("resolving");
         const found = await resolve({
           data: { airline, flightNumber, travelDate, deviceId },
         });
