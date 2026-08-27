@@ -387,6 +387,50 @@ export type Database = {
           },
         ]
       }
+      serpapi_usage_log: {
+        Row: {
+          adults: number | null
+          bucket: string | null
+          created_at: string
+          device_id: string | null
+          flight_label: string | null
+          id: string
+          purpose: string
+          route_key: string | null
+          trip_id: string | null
+        }
+        Insert: {
+          adults?: number | null
+          bucket?: string | null
+          created_at?: string
+          device_id?: string | null
+          flight_label?: string | null
+          id?: string
+          purpose?: string
+          route_key?: string | null
+          trip_id?: string | null
+        }
+        Update: {
+          adults?: number | null
+          bucket?: string | null
+          created_at?: string
+          device_id?: string | null
+          flight_label?: string | null
+          id?: string
+          purpose?: string
+          route_key?: string | null
+          trip_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "serpapi_usage_log_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signals: {
         Row: {
           active_from: string | null
@@ -617,6 +661,10 @@ export type Database = {
     }
     Functions: {
       api_units_this_month: { Args: { _provider?: string }; Returns: number }
+      serpapi_probes_this_month: {
+        Args: { _device_id?: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
