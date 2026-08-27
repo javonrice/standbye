@@ -86,7 +86,8 @@ async function tripProbeCount(tripId: string): Promise<number> {
   const { count } = await supabaseAdmin
     .from("serpapi_usage_log")
     .select("id", { count: "exact", head: true })
-    .eq("trip_id", tripId);
+    .eq("trip_id", tripId)
+    .eq("adults", 9); // one adults=9 row per fresh probe; step-down rows don't count
   return count ?? 0;
 }
 
