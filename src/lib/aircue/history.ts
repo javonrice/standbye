@@ -2,6 +2,8 @@
 
 export interface HistoryPatternRow {
   label: string;
+  /** Departure window key when this row is a time-block row. */
+  block?: string;
   cancelRate: number;
   dep15Rate: number;
   medianLaterBackups: number;
@@ -52,6 +54,8 @@ export interface RouteHistory {
   typical: HistoryPatternRow | null;
   /** Pooled baseline for this month + departure time block. */
   byTimeBlock: HistoryPatternRow | null;
+  /** Every departure window for this month, morning → night. */
+  timeBlocks: HistoryPatternRow[];
   /** Same month in prior published years, newest first. */
   sameMonthPriorYears: HistoryPatternRow[];
   /** Most recent published months leading up to today, oldest first. */
