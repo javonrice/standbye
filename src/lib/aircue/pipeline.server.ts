@@ -606,15 +606,28 @@ function pressureIndex(drafts: SignalDraft[]): number {
 }
 
 function headlineFor(status: BriefStatus, drafts: SignalDraft[]): string {
-  const kinds = new Set(drafts.filter((d) => d.severity >= 30).map((d) => d.category));
+  const material = drafts.filter((d) => d.severity >= 30);
+  const kinds = new Set(material.map((d) => d.category));
+  const has = (fp: string) => material.some((d) => d.fingerprint.startsWith(fp));
+  const ownFlight = material.find((d) => d.fingerprint.startsWith("chain:status:"));
+  const ownState = (ownFlight?.evidence?.["state"] as string | undefined) ?? "";
+
   switch (status) {
     case "disruption":
+      if (ownState === "cancelled") return "Your flight is showing cancelled.";
+      if (ownState === "diverted") return "Your flight has been diverted.";
       return "An operational restriction is active in your window.";
     case "elevated":
+      if (has("chain:earlier-cancels"))
+        return "Earlier flights on this route were cancelled — later departures often fill.";
       return kinds.size > 1
         ? "Several conditions overlap in your window."
         : "One significant condition sits in your window.";
     case "watch":
+      if (ownState === "delayed") return "Your flight is running late.";
+      if (has("chain:earlier-lates")) return "Earlier flights on this route are running late.";
+      if (has("chain:earlier-cancels"))
+        return "An earlier flight on this route was cancelled.";
       return "Something is developing in your window.";
     case "incomplete":
       return "We could not check every required source.";
