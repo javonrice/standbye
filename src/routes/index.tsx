@@ -90,7 +90,7 @@ function SearchScreen() {
   const navigate = useNavigate();
   const create = useServerFn(createBrief);
   const [deviceId, setDeviceId] = useState("");
-  const [flightNumber, setFlightNumber] = useState("");
+  const [tripName, setTripName] = useState("");
   const [travelDate, setTravelDate] = useState(todayISO());
   const [origin, setOrigin] = useState("");
   const [dest, setDest] = useState("");
