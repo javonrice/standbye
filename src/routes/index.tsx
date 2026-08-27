@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createBrief, searchAirports } from "@/lib/aircue/brief.functions";
+import { createBrief, resolveFlight, searchAirports } from "@/lib/aircue/brief.functions";
 import { AIRLINES, ALL_AIRLINES } from "@/lib/aircue/airlines";
 import { getDeviceId } from "@/lib/aircue/device";
 import { searchDisclaimer } from "@/lib/aircue/data";
