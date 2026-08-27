@@ -11,7 +11,15 @@ import { BottomNav } from "@/components/aircue/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createBrief, searchAirports } from "@/lib/aircue/brief.functions";
+import { AIRLINES, ALL_AIRLINES } from "@/lib/aircue/airlines";
 import { getDeviceId } from "@/lib/aircue/device";
 import { searchDisclaimer } from "@/lib/aircue/data";
 
@@ -95,6 +103,7 @@ function SearchScreen() {
   const [origin, setOrigin] = useState("");
   const [dest, setDest] = useState("");
   const [depTime, setDepTime] = useState("");
+  const [airline, setAirline] = useState(ALL_AIRLINES);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,7 +113,7 @@ function SearchScreen() {
   const mutation = useMutation({
     mutationFn: () =>
       create({
-        data: { tripName, travelDate, origin, dest, depTime, deviceId },
+        data: { tripName, travelDate, origin, dest, depTime, deviceId, airline },
       }),
     onSuccess: (result) => {
       void navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
@@ -200,6 +209,24 @@ function SearchScreen() {
                   className="mt-1.5 h-12 bg-surface text-base"
                 />
               </div>
+            </div>
+
+            <div className="mt-3">
+              <Label htmlFor="airline" className="text-xs text-muted-foreground">
+                Airline
+              </Label>
+              <Select value={airline} onValueChange={setAirline}>
+                <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
+                  <SelectValue placeholder="All airlines" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AIRLINES.map((a) => (
+                    <SelectItem key={a.code} value={a.code}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <p className="mt-3 text-xs text-muted-foreground">
