@@ -5,6 +5,7 @@
  * clearance odds. Every figure carries its source period and publication lag.
  */
 
+import { TIME_BLOCKS, timeBlockShort } from "@/lib/aircue/history";
 import type {
   HistoryLoadRow,
   HistoryPatternRow,
@@ -238,6 +239,7 @@ export async function getRouteHistory(input: {
       blockRow && timeBlock
         ? toPattern(blockRow, `${monthName} ${timeBlockLabel[timeBlock] ?? timeBlock}`)
         : null,
+    timeBlocks,
     sameMonthPriorYears,
     recentMonths,
     load: loadRow ? toLoad(loadRow, `${monthName} ${loadRow.year}`) : null,
