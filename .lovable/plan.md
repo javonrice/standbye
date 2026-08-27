@@ -1,6 +1,6 @@
 # AirCue sellable tightness probe (SerpAPI)
 
-Adds one new AirCue signal to each brief: is this flight still selling many economy seats publicly, only a few, or none. Output is always a coarse bucket — `9+`, `1-8` (with an approximate N), or `0` — never seat counts, standby position, or clearance odds.
+Adds one new AirCue signal to each brief: is this flight still selling many economy seats publicly, only a few, or none. Output is `9+`, the exact party size N (1–8) at which the flight was still bookable, or `0` — never standby position or clearance odds. When it's 1–8, the UI shows the number, e.g. "only about 4 sellable seats left in this search".
 
 ## What the user sees
 
