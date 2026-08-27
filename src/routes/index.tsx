@@ -7,7 +7,6 @@ import { Loader2, Plane, User } from "lucide-react";
 import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
-import { BottomNav } from "@/components/aircue/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,7 +169,7 @@ function SearchScreen() {
         className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/40 via-background/30 to-background"
       />
 
-      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 md:ml-[5.5rem] md:max-w-[calc(72rem-5.5rem)] md:px-10 md:pb-12 lg:ml-56">
+      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-4 pb-12 pt-6 md:max-w-[calc(72rem-5.5rem)] md:px-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <img src={mark.url} alt="" aria-hidden className="h-8 w-8 invert" />
@@ -185,8 +184,21 @@ function SearchScreen() {
           </button>
         </div>
 
-        <div className="mt-auto md:mt-auto md:flex md:flex-1 md:items-center md:justify-center">
-          <div className="rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl md:w-[26rem] md:p-6">
+        <div className="mt-auto md:mt-12 md:flex md:flex-1 md:items-center md:gap-12">
+          <div className="hidden md:block md:flex-1">
+            <p className="font-display text-4xl font-bold leading-tight tracking-tight lg:text-5xl">
+              Know what you are walking into
+              <br />
+              before you list standby.
+            </p>
+            <p className="mt-4 max-w-md text-base text-muted-foreground">
+              Aircue reads live airport, weather, and flight-chain conditions and tells you, in plain
+              language, what could make today harder.
+            </p>
+          </div>
+
+          <div className="md:w-[26rem] md:shrink-0">
+            <div className="rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl md:p-6">
             <h1 className="font-display text-2xl font-bold tracking-tight">Check a flight</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               What could make getting on standby harder today.
@@ -323,9 +335,7 @@ function SearchScreen() {
           </div>
         </div>
       </div>
-
-
-      <BottomNav />
+    </div>
     </div>
   );
 }
