@@ -346,6 +346,8 @@ export function BriefView({
         briefId={brief.id}
       />
 
+      {history && <HistoryPanel history={history} />}
+
       <p className="mt-6 text-xs leading-relaxed text-muted-foreground">{disclaimer}</p>
     </div>
   );
