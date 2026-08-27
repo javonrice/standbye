@@ -357,3 +357,219 @@ function staleOrBlocked(
   }
   return { ok: false, bucket: null, largestN: null, adultsTested: [], fromCache: false, reason };
 }
+
+/* ------------------------------ route board ------------------------------ */
+
+export interface RouteBoardFlight {
+  airlineCode: string;
+  airlineName: string;
+  flightNumber: string;
+  flightLabel: string;
+  depLocal: string;
+  arrLocal: string;
+  bucket: SellableBucket;
+  largestN: number | null;
+}
+
+export interface RouteBoardResult {
+  ok: boolean;
+  fromCache: boolean;
+  elapsedMs: number;
+  flights: RouteBoardFlight[];
+  reason?: "disabled" | "empty" | "error";
+}
+
+interface BoardCachePayload {
+  flights: RouteBoardFlight[];
+  builtAt: string;
+}
+
+/** One-way economy nonstop search at a given party size, cached per route+adults. */
+async function routeSearchCached(params: {
+  origin: string;
+  dest: string;
+  date: string;
+  carrier: string | null;
+  adults: number;
+  ttlMinutes: number;
+}): Promise<SerpSearchResponse> {
+  const filter = params.carrier ?? "all";
+  const key = `serpapi:routeN:${params.origin}:${params.dest}:${params.date}:${params.adults}:${filter}`;
+  const cached = await readCache<SerpSearchResponse>(key);
+  if (cached?.fresh) return cached.data;
+
+  const apiKey = process.env["SERPAPI_API_KEY"];
+  if (!apiKey) throw new Error("SERPAPI_API_KEY is not configured");
+  const qs = new URLSearchParams({
+    engine: "google_flights",
+    type: "2",
+    departure_id: params.origin,
+    arrival_id: params.dest,
+    outbound_date: params.date,
+    adults: String(params.adults),
+    travel_class: "1",
+    stops: "1", // nonstop only
+    hl: "en",
+    gl: "us",
+    currency: "USD",
+    api_key: apiKey,
+  });
+  if (params.carrier) qs.set("include_airlines", params.carrier);
+  const res = await fetch(`https://serpapi.com/search.json?${qs}`);
+  if (!res.ok) throw new Error(`SerpAPI responded ${res.status}`);
+  const body = (await res.json()) as SerpSearchResponse;
+  await writeCache(key, body, params.ttlMinutes);
+  return body;
+}
+
+interface Nonstop {
+  code: string;
+  digits: string;
+  label: string;
+  airlineName: string;
+  depLocal: string;
+  arrLocal: string;
+}
+
+function localTime(raw: string | undefined): string {
+  if (!raw) return "";
+  const time = raw.slice(11, 16);
+  if (!/^\d{2}:\d{2}$/.test(time)) return "";
+  const [h, m] = time.split(":").map(Number);
+  const hour12 = (h ?? 0) % 12 || 12;
+  return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${(h ?? 0) < 12 ? "AM" : "PM"}`;
+}
+
+/** Single-segment priced itineraries, keyed by normalized flight number. */
+function nonstopsFrom(body: SerpSearchResponse): Map<string, Nonstop> {
+  const out = new Map<string, Nonstop>();
+  for (const it of [...(body.best_flights ?? []), ...(body.other_flights ?? [])]) {
+    if (typeof it.price !== "number") continue;
+    const segments = it.flights ?? [];
+    if (segments.length !== 1) continue;
+    const seg = segments[0]!;
+    const label = normalizeFlightNumber(seg.flight_number ?? "");
+    if (!label) continue;
+    const code = label.slice(0, 2);
+    const digits = label.slice(2);
+    if (!digits) continue;
+    if (!out.has(label)) {
+      out.set(label, {
+        code,
+        digits,
+        label,
+        airlineName: seg.airline ?? code,
+        depLocal: localTime(seg.departure_airport?.time),
+        arrLocal: localTime(seg.arrival_airport?.time),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Route day board: every nonstop that is still sellable in the public search,
+ * with a coarse AirCue bucket. Quick mode runs adults=9 (bucket "9+") plus
+ * adults=1 (everything else, bucket "1-8"). Precise mode steps the shared
+ * levels down to pin the exact largest party size.
+ */
+export async function buildRouteBoard(input: {
+  origin: string;
+  dest: string;
+  date: string;
+  carrier: string | null;
+  mode: "quick" | "precise";
+  deviceId: string | null;
+}): Promise<RouteBoardResult> {
+  const started = Date.now();
+  if (!serpApiEnabled()) {
+    return { ok: false, fromCache: false, elapsedMs: 0, flights: [], reason: "disabled" };
+  }
+
+  const filter = input.carrier ?? "all";
+  const routeKey = `${input.origin}:${input.dest}:${input.date}:${filter}`;
+  const boardKey = `serpapi:routeday:${routeKey}:${input.mode}`;
+  const sameDay = input.date === new Date().toISOString().slice(0, 10);
+  const ttlMinutes = sameDay
+    ? NEAR_DEP_TTL_MIN
+    : envInt("AIRCUE_SELLABLE_CACHE_TTL_MIN", DEFAULT_TTL_MIN);
+
+  const cachedBoard = await readCache<BoardCachePayload>(boardKey);
+  if (cachedBoard?.fresh) {
+    return {
+      ok: true,
+      fromCache: true,
+      elapsedMs: Date.now() - started,
+      flights: cachedBoard.data.flights,
+    };
+  }
+
+  try {
+    const shared = { origin: input.origin, dest: input.dest, date: input.date, carrier: input.carrier, ttlMinutes };
+    const [at9, at1] = await Promise.all([
+      routeSearchCached({ ...shared, adults: 9 }),
+      routeSearchCached({ ...shared, adults: 1 }),
+    ]);
+    const nine = nonstopsFrom(at9);
+    const one = nonstopsFrom(at1);
+
+    const adultsHit = [9, 1];
+    const flights: RouteBoardFlight[] = [];
+    const tight: string[] = [];
+
+    for (const [label, flight] of [...one, ...nine]) {
+      if (flights.some((f) => f.flightLabel === label)) continue;
+      const bookableAt9 = nine.has(label);
+      if (!bookableAt9) tight.push(label);
+      flights.push({
+        airlineCode: flight.code,
+        airlineName: flight.airlineName,
+        flightNumber: flight.digits,
+        flightLabel: label,
+        depLocal: flight.depLocal,
+        arrLocal: flight.arrLocal,
+        bucket: bookableAt9 ? "9+" : "1-8",
+        largestN: bookableAt9 ? 9 : null,
+      });
+    }
+
+    if (input.mode === "precise" && tight.length > 0) {
+      const pending = new Set(tight);
+      for (const n of STEPDOWN) {
+        if (pending.size === 0) break;
+        const body = await routeSearchCached({ ...shared, adults: n });
+        adultsHit.push(n);
+        const present = nonstopsFrom(body);
+        for (const label of [...pending]) {
+          if (!present.has(label)) continue;
+          const row = flights.find((f) => f.flightLabel === label);
+          if (row) row.largestN = n;
+          pending.delete(label);
+        }
+      }
+    }
+
+    flights.sort((a, b) => a.depLocal.localeCompare(b.depLocal));
+
+    await writeCache(boardKey, { flights, builtAt: new Date().toISOString() }, ttlMinutes);
+    await supabaseAdmin.from("serpapi_usage_log").insert(
+      adultsHit.map((adults) => ({
+        purpose: "route_board",
+        route_key: routeKey,
+        flight_label: null,
+        adults,
+        bucket: null,
+        device_id: input.deviceId,
+        trip_id: null,
+      })),
+    );
+
+    if (flights.length === 0) {
+      return { ok: false, fromCache: false, elapsedMs: Date.now() - started, flights: [], reason: "empty" };
+    }
+    return { ok: true, fromCache: false, elapsedMs: Date.now() - started, flights };
+  } catch (error) {
+    console.error("route board failed", routeKey, error);
+    return { ok: false, fromCache: false, elapsedMs: Date.now() - started, flights: [], reason: "error" };
+  }
+}
