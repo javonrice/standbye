@@ -14,14 +14,6 @@ import { cn } from "@/lib/utils";
 import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
 import { disclaimer } from "@/lib/aircue/data";
 
-const pressureScore: Record<BriefStatus, number> = {
-  clear: 12,
-  watch: 38,
-  elevated: 68,
-  disruption: 90,
-  incomplete: 45,
-};
-
 const orbGlow: Record<BriefStatus, string> = {
   clear: "radial-gradient(circle, var(--fine) 0%, transparent 70%)",
   watch: "radial-gradient(circle, var(--watch) 0%, transparent 70%)",
@@ -143,7 +135,7 @@ function Section({
 }
 
 export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?: boolean }) {
-  const score = pressureScore[brief.status];
+  const score = brief.pressure;
 
   return (
     <div className="aurora relative mx-auto w-full max-w-md px-1">

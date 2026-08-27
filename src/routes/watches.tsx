@@ -1,98 +1,131 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bell, Clock } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ArrowRight, BellOff } from "lucide-react";
 
-import { AppShell } from "@/components/aircue/AppShell";
 import { BottomNav } from "@/components/aircue/BottomNav";
 import { StatusPill } from "@/components/aircue/StatusPill";
-import { Button } from "@/components/ui/button";
-import { briefs } from "@/lib/aircue/data";
+import { listWatches, stopWatch } from "@/lib/aircue/brief.functions";
+import { getDeviceId } from "@/lib/aircue/device";
+import type { BriefStatus } from "@/lib/aircue/data";
 
 export const Route = createFileRoute("/watches")({
   head: () => ({
     meta: [
-      { title: "My watches — Aircue standby monitoring" },
+      { title: "Watching — Aircue" },
       {
         name: "description",
         content:
-          "Flights Aircue is monitoring for material changes in weather, airport operations, FAA programs, and destination demand.",
+          "Flights Aircue is watching for you, with the latest standby pressure status and the most recent change on each one.",
       },
-      { property: "og:title", content: "My watches — Aircue standby monitoring" },
+      { property: "og:title", content: "Watching — Aircue" },
       {
         property: "og:description",
-        content: "Flights Aircue is monitoring for material standby pressure changes.",
+        content: "Your watched standby flights and what changed most recently.",
       },
     ],
   }),
   component: WatchesPage,
 });
 
-function WatchesContent() {
-  const watched = briefs.filter((b) => b.watch?.active);
-
-  return (
-    <AppShell>
-      <h1 className="font-display text-3xl font-bold tracking-tight">My watches</h1>
-      <p className="mt-1 text-muted-foreground">
-        Aircue emails you once per material change and stops monitoring automatically after the
-        trip.
-      </p>
-
-      <div className="mt-6 space-y-4">
-        {watched.map((brief) => (
-          <article
-            key={brief.id}
-            className="rounded-xl border border-border bg-card p-5 shadow-card"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="font-display text-xl font-bold">{brief.flightNumber}</p>
-                <p className="text-sm font-medium">
-                  {brief.origin} → {brief.destination} · {brief.date}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {brief.departsLocal} – {brief.arrivesLocal}
-                </p>
-              </div>
-              <StatusPill status={brief.status} size="sm" />
-            </div>
-
-            <p className="mt-3 text-sm text-foreground/80">{brief.outlook}</p>
-
-            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                Next check {brief.watch?.nextCheck}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Bell className="h-3.5 w-3.5" />
-                Alerts to {brief.watch?.email}
-              </span>
-              <span>{brief.watch?.expires}</span>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button asChild variant="outline" className="h-10">
-                <Link to="/brief/$briefId" params={{ briefId: brief.id }}>
-                  Open brief
-                </Link>
-              </Button>
-              <Button variant="ghost" className="h-10 text-muted-foreground">
-                Stop watching
-              </Button>
-            </div>
-          </article>
-        ))}
-      </div>
-    </AppShell>
-  );
-}
-
 function WatchesPage() {
+  const [deviceId, setDeviceId] = useState("");
+  const list = useServerFn(listWatches);
+  const stop = useServerFn(stopWatch);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setDeviceId(getDeviceId());
+  }, []);
+
+  const { data: watches, isLoading } = useQuery({
+    queryKey: ["watches", deviceId],
+    queryFn: () => list({ data: { deviceId } }),
+    enabled: deviceId.length > 0,
+  });
+
+  const end = useMutation({
+    mutationFn: (watchId: string) => stop({ data: { watchId } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watches"] }),
+  });
+
+  const active = (watches ?? []).filter((w) => w.state === "active");
+  const ended = (watches ?? []).filter((w) => w.state !== "active");
+
   return (
-    <>
-      <WatchesContent />
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-md px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
+        <h1 className="font-display text-2xl font-bold tracking-tight">Watching</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Aircue rechecks these flights and flags meaningful changes.
+        </p>
+
+        {isLoading && <p className="mt-6 text-sm text-muted-foreground">Loading your watches…</p>}
+
+        {!isLoading && active.length === 0 && ended.length === 0 && (
+          <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+            <p className="text-sm text-muted-foreground">
+              You are not watching anything yet. Check a flight, then tap Watch on its brief.
+            </p>
+            <Link to="/" className="mt-3 inline-block text-sm font-semibold text-primary">
+              Check a flight
+            </Link>
+          </div>
+        )}
+
+        <ul className="mt-5 space-y-3">
+          {active.map((w) => (
+            <li key={w.watchId} className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-display text-base font-semibold">
+                    {w.flightLabel} · {w.origin} → {w.destination}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{w.travelDate}</p>
+                </div>
+                <StatusPill status={w.status as BriefStatus} size="sm" />
+              </div>
+
+              <p className="mt-2 text-sm text-foreground/85">{w.lastChange ?? w.headline}</p>
+
+              <div className="mt-3 flex items-center justify-between">
+                <Link
+                  to="/brief/$briefId"
+                  params={{ briefId: w.tripId }}
+                  className="flex items-center gap-1 text-sm font-semibold text-primary"
+                >
+                  Open brief <ArrowRight className="h-4 w-4" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => end.mutate(w.watchId)}
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <BellOff className="h-4 w-4" /> Stop
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        {ended.length > 0 && (
+          <>
+            <h2 className="mt-8 font-display text-base font-bold tracking-tight">Ended</h2>
+            <ul className="mt-2 space-y-2">
+              {ended.map((w) => (
+                <li key={w.watchId} className="rounded-xl border border-border/60 px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    {w.flightLabel} · {w.origin} → {w.destination} · {w.travelDate}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+
       <BottomNav />
-    </>
+    </div>
   );
 }
-

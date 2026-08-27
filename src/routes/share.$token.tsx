@@ -1,8 +1,9 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/aircue/AppShell";
 import { StatusPill } from "@/components/aircue/StatusPill";
-import { allSignals, briefs } from "@/lib/aircue/data";
+import { allSignals, disclaimer } from "@/lib/aircue/data";
+import { getSharedBrief } from "@/lib/aircue/brief.functions";
 
 export const Route = createFileRoute("/share/$token")({
   head: () => ({
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/share/$token")({
       {
         name: "description",
         content:
-          "A read-only standby brief: current status, the strongest conditions, and what Aircue does not know. No account required.",
+          "A read-only standby brief: current status, the strongest live conditions, and what Aircue does not know. No account required.",
       },
       { property: "og:title", content: "Shared standby brief — Aircue" },
       {
@@ -20,11 +21,28 @@ export const Route = createFileRoute("/share/$token")({
       },
     ],
   }),
-  loader: ({ params }) => {
-    const brief = briefs.find((b) => b.shareToken === params.token);
+  loader: async ({ params }) => {
+    const brief = await getSharedBrief({ data: { token: params.token } });
     if (!brief) throw notFound();
     return brief;
   },
+  notFoundComponent: () => (
+    <AppShell nav={false}>
+      <div className="mx-auto w-full max-w-md py-10 text-center">
+        <h1 className="font-display text-xl font-bold">This link is no longer available</h1>
+        <Link to="/" className="mt-4 inline-block text-sm text-primary underline">
+          Check a flight
+        </Link>
+      </div>
+    </AppShell>
+  ),
+  errorComponent: () => (
+    <AppShell nav={false}>
+      <div className="mx-auto w-full max-w-md py-10 text-center">
+        <h1 className="font-display text-xl font-bold">We could not load this brief</h1>
+      </div>
+    </AppShell>
+  ),
   component: SharedBriefPage,
 });
 
@@ -33,6 +51,7 @@ const rank = { disruption: 4, elevated: 3, watch: 2, incomplete: 1, clear: 0 } a
 function SharedBriefPage() {
   const brief = Route.useLoaderData();
   const strongest = allSignals(brief)
+    .filter((s) => s.level !== "incomplete")
     .slice()
     .sort((a, b) => rank[b.level] - rank[a.level])
     .slice(0, 3);
@@ -46,23 +65,34 @@ function SharedBriefPage() {
         <h1 className="mt-5 font-display text-2xl font-bold tracking-tight">
           {brief.flightNumber} · {brief.origin} → {brief.destination}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{brief.date}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {brief.date} · {brief.departsLocal}
+        </p>
 
         <section className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-card">
           <StatusPill status={brief.status} />
           <p className="mt-3 font-display text-lg font-bold leading-snug tracking-tight">
             {brief.outlook}
           </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Standby pressure {brief.pressure} of 100
+          </p>
         </section>
 
-        <h2 className="mt-6 font-display text-base font-bold tracking-tight">Strongest issues</h2>
-        <ol className="mt-1.5 list-decimal pl-5 text-sm text-foreground/85">
-          {strongest.map((s) => (
-            <li key={s.id} className="mt-1">
-              {s.detail}
-            </li>
-          ))}
-        </ol>
+        {strongest.length > 0 && (
+          <>
+            <h2 className="mt-6 font-display text-base font-bold tracking-tight">
+              Strongest conditions
+            </h2>
+            <ol className="mt-1.5 list-decimal pl-5 text-sm text-foreground/85">
+              {strongest.map((s) => (
+                <li key={s.id} className="mt-1">
+                  {s.detail}
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
 
         <h2 className="mt-6 font-display text-base font-bold tracking-tight">
           What Aircue does not know
@@ -74,6 +104,7 @@ function SharedBriefPage() {
         </ul>
 
         <p className="mt-6 text-xs text-muted-foreground">{brief.generatedAt}</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{disclaimer}</p>
       </div>
     </AppShell>
   );

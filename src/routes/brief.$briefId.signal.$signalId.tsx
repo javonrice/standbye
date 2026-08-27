@@ -5,7 +5,8 @@ import { AppShell } from "@/components/aircue/AppShell";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/aircue/StatusPill";
 import { SignalMood } from "@/components/aircue/SignalRow";
-import { getBrief, getSignal } from "@/lib/aircue/data";
+import { getSignal } from "@/lib/aircue/data";
+import { getBrief } from "@/lib/aircue/brief.functions";
 
 export const Route = createFileRoute("/brief/$briefId/signal/$signalId")({
   head: () => ({
@@ -23,8 +24,8 @@ export const Route = createFileRoute("/brief/$briefId/signal/$signalId")({
       },
     ],
   }),
-  loader: ({ params }) => {
-    const brief = getBrief(params.briefId);
+  loader: async ({ params }) => {
+    const brief = await getBrief({ data: { tripId: params.briefId } });
     if (!brief) throw notFound();
     const signal = getSignal(brief, params.signalId);
     if (!signal) throw notFound();

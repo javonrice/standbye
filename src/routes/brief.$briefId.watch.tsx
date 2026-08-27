@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ChevronLeft, MailCheck } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { BellRing, ChevronLeft, Loader2 } from "lucide-react";
 
 import { AppShell } from "@/components/aircue/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getBrief } from "@/lib/aircue/data";
+import { getBrief, startWatch } from "@/lib/aircue/brief.functions";
+import { getDeviceId, getSavedEmail, saveEmail } from "@/lib/aircue/device";
 
 export const Route = createFileRoute("/brief/$briefId/watch")({
   head: () => ({
@@ -24,8 +27,8 @@ export const Route = createFileRoute("/brief/$briefId/watch")({
       },
     ],
   }),
-  loader: ({ params }) => {
-    const brief = getBrief(params.briefId);
+  loader: async ({ params }) => {
+    const brief = await getBrief({ data: { tripId: params.briefId } });
     if (!brief) throw notFound();
     return brief;
   },
@@ -35,7 +38,18 @@ export const Route = createFileRoute("/brief/$briefId/watch")({
 function WatchPage() {
   const brief = Route.useLoaderData();
   const [email, setEmail] = useState(brief.watch?.email ?? "");
-  const [sent, setSent] = useState(false);
+  const [deviceId, setDeviceId] = useState("");
+  const watchFn = useServerFn(startWatch);
+
+  useEffect(() => {
+    setDeviceId(getDeviceId());
+    setEmail((current) => current || getSavedEmail());
+  }, []);
+
+  const mutation = useMutation({
+    mutationFn: () => watchFn({ data: { tripId: brief.id, email, deviceId } }),
+    onSuccess: () => saveEmail(email),
+  });
 
   return (
     <AppShell>
@@ -56,7 +70,7 @@ function WatchPage() {
           className="mt-5"
           onSubmit={(e) => {
             e.preventDefault();
-            setSent(true);
+            mutation.mutate();
           }}
         >
           <Label htmlFor="email" className="text-xs text-muted-foreground">
@@ -73,7 +87,8 @@ function WatchPage() {
           />
 
           <p className="mt-3 text-sm text-muted-foreground">
-            We’ll email you only when something meaningful changes.
+            We’ll flag it under Watching when something meaningful changes. Email alerts arrive
+            with accounts.
           </p>
 
           <h2 className="mt-6 font-display text-base font-bold tracking-tight">Examples</h2>
@@ -86,16 +101,31 @@ function WatchPage() {
 
           <p className="mt-3 text-sm text-muted-foreground">We won’t spam minor updates.</p>
 
-          <Button type="submit" className="mt-6 h-12 w-full text-sm font-semibold">
-            Send verification email
+          <Button
+            type="submit"
+            disabled={mutation.isPending}
+            className="mt-6 h-12 w-full text-sm font-semibold"
+          >
+            {mutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Starting watch
+              </>
+            ) : (
+              <>
+                <BellRing className="h-4 w-4" /> Start watching
+              </>
+            )}
           </Button>
         </form>
 
-        {sent && (
+        {mutation.isSuccess && (
           <p className="mt-3 flex items-center gap-2 text-sm text-fine-foreground">
-            <MailCheck className="h-4 w-4 shrink-0" />
-            Verification sent to {email}. Confirm it to start watching.
+            <BellRing className="h-4 w-4 shrink-0" />
+            Watching {brief.flightNumber}. Changes show up under Watching.
           </p>
+        )}
+        {mutation.isError && (
+          <p className="mt-3 text-sm text-rough">Could not start that watch. Try again.</p>
         )}
 
         <p className="mt-6 text-xs text-muted-foreground">Watching stops after the trip.</p>

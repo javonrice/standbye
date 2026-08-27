@@ -1,8 +1,8 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/aircue/AppShell";
 import { BriefView } from "@/components/aircue/BriefView";
-import { getBrief } from "@/lib/aircue/data";
+import { getBrief } from "@/lib/aircue/brief.functions";
 
 export const Route = createFileRoute("/brief/$briefId/")({
   head: () => ({
@@ -11,20 +11,43 @@ export const Route = createFileRoute("/brief/$briefId/")({
       {
         name: "description",
         content:
-          "Departure, arrival, and flight-chain conditions that could make this standby attempt harder, each with why it matters, confidence, and freshness.",
+          "Live departure, arrival, and flight-chain conditions that could make this standby attempt harder, with a 0-100 standby pressure index.",
       },
       { property: "og:title", content: "Standby brief — Aircue" },
       {
         property: "og:description",
-        content: "Status first, what it means, what changed, and the conditions behind it.",
+        content: "Status first, what changed, and the live conditions behind it.",
       },
     ],
   }),
-  loader: ({ params }) => {
-    const brief = getBrief(params.briefId);
+  loader: async ({ params }) => {
+    const brief = await getBrief({ data: { tripId: params.briefId } });
     if (!brief) throw notFound();
     return brief;
   },
+  errorComponent: () => (
+    <AppShell>
+      <div className="mx-auto w-full max-w-md py-10 text-center">
+        <h1 className="font-display text-xl font-bold">We could not build this brief</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          One of the live sources did not respond. Try again in a moment.
+        </p>
+        <Link to="/" className="mt-4 inline-block text-sm text-primary underline">
+          Check another flight
+        </Link>
+      </div>
+    </AppShell>
+  ),
+  notFoundComponent: () => (
+    <AppShell>
+      <div className="mx-auto w-full max-w-md py-10 text-center">
+        <h1 className="font-display text-xl font-bold">Brief not found</h1>
+        <Link to="/" className="mt-4 inline-block text-sm text-primary underline">
+          Check a flight
+        </Link>
+      </div>
+    </AppShell>
+  ),
   component: BriefPage,
 });
 
