@@ -270,6 +270,7 @@ export async function getRouteHistory(input: {
         ? toPattern(blockRow, `${monthName} ${timeBlockLabel[timeBlock] ?? timeBlock}`)
         : null,
     timeBlocks,
+    byDow,
     sameMonthPriorYears,
     recentMonths,
     load: loadRow ? toLoad(loadRow, `${monthName} ${loadRow.year}`) : null,
