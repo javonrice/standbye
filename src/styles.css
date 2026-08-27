@@ -267,8 +267,8 @@
   50% { transform: scale(1.08); opacity: 1; }
 }
 
-/* --- Searching overlay: radar sweep + route arc --- */
-@keyframes cue-radar-out {
+/* --- Searching overlay: precision flight pulse --- */
+@keyframes cue-pulse-out {
   0% { transform: scale(0.45); opacity: 0.55; }
   100% { transform: scale(1); opacity: 0; }
 }
@@ -277,9 +277,10 @@
   to { transform: rotate(360deg); }
 }
 
-@keyframes cue-arc-draw {
-  0% { stroke-dashoffset: 100; }
-  55%, 100% { stroke-dashoffset: 0; }
+@keyframes cue-arc-flow {
+  0% { stroke-dashoffset: 100; opacity: 0; }
+  50% { opacity: 1; }
+  100% { stroke-dashoffset: -100; opacity: 0; }
 }
 
 @keyframes cue-dot-pulse {
@@ -287,68 +288,57 @@
   50% { transform: scale(1.9); opacity: 0.5; }
 }
 
-.cue-radar-ring {
+.cue-pulse-ring {
   position: absolute;
-  height: 14rem;
-  width: 14rem;
+  height: 16rem;
+  width: 16rem;
   border-radius: 9999px;
   border: 1px solid color-mix(in oklab, var(--primary) 45%, transparent);
-  animation: cue-radar-out 3s ease-out infinite;
+  animation: cue-pulse-out 3s ease-out infinite;
 }
 
-.cue-radar-sweep {
+.cue-sweep {
   position: absolute;
-  height: 14rem;
-  width: 14rem;
+  height: 16rem;
+  width: 16rem;
   border-radius: 9999px;
   background: conic-gradient(
     from 0deg,
-    color-mix(in oklab, var(--primary) 30%, transparent),
-    transparent 28%,
+    color-mix(in oklab, var(--primary) 22%, transparent),
+    transparent 30%,
     transparent 100%
   );
-  mask-image: radial-gradient(circle, transparent 18%, #000 22%, #000 96%, transparent 100%);
+  mask-image: radial-gradient(circle, transparent 16%, #000 22%, #000 96%, transparent 100%);
   animation: cue-sweep 3.4s linear infinite;
 }
 
-.cue-radar-grid {
+.cue-grid-ring {
   fill: none;
-  stroke: color-mix(in oklab, var(--foreground) 12%, transparent);
+  stroke: color-mix(in oklab, var(--foreground) 10%, transparent);
   stroke-width: 1;
 }
 
 .cue-arc-track {
-  stroke: color-mix(in oklab, var(--foreground) 14%, transparent);
-  stroke-width: 2;
+  stroke: color-mix(in oklab, var(--foreground) 10%, transparent);
+  stroke-width: 1;
   stroke-linecap: round;
 }
 
 .cue-arc-draw {
-  stroke: var(--primary);
-  stroke-width: 2.5;
+  stroke: url(#cue-arc-gradient);
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-dasharray: 100;
-  animation: cue-arc-draw 3s ease-in-out infinite;
+  animation: cue-arc-flow 3s ease-in-out infinite;
 }
-
-.cue-node {
-  fill: var(--primary);
-}
-
-.cue-plane-icon {
-  color: var(--primary);
-  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--primary) 70%, transparent));
-}
-
-
 
 .cue-dot-pulse {
   animation: cue-dot-pulse 1.2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cue-radar-ring,
-  .cue-radar-sweep,
+  .cue-pulse-ring,
+  .cue-sweep,
   .cue-arc-draw,
   .cue-dot-pulse {
     animation: none;
