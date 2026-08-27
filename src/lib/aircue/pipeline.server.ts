@@ -500,6 +500,50 @@ async function chainSignals(
   return { drafts, live: true };
 }
 
+function sellableSeverity(bucket: SellableBucket, largestN: number | null): number {
+  if (bucket === "9+") return 15;
+  if (bucket === "0") return 80;
+  return (largestN ?? 1) >= 4 ? 45 : 65;
+}
+
+function sellableSummary(bucket: SellableBucket, largestN: number | null): string {
+  if (bucket === "9+")
+    return "Public booking inventory still shows 9 or more sellable seats in economy for this flight.";
+  if (bucket === "0")
+    return "This flight is not offering sellable economy seats in the public booking search.";
+  return `Public booking inventory looks limited — about ${largestN ?? 1} sellable seats left in this search.`;
+}
+
+function sellableDraft(trip: TripRow, retrievedAt: string, result: SellableResult): SignalDraft {
+  const bucket = result.bucket ?? "0";
+  const flightNormal = `${trip.marketing_carrier}${trip.flight_number}`
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase();
+  return {
+    location: "chain",
+    category: "sellable_tightness",
+    confidence: "strong",
+    severity: sellableSeverity(bucket, result.largestN),
+    title: "AirCue inventory check",
+    summary: sellableSummary(bucket, result.largestN),
+    why_it_matters:
+      "Standby flexibility often tracks how aggressively the flight is still being sold. This is a coarse public check, not airline load data.",
+    evidence: {
+      bucket,
+      largest_n: result.largestN,
+      engine: "serpapi_google_flights",
+      adults_tested: result.adultsTested,
+      flight_matched: flightNormal,
+      retrieved_at: retrievedAt,
+    },
+    source: "AirCue · SerpAPI Google Flights",
+    retrieved_at: retrievedAt,
+    active_from: null,
+    active_until: null,
+    fingerprint: `sellable:${trip.marketing_carrier}:${flightNormal}:${trip.travel_date}:${bucket}:${result.largestN ?? "x"}`,
+  };
+}
+
 /* -------------------------------- scoring -------------------------------- */
 
 function levelFor(draft: { severity: number; confidence: Confidence; category: string }): BriefStatus {
