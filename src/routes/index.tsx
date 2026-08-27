@@ -104,12 +104,11 @@ function AirportField({
 function legTime(leg: FlightLeg): string {
   if (leg.depLocalTime) {
     const [h, m] = leg.depLocalTime.split(":").map(Number);
-    const hour12 = ((h ?? 0) % 12) || 12;
+    const hour12 = (h ?? 0) % 12 || 12;
     return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${(h ?? 0) < 12 ? "AM" : "PM"} local`;
   }
   return new Date(leg.schedDepUtc).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
-
 
 function SearchScreen() {
   const navigate = useNavigate();
@@ -129,7 +128,6 @@ function SearchScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<SearchingPhase | null>(null);
-
 
   useEffect(() => {
     setDeviceId(getDeviceId());
@@ -168,7 +166,6 @@ function SearchScreen() {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!manual && flightNumber) {
-        setPhase("resolving");
         const found = await resolve({
           data: { airline, flightNumber, travelDate, deviceId },
         });
@@ -204,7 +201,6 @@ function SearchScreen() {
       setError(e.message || "");
     },
   });
-
 
   const chosenLeg = legs.find((l) => `${l.origin}-${l.schedDepUtc}` === selectedLeg);
 
@@ -255,203 +251,205 @@ function SearchScreen() {
               before you list standby.
             </p>
             <p className="mt-4 max-w-md text-base text-muted-foreground">
-              Aircue reads live airport, weather, and flight-chain conditions and tells you, in plain
-              language, what could make today harder.
+              Aircue reads live airport, weather, and flight-chain conditions and tells you, in
+              plain language, what could make today harder.
             </p>
           </div>
 
           <div className="md:w-[26rem] md:shrink-0">
             <div className="rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl md:p-6">
-            <h1 className="font-display text-2xl font-bold tracking-tight">Check a flight</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              What could make getting on standby harder today.
-            </p>
+              <h1 className="font-display text-2xl font-bold tracking-tight">Check a flight</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                What could make getting on standby harder today.
+              </p>
 
-            <form
-              className="mt-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setError(null);
-                setNotice(null);
-                setLegs([]);
+              <form
+                className="mt-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setError(null);
+                  setNotice(null);
+                  setLegs([]);
 
-                mutation.mutate();
-              }}
-            >
-              <div className="flex gap-3">
-                <div className="w-[9.5rem]">
-                  <Label htmlFor="airline" className="text-xs text-muted-foreground">
-                    Airline
-                  </Label>
-                  <Select value={airline} onValueChange={setAirline}>
-                    <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
-                      <SelectValue placeholder="Airline" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AIRLINES.filter((a) => a.code !== ALL_AIRLINES || manual).map((a) => (
-                        <SelectItem key={a.code} value={a.code}>
-                          {a.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <Label htmlFor="flight-number" className="text-xs text-muted-foreground">
-                    Flight number
-                  </Label>
-                  <Input
-                    id="flight-number"
-                    inputMode="numeric"
-                    maxLength={4}
-                    autoComplete="off"
-                    value={flightNumber}
-                    onChange={(e) => setFlightNumber(e.target.value.replace(/\D/g, ""))}
-                    placeholder="782"
-                    className="mt-1.5 h-12 bg-surface text-base"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <Label htmlFor="date" className="text-xs text-muted-foreground">
-                  Travel date
-                </Label>
-                <Input
-                  id="date"
-                  type="date"
-                  required
-                  value={travelDate}
-                  onChange={(e) => setTravelDate(e.target.value)}
-                  className="mt-1.5 h-12 bg-surface text-base"
-                />
-              </div>
-
-              {manual && (
-                <>
-                  <div className="mt-3 flex gap-3">
-                    <AirportField id="origin" label="From" value={origin} onChange={setOrigin} />
-                    <AirportField id="dest" label="To" value={dest} onChange={setDest} />
+                  mutation.mutate();
+                }}
+              >
+                <div className="flex gap-3">
+                  <div className="w-[9.5rem]">
+                    <Label htmlFor="airline" className="text-xs text-muted-foreground">
+                      Airline
+                    </Label>
+                    <Select value={airline} onValueChange={setAirline}>
+                      <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
+                        <SelectValue placeholder="Airline" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AIRLINES.filter((a) => a.code !== ALL_AIRLINES || manual).map((a) => (
+                          <SelectItem key={a.code} value={a.code}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="mt-3">
-                    <Label htmlFor="time" className="text-xs text-muted-foreground">
-                      Departs (optional)
+                  <div className="flex-1">
+                    <Label htmlFor="flight-number" className="text-xs text-muted-foreground">
+                      Flight number
                     </Label>
                     <Input
-                      id="time"
-                      type="time"
-                      value={depTime}
-                      onChange={(e) => setDepTime(e.target.value)}
+                      id="flight-number"
+                      inputMode="numeric"
+                      maxLength={4}
+                      autoComplete="off"
+                      value={flightNumber}
+                      onChange={(e) => setFlightNumber(e.target.value.replace(/\D/g, ""))}
+                      placeholder="782"
                       className="mt-1.5 h-12 bg-surface text-base"
                     />
                   </div>
-                </>
-              )}
-
-              <div className="mt-3">
-                <Label htmlFor="trip-name" className="text-xs text-muted-foreground">
-                  Trip name (optional)
-                </Label>
-                <Input
-                  id="trip-name"
-                  value={tripName}
-                  autoComplete="off"
-                  maxLength={40}
-                  onChange={(e) => setTripName(e.target.value)}
-                  placeholder="Morning to Chicago"
-                  className="mt-1.5 h-12 bg-surface text-base"
-                />
-              </div>
-
-              {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
-
-              {legs.length > 1 && (
-                <div className="mt-4 rounded-2xl border border-border/60 bg-surface/60 p-3">
-                  <p className="text-sm font-semibold">
-                    {airline}
-                    {flightNumber} flies more than one leg that day
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Pick the one you are listing for.</p>
-                  <div className="mt-3 space-y-2">
-                    {legs.map((leg) => {
-                      const legKey = `${leg.origin}-${leg.schedDepUtc}`;
-                      const isSelected = selectedLeg === legKey;
-                      return (
-                        <button
-                          key={legKey}
-                          type="button"
-                          aria-pressed={isSelected}
-                          disabled={legMutation.isPending}
-                          onClick={() => {
-                            setError(null);
-                            setSelectedLeg(legKey);
-                            legMutation.mutate(leg);
-                          }}
-                          className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition-all ${
-                            isSelected
-                              ? "border-primary bg-primary/15 ring-1 ring-primary/50"
-                              : "border-transparent bg-card/80 hover:bg-card"
-                          } disabled:opacity-100`}
-                        >
-                          <span className="flex items-center gap-2 text-sm font-medium">
-                            <span
-                              aria-hidden
-                              className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                                isSelected ? "border-primary bg-primary" : "border-border"
-                              }`}
-                            >
-                              {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
-                            </span>
-                            {leg.origin} → {leg.dest}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            Departs {legTime(leg)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
-              )}
 
+                <div className="mt-3">
+                  <Label htmlFor="date" className="text-xs text-muted-foreground">
+                    Travel date
+                  </Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    required
+                    value={travelDate}
+                    onChange={(e) => setTravelDate(e.target.value)}
+                    className="mt-1.5 h-12 bg-surface text-base"
+                  />
+                </div>
 
-              <Button
-                type="submit"
-                disabled={mutation.isPending}
-                className="mt-4 h-12 w-full text-sm font-semibold"
-              >
-                {mutation.isPending ? (
+                {manual && (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Checking conditions
-                  </>
-                ) : (
-                  <>
-                    <Plane className="h-4 w-4" /> Check standby pressure
+                    <div className="mt-3 flex gap-3">
+                      <AirportField id="origin" label="From" value={origin} onChange={setOrigin} />
+                      <AirportField id="dest" label="To" value={dest} onChange={setDest} />
+                    </div>
+                    <div className="mt-3">
+                      <Label htmlFor="time" className="text-xs text-muted-foreground">
+                        Departs (optional)
+                      </Label>
+                      <Input
+                        id="time"
+                        type="time"
+                        value={depTime}
+                        onChange={(e) => setDepTime(e.target.value)}
+                        className="mt-1.5 h-12 bg-surface text-base"
+                      />
+                    </div>
                   </>
                 )}
-              </Button>
 
-              {!manual && (
-                <button
-                  type="button"
-                  onClick={() => setManual(true)}
-                  className="mt-3 w-full text-center text-xs text-muted-foreground underline underline-offset-4"
+                <div className="mt-3">
+                  <Label htmlFor="trip-name" className="text-xs text-muted-foreground">
+                    Trip name (optional)
+                  </Label>
+                  <Input
+                    id="trip-name"
+                    value={tripName}
+                    autoComplete="off"
+                    maxLength={40}
+                    onChange={(e) => setTripName(e.target.value)}
+                    placeholder="Morning to Chicago"
+                    className="mt-1.5 h-12 bg-surface text-base"
+                  />
+                </div>
+
+                {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
+
+                {legs.length > 1 && (
+                  <div className="mt-4 rounded-2xl border border-border/60 bg-surface/60 p-3">
+                    <p className="text-sm font-semibold">
+                      {airline}
+                      {flightNumber} flies more than one leg that day
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Pick the one you are listing for.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {legs.map((leg) => {
+                        const legKey = `${leg.origin}-${leg.schedDepUtc}`;
+                        const isSelected = selectedLeg === legKey;
+                        return (
+                          <button
+                            key={legKey}
+                            type="button"
+                            aria-pressed={isSelected}
+                            disabled={legMutation.isPending}
+                            onClick={() => {
+                              setError(null);
+                              setSelectedLeg(legKey);
+                              legMutation.mutate(leg);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition-all ${
+                              isSelected
+                                ? "border-primary bg-primary/15 ring-1 ring-primary/50"
+                                : "border-transparent bg-card/80 hover:bg-card"
+                            } disabled:opacity-100`}
+                          >
+                            <span className="flex items-center gap-2 text-sm font-medium">
+                              <span
+                                aria-hidden
+                                className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                                  isSelected ? "border-primary bg-primary" : "border-border"
+                                }`}
+                              >
+                                {isSelected && (
+                                  <Check className="h-3 w-3 text-primary-foreground" />
+                                )}
+                              </span>
+                              {leg.origin} → {leg.dest}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Departs {legTime(leg)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="mt-4 h-12 w-full text-sm font-semibold"
                 >
-                  Enter route manually
-                </button>
-              )}
-            </form>
+                  {mutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Checking conditions
+                    </>
+                  ) : (
+                    <>
+                      <Plane className="h-4 w-4" /> Check standby pressure
+                    </>
+                  )}
+                </Button>
 
-            {error && <p className="mt-3 text-sm text-rough">{error}</p>}
+                {!manual && (
+                  <button
+                    type="button"
+                    onClick={() => setManual(true)}
+                    className="mt-3 w-full text-center text-xs text-muted-foreground underline underline-offset-4"
+                  >
+                    Enter route manually
+                  </button>
+                )}
+              </form>
 
-            <p className="mt-3 text-center text-[0.7rem] leading-relaxed text-muted-foreground">
-              {searchDisclaimer}
-            </p>
+              {error && <p className="mt-3 text-sm text-rough">{error}</p>}
+
+              <p className="mt-3 text-center text-[0.7rem] leading-relaxed text-muted-foreground">
+                {searchDisclaimer}
+              </p>
+            </div>
           </div>
         </div>
       </div>
     </div>
-    </div>
   );
 }
-
