@@ -77,9 +77,7 @@ async function deviceProbesThisMonth(deviceId: string | null): Promise<number> {
 }
 
 async function globalProbesThisMonth(): Promise<number> {
-  const { data, error } = await supabaseAdmin.rpc("serpapi_probes_this_month", {
-    _device_id: undefined,
-  });
+  const { data, error } = await supabaseAdmin.rpc("serpapi_probes_this_month");
   if (error) return DEFAULT_GLOBAL_MONTHLY_CAP; // fail closed
   return typeof data === "number" ? data : 0;
 }
