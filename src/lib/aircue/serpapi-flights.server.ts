@@ -35,6 +35,9 @@ export interface SellableResult {
 
 interface SerpFlightSegment {
   flight_number?: string;
+  airline?: string;
+  departure_airport?: { id?: string; time?: string };
+  arrival_airport?: { id?: string; time?: string };
 }
 
 interface SerpItinerary {
@@ -46,6 +49,7 @@ interface SerpSearchResponse {
   best_flights?: SerpItinerary[];
   other_flights?: SerpItinerary[];
 }
+
 
 export function serpApiEnabled(): boolean {
   const flag = process.env["SERPAPI_ENABLED"];
