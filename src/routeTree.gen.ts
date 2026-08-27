@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BuddiesRouteImport } from './routes/buddies'
+import { Route as TestOverlayRouteImport } from './routes/test-overlay'
 import { Route as WatchesRouteImport } from './routes/watches'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const BuddiesRoute = BuddiesRouteImport.update({
   id: '/buddies',
   path: '/buddies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TestOverlayRoute = TestOverlayRouteImport.update({
+  id: '/test-overlay',
+  path: '/test-overlay',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WatchesRoute = WatchesRouteImport.update({
@@ -57,6 +63,7 @@ const BriefBriefIdSignalSignalIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/buddies': typeof BuddiesRoute
+  '/test-overlay': typeof TestOverlayRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/buddies': typeof BuddiesRoute
+  '/test-overlay': typeof TestOverlayRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/buddies': typeof BuddiesRoute
+  '/test-overlay': typeof TestOverlayRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/buddies'
+    | '/test-overlay'
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/buddies'
+    | '/test-overlay'
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/buddies'
+    | '/test-overlay'
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
@@ -115,6 +127,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BuddiesRoute: typeof BuddiesRoute
+  TestOverlayRoute: typeof TestOverlayRoute
   WatchesRoute: typeof WatchesRoute
   ShareTokenRoute: typeof ShareTokenRoute
   ApiPublicRunWatchesRoute: typeof ApiPublicRunWatchesRoute
@@ -136,6 +149,13 @@ declare module '@tanstack/react-router' {
       path: '/buddies'
       fullPath: '/buddies'
       preLoaderRoute: typeof BuddiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/test-overlay': {
+      id: '/test-overlay'
+      path: '/test-overlay'
+      fullPath: '/test-overlay'
+      preLoaderRoute: typeof TestOverlayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/watches': {
@@ -179,6 +199,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BuddiesRoute: BuddiesRoute,
+  TestOverlayRoute: TestOverlayRoute,
   WatchesRoute: WatchesRoute,
   ShareTokenRoute: ShareTokenRoute,
   ApiPublicRunWatchesRoute: ApiPublicRunWatchesRoute,
