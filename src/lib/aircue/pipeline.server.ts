@@ -591,7 +591,7 @@ function cardStatus(drafts: SignalDraft[], sourcesOk: boolean): CardStatus {
 
 function overallStatus(drafts: SignalDraft[], sourcesOk: boolean): BriefStatus {
   if (!sourcesOk) return "incomplete";
-  const material = drafts.filter((d) => d.category !== "chain_status" && d.severity >= 30);
+  const material = drafts.filter((d) => d.severity >= 30);
   if (material.some((d) => d.confidence === "confirmed" && d.severity >= 85)) return "disruption";
   const strong = material.filter((d) => d.confidence !== "context" && d.severity >= 55);
   if (strong.length >= 2) return "elevated";
@@ -777,7 +777,7 @@ export async function generateBrief(tripId: string): Promise<void> {
   }
 
   const status = overallStatus(finalDrafts, sourcesOk);
-  const pressure = pressureIndex(finalDrafts.filter((d) => d.category !== "chain_status"));
+  const pressure = pressureIndex(finalDrafts);
 
   const { data: previous } = await supabaseAdmin
     .from("briefings")
@@ -870,7 +870,7 @@ function whySummary(drafts: SignalDraft[], status: BriefStatus): string {
   if (status === "incomplete")
     return "At least one required source did not respond, so Aircue cannot call this clear.";
   const top = drafts
-    .filter((d) => d.category !== "chain_status" && d.severity >= 30)
+    .filter((d) => d.severity >= 30)
     .sort((a, b) => b.severity - a.severity)
     .slice(0, 3)
     .map((d) => d.summary);
@@ -952,7 +952,7 @@ async function recordChanges(
   }
 
   for (const draft of drafts) {
-    if (draft.category === "chain_status" || draft.severity < 30) continue;
+    if (draft.severity < 30) continue;
     if (!before.has(draft.fingerprint)) {
       events.push({
         trip_id: tripId,
@@ -994,7 +994,9 @@ const CATEGORY_MAP: Record<string, SignalCategory> = {
   faa_program: "faa",
   event: "event",
   holiday: "holiday",
-  chain_status: "flight",
+  cancellation: "cancellation",
+  flight: "flight",
+  aircraft: "aircraft",
   sellable_tightness: "flight",
 };
 
