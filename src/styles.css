@@ -282,13 +282,6 @@
   55%, 100% { stroke-dashoffset: 0; }
 }
 
-@keyframes cue-plane-fly {
-  0% { offset-distance: 0%; opacity: 0; }
-  8% { opacity: 1; }
-  92% { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
-
 @keyframes cue-dot-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.9); opacity: 0.5; }
@@ -342,28 +335,11 @@
   fill: var(--primary);
 }
 
-.cue-plane-field {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  height: 200px;
-  width: 200px;
-  /* The arc lives in a 200x200 viewBox rendered at 14rem (224px) — scale to match. */
-  transform: translate(-50%, -50%) scale(1.12);
-  pointer-events: none;
-}
-
-.cue-plane {
-  position: absolute;
-  top: -0.5rem;
-  left: -0.5rem;
-  height: 1rem;
-  width: 1rem;
-  offset-path: path("M32 132 C 70 60, 130 60, 168 132");
-  offset-rotate: auto;
-  animation: cue-plane-fly 3s ease-in-out infinite;
+.cue-plane-icon {
+  color: var(--primary);
   filter: drop-shadow(0 0 6px color-mix(in oklab, var(--primary) 70%, transparent));
 }
+
 
 
 .cue-dot-pulse {
@@ -374,7 +350,6 @@
   .cue-radar-ring,
   .cue-radar-sweep,
   .cue-arc-draw,
-  .cue-plane,
   .cue-dot-pulse {
     animation: none;
   }

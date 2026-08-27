@@ -73,13 +73,23 @@ export function SearchingOverlay({ phase, flightLabel, origin, dest }: Searching
           />
           <circle cx="32" cy="132" r="4.5" className="cue-node" />
           <circle cx="168" cy="132" r="4.5" className="cue-node" />
-        </svg>
 
-        <div aria-hidden className="cue-plane-field">
-          <span className="cue-plane">
-            <Plane className="h-4 w-4 rotate-90 text-primary" />
-          </span>
-        </div>
+          <g className="cue-plane-mover">
+            <g transform="rotate(90)">
+              <Plane className="cue-plane-icon" width={14} height={14} x={-7} y={-7} />
+            </g>
+            <animateMotion
+              dur="3s"
+              repeatCount="indefinite"
+              rotate="auto"
+              keyPoints="0;1"
+              keyTimes="0;1"
+              calcMode="spline"
+              keySplines="0.42 0 0.58 1"
+              path="M32 132 C 70 60, 130 60, 168 132"
+            />
+          </g>
+        </svg>
       </div>
 
       <p className="mt-2 font-display text-lg font-semibold tracking-tight">
