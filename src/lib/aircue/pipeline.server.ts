@@ -28,6 +28,8 @@ import type {
   Brief,
   BriefStatus,
   Confidence,
+  InventoryBucket,
+  InventoryCheck,
   Signal,
   SignalCategory,
   SignalLocation,
