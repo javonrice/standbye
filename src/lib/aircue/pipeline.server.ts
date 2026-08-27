@@ -972,6 +972,7 @@ const CATEGORY_MAP: Record<string, SignalCategory> = {
   event: "event",
   holiday: "holiday",
   chain_status: "flight",
+  sellable_tightness: "flight",
 };
 
 export async function buildBriefView(tripId: string): Promise<Brief | null> {
@@ -1098,6 +1099,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
       summary: "",
       status: cardToStatus(briefing.chain_card_status),
       signals: pick("flight_chain"),
+      unavailable: unavailable.filter((u) => u.includes("inventory check")),
     },
     ...(watch
       ? {
