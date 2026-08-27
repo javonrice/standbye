@@ -43,7 +43,7 @@ export const createBrief = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ tripId: string }> => {
     const { ensureTrip, generateBrief } = await import("@/lib/aircue/pipeline.server");
     const tripId = await ensureTrip({
-      flightLabel: data.flightNumber.replace(/\s+/g, ""),
+      flightLabel: data.tripName?.trim() || `${data.origin} → ${data.dest}`,
       travelDate: data.travelDate,
       origin: data.origin,
       dest: data.dest,
