@@ -3,6 +3,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { AppShell } from "@/components/aircue/AppShell";
 import { BriefView } from "@/components/aircue/BriefView";
 import { getBrief } from "@/lib/aircue/brief.functions";
+import { getTripHistory } from "@/lib/aircue/history.functions";
 
 export const Route = createFileRoute("/brief/$briefId/")({
   head: () => ({
@@ -23,7 +24,8 @@ export const Route = createFileRoute("/brief/$briefId/")({
   loader: async ({ params }) => {
     const brief = await getBrief({ data: { tripId: params.briefId } });
     if (!brief) throw notFound();
-    return brief;
+    const history = await getTripHistory({ data: { tripId: params.briefId } }).catch(() => null);
+    return { brief, history };
   },
   errorComponent: () => (
     <AppShell>
@@ -52,11 +54,11 @@ export const Route = createFileRoute("/brief/$briefId/")({
 });
 
 function BriefPage() {
-  const brief = Route.useLoaderData();
+  const { brief, history } = Route.useLoaderData();
 
   return (
     <AppShell>
-      <BriefView brief={brief} />
+      <BriefView brief={brief} history={history} />
     </AppShell>
   );
 }

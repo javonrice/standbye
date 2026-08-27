@@ -12,12 +12,14 @@ import {
   Share2,
 } from "lucide-react";
 
+import { HistoryPanel } from "@/components/aircue/HistoryPanel";
 import { SignalRow } from "@/components/aircue/SignalRow";
 import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
 import { cn } from "@/lib/utils";
 import { startWatch } from "@/lib/aircue/brief.functions";
 import { getDeviceId } from "@/lib/aircue/device";
 import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
+import type { RouteHistory } from "@/lib/aircue/history";
 import { disclaimer } from "@/lib/aircue/data";
 
 function useWatchAction(tripId: string) {
@@ -181,7 +183,15 @@ function Section({
   );
 }
 
-export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?: boolean }) {
+export function BriefView({
+  brief,
+  readOnly = false,
+  history = null,
+}: {
+  brief: Brief;
+  readOnly?: boolean;
+  history?: RouteHistory | null;
+}) {
   const score = brief.pressure;
   const watch = useWatchAction(brief.id);
 
@@ -335,6 +345,8 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
         unavailable={brief.chain.unavailable}
         briefId={brief.id}
       />
+
+      {history && <HistoryPanel history={history} />}
 
       <p className="mt-6 text-xs leading-relaxed text-muted-foreground">{disclaimer}</p>
     </div>
