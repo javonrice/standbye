@@ -778,9 +778,20 @@ export async function generateBrief(tripId: string): Promise<void> {
       arr_card_status: toDbStatus(
         cardStatus(finalDrafts.filter((d) => d.location === "arrival"), arrSourcesOk),
       ),
-      chain_card_status: chain.live
-        ? toDbStatus(cardStatus(chain.drafts, true))
-        : "incomplete",
+      chain_card_status:
+        chain.live || (sellable.ok && sellable.bucket)
+          ? toDbStatus(
+              cardStatus(
+                [
+                  ...chain.drafts,
+                  ...(sellable.ok && sellable.bucket
+                    ? [sellableDraft(trip, retrievedAt, sellable)]
+                    : []),
+                ],
+                true,
+              ),
+            )
+          : "incomplete",
       generated_at: retrievedAt,
       source_freshness: {
         faa: faa.fetchedAt,
