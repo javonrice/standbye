@@ -7,6 +7,7 @@ import { Check, Loader2, Plane, User } from "lucide-react";
 import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
+import { BottomNav } from "@/components/aircue/BottomNav";
 import { SearchingOverlay, type SearchingPhase } from "@/components/aircue/SearchingOverlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
