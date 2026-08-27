@@ -457,7 +457,7 @@ async function chainSignals(
   } else {
     drafts.push({
       location: "chain",
-      category: "chain_status",
+      category: "aircraft",
       confidence: "context",
       severity: 0,
       title: "Inbound aircraft",
