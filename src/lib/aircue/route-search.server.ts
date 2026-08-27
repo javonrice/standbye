@@ -92,10 +92,11 @@ export async function findRouteLegs(
 
   for (const board of boards) {
     for (const flight of board.departures) {
-      if (flight.arrival?.airport?.iata?.toUpperCase() !== to) continue;
       if (airline !== ALL_AIRLINES && flight.airline?.iata?.toUpperCase() !== airline) continue;
-      const leg = toRouteLeg(flight);
+      const leg = await toRouteLeg(flight);
       if (!leg) continue;
+      // Schedule-only legs carry no arrival IATA, so filter after resolution.
+      if (leg.dest.toUpperCase() !== to) continue;
       if (new Date(leg.schedDepUtc).getTime() < cutoff) continue;
       const key = `${leg.flightNumber ?? ""}-${leg.schedDepUtc}`;
       if (seen.has(key)) continue;
