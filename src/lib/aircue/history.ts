@@ -2,6 +2,8 @@
 
 export interface HistoryPatternRow {
   label: string;
+  /** Departure window key when this row is a time-block row. */
+  block?: string;
   cancelRate: number;
   dep15Rate: number;
   medianLaterBackups: number;
@@ -18,6 +20,26 @@ export interface HistoryLoadRow {
   sourcePeriod: string;
 }
 
+export const TIME_BLOCKS = ["morning", "midday", "evening", "late"] as const;
+
+export type TimeBlock = (typeof TIME_BLOCKS)[number];
+
+/** Short, plain-language names for each departure window. */
+export const timeBlockShort: Record<string, string> = {
+  morning: "Morning",
+  midday: "Afternoon",
+  evening: "Evening",
+  late: "Night",
+};
+
+/** Local-time range each departure window covers. */
+export const timeBlockRange: Record<string, string> = {
+  morning: "before 11am",
+  midday: "11am – 4pm",
+  evening: "4pm – 9pm",
+  late: "after 9pm",
+};
+
 export interface RouteHistory {
   origin: string;
   dest: string;
@@ -32,6 +54,8 @@ export interface RouteHistory {
   typical: HistoryPatternRow | null;
   /** Pooled baseline for this month + departure time block. */
   byTimeBlock: HistoryPatternRow | null;
+  /** Every departure window for this month, morning → night. */
+  timeBlocks: HistoryPatternRow[];
   /** Same month in prior published years, newest first. */
   sameMonthPriorYears: HistoryPatternRow[];
   /** Most recent published months leading up to today, oldest first. */
