@@ -1,0 +1,595 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.17"
+  }
+  public: {
+    Tables: {
+      airports: {
+        Row: {
+          city: string | null
+          iata: string
+          icao: string | null
+          lat: number
+          lon: number
+          name: string
+          state: string | null
+          tz: string
+        }
+        Insert: {
+          city?: string | null
+          iata: string
+          icao?: string | null
+          lat: number
+          lon: number
+          name: string
+          state?: string | null
+          tz: string
+        }
+        Update: {
+          city?: string | null
+          iata?: string
+          icao?: string | null
+          lat?: number
+          lon?: number
+          name?: string
+          state?: string | null
+          tz?: string
+        }
+        Relationships: []
+      }
+      briefings: {
+        Row: {
+          arr_card_status: string
+          chain_card_status: string
+          dep_card_status: string
+          generated_at: string
+          headline: string
+          id: string
+          pressure_index: number | null
+          source_freshness: Json
+          status: string
+          trip_id: string
+          unavailable_categories: string[]
+          why_summary: string | null
+        }
+        Insert: {
+          arr_card_status?: string
+          chain_card_status?: string
+          dep_card_status?: string
+          generated_at?: string
+          headline: string
+          id?: string
+          pressure_index?: number | null
+          source_freshness?: Json
+          status: string
+          trip_id: string
+          unavailable_categories?: string[]
+          why_summary?: string | null
+        }
+        Update: {
+          arr_card_status?: string
+          chain_card_status?: string
+          dep_card_status?: string
+          generated_at?: string
+          headline?: string
+          id?: string
+          pressure_index?: number | null
+          source_freshness?: Json
+          status?: string
+          trip_id?: string
+          unavailable_categories?: string[]
+          why_summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefings_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      change_events: {
+        Row: {
+          briefing_id: string | null
+          change_type: string
+          detail: string | null
+          headline: string
+          id: string
+          occurred_at: string
+          payload: Json
+          seen: boolean
+          trip_id: string
+        }
+        Insert: {
+          briefing_id?: string | null
+          change_type: string
+          detail?: string | null
+          headline: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          seen?: boolean
+          trip_id: string
+        }
+        Update: {
+          briefing_id?: string | null
+          change_type?: string
+          detail?: string | null
+          headline?: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          seen?: boolean
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "change_events_briefing_id_fkey"
+            columns: ["briefing_id"]
+            isOneToOne: false
+            referencedRelation: "briefings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "change_events_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curated_events: {
+        Row: {
+          city: string | null
+          created_at: string
+          demand_class: string
+          ends_on: string
+          id: string
+          lat: number | null
+          lon: number | null
+          name: string
+          source: string
+          source_ref: string | null
+          starts_on: string
+          state: string | null
+          venue: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          demand_class: string
+          ends_on: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          name: string
+          source?: string
+          source_ref?: string | null
+          starts_on: string
+          state?: string | null
+          venue?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          demand_class?: string
+          ends_on?: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          name?: string
+          source?: string
+          source_ref?: string | null
+          starts_on?: string
+          state?: string | null
+          venue?: string | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          fingerprint: string
+          id: string
+          sent_at: string | null
+          subject: string
+          watch_id: string
+        }
+        Insert: {
+          fingerprint: string
+          id?: string
+          sent_at?: string | null
+          subject: string
+          watch_id: string
+        }
+        Update: {
+          fingerprint?: string
+          id?: string
+          sent_at?: string | null
+          subject?: string
+          watch_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "watches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signals: {
+        Row: {
+          active_from: string | null
+          active_until: string | null
+          briefing_id: string
+          category: string
+          confidence: string
+          evidence: Json
+          fingerprint: string
+          id: string
+          location: string
+          retrieved_at: string
+          severity: number
+          source: string
+          source_url: string | null
+          summary: string
+          title: string
+          why_it_matters: string
+        }
+        Insert: {
+          active_from?: string | null
+          active_until?: string | null
+          briefing_id: string
+          category: string
+          confidence: string
+          evidence?: Json
+          fingerprint: string
+          id?: string
+          location: string
+          retrieved_at: string
+          severity: number
+          source: string
+          source_url?: string | null
+          summary: string
+          title: string
+          why_it_matters: string
+        }
+        Update: {
+          active_from?: string | null
+          active_until?: string | null
+          briefing_id?: string
+          category?: string
+          confidence?: string
+          evidence?: Json
+          fingerprint?: string
+          id?: string
+          location?: string
+          retrieved_at?: string
+          severity?: number
+          source?: string
+          source_url?: string | null
+          summary?: string
+          title?: string
+          why_it_matters?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signals_briefing_id_fkey"
+            columns: ["briefing_id"]
+            isOneToOne: false
+            referencedRelation: "briefings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          fetched_at: string
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          expires_at: string
+          fetched_at?: string
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          fetched_at?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
+      trips: {
+        Row: {
+          arr_window_end: string
+          created_at: string
+          dep_window_end: string
+          dep_window_start: string
+          dest_iata: string
+          device_id: string | null
+          flight_label: string
+          flight_number: string
+          flight_provider: string
+          id: string
+          marketing_carrier: string
+          origin_iata: string
+          provider_ref: Json
+          sched_arr_utc: string | null
+          sched_dep_utc: string | null
+          share_token: string
+          travel_date: string
+          user_id: string | null
+        }
+        Insert: {
+          arr_window_end: string
+          created_at?: string
+          dep_window_end: string
+          dep_window_start: string
+          dest_iata: string
+          device_id?: string | null
+          flight_label: string
+          flight_number: string
+          flight_provider?: string
+          id?: string
+          marketing_carrier?: string
+          origin_iata: string
+          provider_ref?: Json
+          sched_arr_utc?: string | null
+          sched_dep_utc?: string | null
+          share_token?: string
+          travel_date: string
+          user_id?: string | null
+        }
+        Update: {
+          arr_window_end?: string
+          created_at?: string
+          dep_window_end?: string
+          dep_window_start?: string
+          dest_iata?: string
+          device_id?: string | null
+          flight_label?: string
+          flight_number?: string
+          flight_provider?: string
+          id?: string
+          marketing_carrier?: string
+          origin_iata?: string
+          provider_ref?: Json
+          sched_arr_utc?: string | null
+          sched_dep_utc?: string | null
+          share_token?: string
+          travel_date?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_dest_iata_fkey"
+            columns: ["dest_iata"]
+            isOneToOne: false
+            referencedRelation: "airports"
+            referencedColumns: ["iata"]
+          },
+          {
+            foreignKeyName: "trips_origin_iata_fkey"
+            columns: ["origin_iata"]
+            isOneToOne: false
+            referencedRelation: "airports"
+            referencedColumns: ["iata"]
+          },
+        ]
+      }
+      watches: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          email: string | null
+          email_verified: boolean
+          ended_at: string | null
+          id: string
+          last_briefing_id: string | null
+          last_checked_at: string | null
+          next_check_at: string | null
+          state: string
+          trip_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          email?: string | null
+          email_verified?: boolean
+          ended_at?: string | null
+          id?: string
+          last_briefing_id?: string | null
+          last_checked_at?: string | null
+          next_check_at?: string | null
+          state?: string
+          trip_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          email?: string | null
+          email_verified?: boolean
+          ended_at?: string | null
+          id?: string
+          last_briefing_id?: string | null
+          last_checked_at?: string | null
+          next_check_at?: string | null
+          state?: string
+          trip_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watches_last_briefing_id_fkey"
+            columns: ["last_briefing_id"]
+            isOneToOne: false
+            referencedRelation: "briefings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "watches_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

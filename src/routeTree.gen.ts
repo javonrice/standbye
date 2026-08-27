@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BuddiesRouteImport } from './routes/buddies'
 import { Route as WatchesRouteImport } from './routes/watches'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
+import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
 import { Route as BriefBriefIdWatchRouteImport } from './routes/brief.$briefId.watch'
 import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
@@ -37,6 +38,11 @@ const ShareTokenRoute = ShareTokenRouteImport.update({
   path: '/share/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRunWatchesRoute = ApiPublicRunWatchesRouteImport.update({
+  id: '/api/public/run-watches',
+  path: '/api/public/run-watches',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BriefBriefIdIndexRoute = BriefBriefIdIndexRouteImport.update({
   id: '/brief/$briefId/',
   path: '/brief/$briefId/',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/buddies': typeof BuddiesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
+  '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/buddies': typeof BuddiesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
+  '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
   '/brief/$briefId': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/buddies': typeof BuddiesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
+  '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/buddies'
     | '/watches'
     | '/share/$token'
+    | '/api/public/run-watches'
     | '/brief/$briefId/watch'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/buddies'
     | '/watches'
     | '/share/$token'
+    | '/api/public/run-watches'
     | '/brief/$briefId/watch'
     | '/brief/$briefId'
     | '/brief/$briefId/signal/$signalId'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/buddies'
     | '/watches'
     | '/share/$token'
+    | '/api/public/run-watches'
     | '/brief/$briefId/watch'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   BuddiesRoute: typeof BuddiesRoute
   WatchesRoute: typeof WatchesRoute
   ShareTokenRoute: typeof ShareTokenRoute
+  ApiPublicRunWatchesRoute: typeof ApiPublicRunWatchesRoute
   BriefBriefIdWatchRoute: typeof BriefBriefIdWatchRoute
   BriefBriefIdIndexRoute: typeof BriefBriefIdIndexRoute
   BriefBriefIdSignalSignalIdRoute: typeof BriefBriefIdSignalSignalIdRoute
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/run-watches': {
+      id: '/api/public/run-watches'
+      path: '/api/public/run-watches'
+      fullPath: '/api/public/run-watches'
+      preLoaderRoute: typeof ApiPublicRunWatchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/brief/$briefId/': {
       id: '/brief/$briefId/'
       path: '/brief/$briefId'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   BuddiesRoute: BuddiesRoute,
   WatchesRoute: WatchesRoute,
   ShareTokenRoute: ShareTokenRoute,
+  ApiPublicRunWatchesRoute: ApiPublicRunWatchesRoute,
   BriefBriefIdWatchRoute: BriefBriefIdWatchRoute,
   BriefBriefIdIndexRoute: BriefBriefIdIndexRoute,
   BriefBriefIdSignalSignalIdRoute: BriefBriefIdSignalSignalIdRoute,
