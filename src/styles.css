@@ -282,13 +282,6 @@
   55%, 100% { stroke-dashoffset: 0; }
 }
 
-@keyframes cue-plane-fly {
-  0% { offset-distance: 0%; opacity: 0; }
-  8% { opacity: 1; }
-  92% { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
-
 @keyframes cue-dot-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.9); opacity: 0.5; }
@@ -357,7 +350,6 @@
   .cue-radar-ring,
   .cue-radar-sweep,
   .cue-arc-draw,
-  .cue-plane,
   .cue-dot-pulse {
     animation: none;
   }
