@@ -124,6 +124,7 @@ function SearchScreen() {
   const [airline, setAirline] = useState("UA");
   const [manual, setManual] = useState(false);
   const [legs, setLegs] = useState<FlightLeg[]>([]);
+  const [selectedLeg, setSelectedLeg] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -345,25 +346,43 @@ function SearchScreen() {
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">Pick the one you are listing for.</p>
                   <div className="mt-3 space-y-2">
-                    {legs.map((leg) => (
-                      <button
-                        key={`${leg.origin}-${leg.schedDepUtc}`}
-                        type="button"
-                        disabled={legMutation.isPending}
-                        onClick={() => {
-                          setError(null);
-                          legMutation.mutate(leg);
-                        }}
-                        className="flex w-full items-center justify-between rounded-xl bg-card/80 px-3 py-3 text-left transition-colors hover:bg-card disabled:opacity-60"
-                      >
-                        <span className="text-sm font-medium">
-                          {leg.origin} → {leg.dest}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          Departs {legTime(leg)}
-                        </span>
-                      </button>
-                    ))}
+                    {legs.map((leg) => {
+                      const legKey = `${leg.origin}-${leg.schedDepUtc}`;
+                      const isSelected = selectedLeg === legKey;
+                      return (
+                        <button
+                          key={legKey}
+                          type="button"
+                          aria-pressed={isSelected}
+                          disabled={legMutation.isPending}
+                          onClick={() => {
+                            setError(null);
+                            setSelectedLeg(legKey);
+                            legMutation.mutate(leg);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left transition-all ${
+                            isSelected
+                              ? "border-primary bg-primary/15 ring-1 ring-primary/50"
+                              : "border-transparent bg-card/80 hover:bg-card"
+                          } disabled:opacity-100`}
+                        >
+                          <span className="flex items-center gap-2 text-sm font-medium">
+                            <span
+                              aria-hidden
+                              className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                                isSelected ? "border-primary bg-primary" : "border-border"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                            </span>
+                            {leg.origin} → {leg.dest}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Departs {legTime(leg)}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
