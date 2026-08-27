@@ -140,8 +140,8 @@ function SearchScreen() {
         travelDate,
         origin: leg.origin,
         dest: leg.dest,
-        airline,
-        flightNumber,
+        airline: leg.airlineCode ?? airline,
+        flightNumber: leg.flightNumber ?? flightNumber,
         schedDepUtc: leg.schedDepUtc,
         schedArrUtc: leg.schedArrUtc,
         deviceId,
@@ -188,11 +188,39 @@ function SearchScreen() {
       }
 
       if (!origin || !dest) throw new Error("Enter both airports.");
+
+      // No flight number: show the flights that actually fly this route that day.
+      if (!flightNumber) {
+        const found = await resolveRouteFn({
+          data: {
+            origin,
+            dest,
+            travelDate,
+            airline,
+            ...(depTime ? { depTime } : {}),
+          },
+        });
+        if (found.ok && found.legs && found.legs.length > 0) {
+          if (found.legs.length > 1) {
+            setLegs(found.legs);
+            throw new Error("");
+          }
+          setPhase("building");
+          return briefFromLeg(found.legs[0]!);
+        }
+        setNotice(
+          found.reason === "not_found"
+            ? "We couldn’t find scheduled flights on that route — we’ll still check conditions for the route."
+            : "We couldn’t pull the flight list right now — we’ll still check conditions for the route.",
+        );
+      }
+
       setPhase("building");
       return create({
         data: { tripName, travelDate, origin, dest, depTime, deviceId, airline },
       });
     },
+
     onSuccess: async (result) => {
       await navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
     },
