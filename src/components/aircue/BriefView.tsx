@@ -12,6 +12,7 @@ import {
   Share2,
 } from "lucide-react";
 
+import { HistoryPanel } from "@/components/aircue/HistoryPanel";
 import { SignalRow } from "@/components/aircue/SignalRow";
 import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
 import { cn } from "@/lib/utils";
