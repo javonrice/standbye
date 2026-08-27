@@ -745,6 +745,13 @@ export async function generateBrief(tripId: string): Promise<void> {
   if (!ok(faa)) unavailable.push("FAA airport status");
   if (!ok(depTaf) && !ok(depMetar)) unavailable.push(`${origin.iata} aviation weather`);
   if (!ok(arrTaf) && !ok(arrMetar)) unavailable.push(`${dest.iata} aviation weather`);
+  if (!sellable.ok || !sellable.bucket) {
+    unavailable.push(
+      sellable.reason === "device-cap"
+        ? "AirCue inventory check (monthly limit reached)"
+        : "AirCue inventory check",
+    );
+  }
 
   const status = overallStatus(finalDrafts, sourcesOk);
   const pressure = pressureIndex(finalDrafts.filter((d) => d.category !== "chain_status"));
