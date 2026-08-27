@@ -14,7 +14,6 @@ import { Route as BuddiesRouteImport } from './routes/buddies'
 import { Route as WatchesRouteImport } from './routes/watches'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
-import { Route as ApiPublicSellableTestRouteImport } from './routes/api/public/sellable-test'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
 import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
 
@@ -43,11 +42,6 @@ const ApiPublicRunWatchesRoute = ApiPublicRunWatchesRouteImport.update({
   path: '/api/public/run-watches',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicSellableTestRoute = ApiPublicSellableTestRouteImport.update({
-  id: '/api/public/sellable-test',
-  path: '/api/public/sellable-test',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BriefBriefIdIndexRoute = BriefBriefIdIndexRouteImport.update({
   id: '/brief/$briefId/',
   path: '/brief/$briefId/',
@@ -66,7 +60,6 @@ export interface FileRoutesByFullPath {
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
-  '/api/public/sellable-test': typeof ApiPublicSellableTestRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -76,7 +69,6 @@ export interface FileRoutesByTo {
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
-  '/api/public/sellable-test': typeof ApiPublicSellableTestRoute
   '/brief/$briefId': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -87,7 +79,6 @@ export interface FileRoutesById {
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
-  '/api/public/sellable-test': typeof ApiPublicSellableTestRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -99,7 +90,6 @@ export interface FileRouteTypes {
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
-    | '/api/public/sellable-test'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
   fileRoutesByTo: FileRoutesByTo
@@ -109,7 +99,6 @@ export interface FileRouteTypes {
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
-    | '/api/public/sellable-test'
     | '/brief/$briefId'
     | '/brief/$briefId/signal/$signalId'
   id:
@@ -119,7 +108,6 @@ export interface FileRouteTypes {
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
-    | '/api/public/sellable-test'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
   fileRoutesById: FileRoutesById
@@ -130,7 +118,6 @@ export interface RootRouteChildren {
   WatchesRoute: typeof WatchesRoute
   ShareTokenRoute: typeof ShareTokenRoute
   ApiPublicRunWatchesRoute: typeof ApiPublicRunWatchesRoute
-  ApiPublicSellableTestRoute: typeof ApiPublicSellableTestRoute
   BriefBriefIdIndexRoute: typeof BriefBriefIdIndexRoute
   BriefBriefIdSignalSignalIdRoute: typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -172,13 +159,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRunWatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/sellable-test': {
-      id: '/api/public/sellable-test'
-      path: '/api/public/sellable-test'
-      fullPath: '/api/public/sellable-test'
-      preLoaderRoute: typeof ApiPublicSellableTestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/brief/$briefId/': {
       id: '/brief/$briefId/'
       path: '/brief/$briefId'
@@ -202,7 +182,6 @@ const rootRouteChildren: RootRouteChildren = {
   WatchesRoute: WatchesRoute,
   ShareTokenRoute: ShareTokenRoute,
   ApiPublicRunWatchesRoute: ApiPublicRunWatchesRoute,
-  ApiPublicSellableTestRoute: ApiPublicSellableTestRoute,
   BriefBriefIdIndexRoute: BriefBriefIdIndexRoute,
   BriefBriefIdSignalSignalIdRoute: BriefBriefIdSignalSignalIdRoute,
 }
