@@ -261,10 +261,12 @@ export async function fetchDepartureBoard(
   travelDate: string,
   windowStartLocal: string,
   windowEndLocal: string,
+  cacheSuffix = "departures",
 ): Promise<{ departures: AdbFlight[]; budgetBlocked: boolean }> {
   if (!aeroDataBoxEnabled()) return { departures: [], budgetBlocked: true };
 
-  const cacheKey = `adb:fids:${iata}:${travelDate}:departures`;
+  const cacheKey = `adb:fids:${iata}:${travelDate}:${cacheSuffix}`;
+
   const result = await cachedCall<{ departures?: AdbFlight[] }>(
     cacheKey,
     FIDS_TTL_SECONDS,
