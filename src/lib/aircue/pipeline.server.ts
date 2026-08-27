@@ -319,6 +319,11 @@ function levelFor(draft: { severity: number; confidence: Confidence; category: s
   return "clear";
 }
 
+/** DB check constraints use `active_disruption`; the app model uses `disruption`/`active`. */
+function toDbStatus(value: string): string {
+  return value === "disruption" || value === "active" ? "active_disruption" : value;
+}
+
 function cardStatus(drafts: SignalDraft[], sourcesOk: boolean): CardStatus {
   if (!sourcesOk) return "incomplete";
   if (drafts.some((d) => d.confidence === "confirmed" && d.severity >= 85)) return "active";
