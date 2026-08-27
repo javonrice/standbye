@@ -713,6 +713,22 @@ export async function generateBrief(tripId: string): Promise<void> {
   const chain = await chainSignals(trip, retrievedAt);
   drafts.push(...chain.drafts);
 
+  // AirCue inventory check: public sellable-seats bucket via SerpAPI Google Flights.
+  const sellable = await probeSellable({
+    tripId: trip.id,
+    flightLabel: trip.flight_label,
+    carrier: trip.marketing_carrier,
+    flightNumber: trip.flight_number,
+    origin: trip.origin_iata,
+    dest: trip.dest_iata,
+    date: trip.travel_date,
+    schedDepUtc: trip.sched_dep_utc,
+    deviceId: trip.device_id,
+  });
+  if (sellable.ok && sellable.bucket) {
+    drafts.push(sellableDraft(trip, retrievedAt, sellable));
+  }
+
   // Dedupe by fingerprint, highest severity wins.
   const byFingerprint = new Map<string, SignalDraft>();
   for (const draft of drafts) {
