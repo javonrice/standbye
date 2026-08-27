@@ -245,7 +245,13 @@ function SearchScreen() {
       {phase && (
         <SearchingOverlay
           phase={phase}
-          flightLabel={!manual && flightNumber ? `${airline}${flightNumber}` : undefined}
+          flightLabel={
+            chosenLeg?.flightNumber
+              ? `${chosenLeg.airlineCode ?? airline}${chosenLeg.flightNumber}`
+              : !manual && flightNumber
+                ? `${airline}${flightNumber}`
+                : undefined
+          }
           origin={chosenLeg?.origin ?? (manual ? origin.toUpperCase() : undefined)}
           dest={chosenLeg?.dest ?? (manual ? dest.toUpperCase() : undefined)}
         />
