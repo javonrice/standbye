@@ -165,11 +165,17 @@ export async function getRouteHistory(input: {
   const typicalRow = patterns.find(
     (r) => r.year === null && r.dow === dow && r.time_block === null && r.month === month,
   );
-  const blockRow = timeBlock
-    ? patterns.find(
-        (r) => r.year === null && r.dow === null && r.time_block === timeBlock && r.month === month,
-      )
-    : undefined;
+  const blockRowFor = (block: string) =>
+    patterns.find(
+      (r) => r.year === null && r.dow === null && r.time_block === block && r.month === month,
+    );
+  const blockRow = timeBlock ? blockRowFor(timeBlock) : undefined;
+
+  const timeBlocks = TIME_BLOCKS.flatMap((block) => {
+    const row = blockRowFor(block);
+    if (!row) return [];
+    return [{ ...toPattern(row, timeBlockShort[block] ?? block), block }];
+  });
 
   const sameMonthPriorYears = patterns
     .filter(
