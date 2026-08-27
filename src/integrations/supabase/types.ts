@@ -199,6 +199,132 @@ export type Database = {
         }
         Relationships: []
       }
+      hist_dataset_months: {
+        Row: {
+          available_after: string
+          dataset: string
+          loaded_at: string
+          month: number
+          year: number
+        }
+        Insert: {
+          available_after: string
+          dataset: string
+          loaded_at?: string
+          month: number
+          year: number
+        }
+        Update: {
+          available_after?: string
+          dataset?: string
+          loaded_at?: string
+          month?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      hist_ontime_pattern: {
+        Row: {
+          cancel_rate: number
+          created_at: string
+          dep15_rate: number
+          dest_iata: string
+          dow: number | null
+          flights_sampled: number
+          id: string
+          marketing_carrier: string
+          median_later_backups: number
+          month: number
+          origin_iata: string
+          source_period: string
+          time_block: string | null
+          year: number | null
+        }
+        Insert: {
+          cancel_rate?: number
+          created_at?: string
+          dep15_rate?: number
+          dest_iata: string
+          dow?: number | null
+          flights_sampled?: number
+          id?: string
+          marketing_carrier?: string
+          median_later_backups?: number
+          month: number
+          origin_iata: string
+          source_period: string
+          time_block?: string | null
+          year?: number | null
+        }
+        Update: {
+          cancel_rate?: number
+          created_at?: string
+          dep15_rate?: number
+          dest_iata?: string
+          dow?: number | null
+          flights_sampled?: number
+          id?: string
+          marketing_carrier?: string
+          median_later_backups?: number
+          month?: number
+          origin_iata?: string
+          source_period?: string
+          time_block?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      hist_t100_route_month: {
+        Row: {
+          avg_empty_seats: number
+          created_at: string
+          departures: number
+          dest_iata: string
+          id: string
+          load_factor: number
+          marketing_carrier: string
+          month: number
+          origin_iata: string
+          passengers: number
+          seats: number
+          source_period: string
+          vs_network_pp: number | null
+          year: number
+        }
+        Insert: {
+          avg_empty_seats?: number
+          created_at?: string
+          departures?: number
+          dest_iata: string
+          id?: string
+          load_factor?: number
+          marketing_carrier?: string
+          month: number
+          origin_iata: string
+          passengers?: number
+          seats?: number
+          source_period: string
+          vs_network_pp?: number | null
+          year: number
+        }
+        Update: {
+          avg_empty_seats?: number
+          created_at?: string
+          departures?: number
+          dest_iata?: string
+          id?: string
+          load_factor?: number
+          marketing_carrier?: string
+          month?: number
+          origin_iata?: string
+          passengers?: number
+          seats?: number
+          source_period?: string
+          vs_network_pp?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           fingerprint: string
