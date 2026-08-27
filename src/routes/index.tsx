@@ -156,18 +156,17 @@ function SearchScreen() {
               mutation.mutate();
             }}
           >
-            <Label htmlFor="flight" className="text-xs text-muted-foreground">
-              Flight number
+            <Label htmlFor="trip-name" className="text-xs text-muted-foreground">
+              Trip name (optional)
             </Label>
             <Input
-              id="flight"
-              required
-              value={flightNumber}
+              id="trip-name"
+              value={tripName}
               autoComplete="off"
-              autoCapitalize="characters"
-              onChange={(e) => setFlightNumber(e.target.value.toUpperCase())}
-              placeholder="UA782"
-              className="mt-1.5 h-12 bg-surface text-base uppercase"
+              maxLength={40}
+              onChange={(e) => setTripName(e.target.value)}
+              placeholder="Morning to Chicago"
+              className="mt-1.5 h-12 bg-surface text-base"
             />
 
             <div className="mt-3 flex gap-3">
