@@ -20,6 +20,16 @@ export interface HistoryLoadRow {
   sourcePeriod: string;
 }
 
+export interface HistoryLoadTypical {
+  label: string;
+  years: number;
+  departures: number;
+  avgEmptySeats: number;
+  loadFactor: number;
+  minEmptySeats: number;
+  maxEmptySeats: number;
+}
+
 export const TIME_BLOCKS = ["morning", "midday", "evening", "late"] as const;
 
 export type TimeBlock = (typeof TIME_BLOCKS)[number];
