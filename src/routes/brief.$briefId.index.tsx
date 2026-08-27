@@ -54,11 +54,11 @@ export const Route = createFileRoute("/brief/$briefId/")({
 });
 
 function BriefPage() {
-  const brief = Route.useLoaderData();
+  const { brief, history } = Route.useLoaderData();
 
   return (
     <AppShell>
-      <BriefView brief={brief} />
+      <BriefView brief={brief} history={history} />
     </AppShell>
   );
 }
