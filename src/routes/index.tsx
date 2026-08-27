@@ -498,6 +498,8 @@ function SearchScreen() {
           </div>
         </div>
       </div>
+
+      <BottomNav />
     </div>
   );
 }
