@@ -755,7 +755,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
   const pick = (location: string) => rows.filter((r) => r["location"] === location).map(toSignal);
 
   const cardToStatus = (value: string): BriefStatus =>
-    value === "active"
+    value === "active" || value === "active_disruption"
       ? "disruption"
       : value === "elevated"
         ? "elevated"
