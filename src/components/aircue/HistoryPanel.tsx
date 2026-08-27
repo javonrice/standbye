@@ -213,7 +213,7 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
         </p>
       )}
 
-      <SeatTrend title={`Avg empty seats each ${history.monthName}`} rows={history.loadPriorYears} />
+      <SeatTrend title={`Each ${history.monthName}, by year`} rows={history.loadPriorYears} />
 
       <button
         type="button"
@@ -247,9 +247,11 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
             </>
           )}
 
+          <ByDay rows={history.byDow} activeDow={history.dow} />
+
           <TimeOfDay rows={history.timeBlocks} activeBlock={history.timeBlock} />
 
-          <SeatTrend title="Recent months" rows={history.loadRecentMonths} />
+          <SeatTrend title="Last 3 published months" rows={history.loadRecentMonths} />
 
           <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
             Source: U.S. Bureau of Transportation Statistics, published a few months behind. Past
