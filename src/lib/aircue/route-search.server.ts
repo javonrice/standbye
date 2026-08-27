@@ -5,6 +5,7 @@
  * so a traveller who does not know the flight number can still pick a real leg.
  */
 import { fetchDepartureBoard, type AdbFlight } from "@/lib/aircue/aerodatabox.server";
+import { iataFromAirportName } from "@/lib/aircue/airport-lookup.server";
 import { ALL_AIRLINES } from "@/lib/aircue/airlines";
 
 export interface RouteLeg {
