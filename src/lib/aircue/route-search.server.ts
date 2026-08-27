@@ -5,6 +5,7 @@
  * so a traveller who does not know the flight number can still pick a real leg.
  */
 import { fetchDepartureBoard, type AdbFlight } from "@/lib/aircue/aerodatabox.server";
+import { iataFromAirportName } from "@/lib/aircue/airport-lookup.server";
 import { ALL_AIRLINES } from "@/lib/aircue/airlines";
 
 export interface RouteLeg {
@@ -28,11 +29,19 @@ function toIso(raw: string): string {
   return new Date(raw.replace(" ", "T").replace("Z", "") + "Z").toISOString();
 }
 
-function toRouteLeg(flight: AdbFlight): RouteLeg | null {
-  const origin = flight.departure?.airport?.iata;
-  const dest = flight.arrival?.airport?.iata;
+async function toRouteLeg(flight: AdbFlight): Promise<RouteLeg | null> {
   const dep = flight.departure?.scheduledTime?.utc;
-  if (!origin || !dest || !dep) return null;
+  if (!dep) return null;
+  const origin =
+    flight.departure?.airport?.iata ??
+    (await iataFromAirportName(
+      flight.departure?.airport?.name,
+      flight.departure?.airport?.icao,
+    ));
+  const dest =
+    flight.arrival?.airport?.iata ??
+    (await iataFromAirportName(flight.arrival?.airport?.name, flight.arrival?.airport?.icao));
+  if (!origin || !dest) return null;
   const arr = flight.arrival?.scheduledTime?.utc;
   const depLocal = flight.departure?.scheduledTime?.local;
   const digits = (flight.number ?? "").replace(/\D/g, "");
@@ -84,10 +93,11 @@ export async function findRouteLegs(
 
   for (const board of boards) {
     for (const flight of board.departures) {
-      if (flight.arrival?.airport?.iata?.toUpperCase() !== to) continue;
       if (airline !== ALL_AIRLINES && flight.airline?.iata?.toUpperCase() !== airline) continue;
-      const leg = toRouteLeg(flight);
+      const leg = await toRouteLeg(flight);
       if (!leg) continue;
+      // Schedule-only legs carry no arrival IATA, so filter after resolution.
+      if (leg.dest.toUpperCase() !== to) continue;
       if (new Date(leg.schedDepUtc).getTime() < cutoff) continue;
       const key = `${leg.flightNumber ?? ""}-${leg.schedDepUtc}`;
       if (seen.has(key)) continue;

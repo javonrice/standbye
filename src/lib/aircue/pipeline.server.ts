@@ -1187,7 +1187,7 @@ export async function ensureTrip(input: {
     .in("iata", [input.origin, input.dest]);
   const origin = (airports ?? []).find((a) => a.iata === input.origin);
   const dest = (airports ?? []).find((a) => a.iata === input.dest);
-  if (!origin || !dest) throw new Error("Unknown airport code");
+  if (!origin || !dest) throw new Error("We only cover U.S. airports right now — that route includes one we do not track.");
 
   const km = distanceKm(
     { lat: Number(origin.lat), lon: Number(origin.lon) },
