@@ -163,11 +163,17 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     carrier: string,
     beforeLocalTime: string,
   ): Promise<RouteCancelSummary | null> {
+    // AeroDataBox caps a board request at 12 hours; look back from the departure.
+    const endMinutes = Number(beforeLocalTime.slice(0, 2)) * 60 + Number(beforeLocalTime.slice(3, 5));
+    const startMinutes = Math.max(0, endMinutes - 11 * 60);
+    const hhmm = (m: number) =>
+      `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
     const { departures, budgetBlocked } = await fetchDepartureBoard(
       origin,
       travelDate,
-      `${travelDate}T00:00`,
-      `${travelDate}T11:59`,
+      `${travelDate}T${hhmm(startMinutes)}`,
+      `${travelDate}T${hhmm(Math.max(startMinutes + 60, endMinutes))}`,
     );
     if (budgetBlocked && departures.length === 0) return null;
 
