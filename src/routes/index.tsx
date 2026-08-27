@@ -440,8 +440,11 @@ function SearchScreen() {
                                   <Check className="h-3 w-3 text-primary-foreground" />
                                 )}
                               </span>
-                              {leg.origin} → {leg.dest}
+                              {leg.flightNumber
+                                ? `${leg.airlineCode ?? airline}${leg.flightNumber} · ${leg.origin} → ${leg.dest}`
+                                : `${leg.origin} → ${leg.dest}`}
                             </span>
+
                             <span className="text-xs text-muted-foreground">
                               Departs {legTime(leg)}
                             </span>
