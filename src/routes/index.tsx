@@ -333,7 +333,9 @@ function SearchScreen() {
             {searchDisclaimer}
           </p>
         </div>
+        </div>
       </div>
+
 
       <BottomNav />
     </div>
