@@ -208,10 +208,32 @@ export async function getRouteHistory(input: {
     .sort((a, b) => ym(b.year, b.month) - ym(a.year, a.month));
 
   const loadRow = publishedLoads.find((r) => r.month === month);
-  const loadPriorYears = publishedLoads
-    .filter((r) => r.month === month)
-    .slice(0, 4)
-    .map((r) => toLoad(r, String(r.year)));
+  const sameMonthLoads = publishedLoads.filter((r) => r.month === month);
+  const loadPriorYears = sameMonthLoads.slice(0, 5).map((r) => toLoad(r, String(r.year)));
+
+  const loadRecentMonths = publishedLoads
+    .slice(0, 6)
+    .reverse()
+    .map((r) => toLoad(r, `${MONTHS[r.month - 1]?.slice(0, 3)} ${r.year}`));
+
+  const pool = sameMonthLoads.slice(0, 5);
+  const totalDepartures = pool.reduce((sum, r) => sum + Number(r.departures), 0);
+  const loadTypical =
+    pool.length > 0 && totalDepartures > 0
+      ? {
+          label: `${monthName}, last ${pool.length} published year${pool.length === 1 ? "" : "s"}`,
+          years: pool.length,
+          departures: totalDepartures,
+          avgEmptySeats:
+            pool.reduce((sum, r) => sum + Number(r.avg_empty_seats) * Number(r.departures), 0) /
+            totalDepartures,
+          loadFactor:
+            pool.reduce((sum, r) => sum + Number(r.load_factor) * Number(r.departures), 0) /
+            totalDepartures,
+          minEmptySeats: Math.min(...pool.map((r) => Number(r.avg_empty_seats))),
+          maxEmptySeats: Math.max(...pool.map((r) => Number(r.avg_empty_seats))),
+        }
+      : null;
 
   const notes: string[] = [];
   if (otMonths[0]) {

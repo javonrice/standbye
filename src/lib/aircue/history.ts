@@ -63,5 +63,9 @@ export interface RouteHistory {
   /** How full this route typically ran in this month (T-100). */
   load: HistoryLoadRow | null;
   loadPriorYears: HistoryLoadRow[];
+  /** Most recent published months of seat data, oldest first. */
+  loadRecentMonths: HistoryLoadRow[];
+  /** Seat math pooled across the last few published years of this month. */
+  loadTypical: HistoryLoadTypical | null;
   notes: string[];
 }
