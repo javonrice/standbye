@@ -4,6 +4,8 @@ export interface HistoryPatternRow {
   label: string;
   /** Departure window key when this row is a time-block row. */
   block?: string;
+  /** 1 = Sunday, when this row is a day-of-week row. */
+  dow?: number;
   cancelRate: number;
   dep15Rate: number;
   medianLaterBackups: number;
@@ -66,6 +68,8 @@ export interface RouteHistory {
   byTimeBlock: HistoryPatternRow | null;
   /** Every departure window for this month, morning → night. */
   timeBlocks: HistoryPatternRow[];
+  /** Every day of the week for this month, Sunday → Saturday. */
+  byDow: HistoryPatternRow[];
   /** Same month in prior published years, newest first. */
   sameMonthPriorYears: HistoryPatternRow[];
   /** Most recent published months leading up to today, oldest first. */

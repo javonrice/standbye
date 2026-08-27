@@ -178,6 +178,14 @@ export async function getRouteHistory(input: {
     return [{ ...toPattern(row, timeBlockShort[block] ?? block), block }];
   });
 
+  const byDow = [1, 2, 3, 4, 5, 6, 7].flatMap((d) => {
+    const row = patterns.find(
+      (r) => r.year === null && r.dow === d && r.time_block === null && r.month === month,
+    );
+    if (!row) return [];
+    return [{ ...toPattern(row, (DOWS[d - 1] ?? "").slice(0, 3)), dow: d }];
+  });
+
   const sameMonthPriorYears = patterns
     .filter(
       (r) =>
@@ -212,7 +220,7 @@ export async function getRouteHistory(input: {
   const loadPriorYears = sameMonthLoads.slice(0, 5).map((r) => toLoad(r, String(r.year)));
 
   const loadRecentMonths = publishedLoads
-    .slice(0, 6)
+    .slice(0, 3)
     .reverse()
     .map((r) => toLoad(r, `${MONTHS[r.month - 1]?.slice(0, 3)} ${r.year}`));
 
@@ -262,6 +270,7 @@ export async function getRouteHistory(input: {
         ? toPattern(blockRow, `${monthName} ${timeBlockLabel[timeBlock] ?? timeBlock}`)
         : null,
     timeBlocks,
+    byDow,
     sameMonthPriorYears,
     recentMonths,
     load: loadRow ? toLoad(loadRow, `${monthName} ${loadRow.year}`) : null,
