@@ -197,7 +197,12 @@ export async function probeSellable(input: {
   schedDepUtc: string | null;
   deviceId: string | null;
 }): Promise<SellableResult> {
-  const flightNormal = normalizeFlightNumber(input.flightNumber);
+  // SerpAPI returns flight numbers with the carrier prefix ("UA 2311"), while
+  // trips store only the digits ("2311") — normalize both to "UA2311".
+  const rawFlight = normalizeFlightNumber(input.flightNumber);
+  const flightNormal = /^[A-Z]/.test(rawFlight)
+    ? rawFlight
+    : normalizeFlightNumber(`${input.carrier}${rawFlight}`);
   if (!serpApiEnabled()) return { ok: false, bucket: null, largestN: null, adultsTested: [], fromCache: false, reason: "disabled" };
   if (!flightNormal || flightNormal === "0" || input.carrier === "ALL") {
     return { ok: false, bucket: null, largestN: null, adultsTested: [], fromCache: false, reason: "no-flight-number" };
