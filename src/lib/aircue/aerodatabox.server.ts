@@ -24,6 +24,8 @@ export interface AdbFlight {
   airline?: { name?: string; iata?: string };
   departure?: AdbMovement;
   arrival?: AdbMovement;
+  /** Airport boards return the *other* endpoint here, not departure/arrival. */
+  movement?: AdbMovement;
   aircraft?: { reg?: string; model?: string };
 }
 
