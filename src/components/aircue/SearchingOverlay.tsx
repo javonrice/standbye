@@ -42,10 +42,7 @@ export function SearchingOverlay({ phase, flightLabel, origin, dest }: Searching
 
   // The last step stays active rather than completing — the screen only ends
   // when the real work does.
-  const step = Math.min(
-    steps.length - 1,
-    STEP_AT_MS.filter((t) => elapsed >= t).length - 1,
-  );
+  const step = Math.min(steps.length - 1, STEP_AT_MS.filter((t) => elapsed >= t).length - 1);
 
   return (
     <div
@@ -94,9 +91,7 @@ export function SearchingOverlay({ phase, flightLabel, origin, dest }: Searching
           </span>
         ) : null}
       </p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Building your standby brief
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">Building your standby brief</p>
 
       <ul className="mt-6 w-full max-w-xs space-y-2">
         {steps.map((label, i) => {
