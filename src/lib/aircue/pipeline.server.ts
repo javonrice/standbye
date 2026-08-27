@@ -305,7 +305,7 @@ function eventSignals(
 function chainStub(retrievedAt: string, tripId: string, reason: string): SignalDraft {
   return {
     location: "chain",
-    category: "chain_status",
+    category: "flight",
     confidence: "context",
     severity: 0,
     title: "Flight status not available",
@@ -411,8 +411,8 @@ async function chainSignals(
 
   drafts.push({
     location: "chain",
-    category: "chain_status",
-    confidence: "confirmed",
+    category: status.state === "cancelled" ? "cancellation" : "flight",
+    confidence: severity > 0 ? "confirmed" : "context",
     severity,
     title: `${flightNumber}: ${status.label}`,
     summary:
@@ -441,7 +441,7 @@ async function chainSignals(
   if (inbound?.tail || inbound?.model) {
     drafts.push({
       location: "chain",
-      category: "chain_status",
+      category: "aircraft",
       confidence: "context",
       severity: 0,
       title: "Aircraft assigned",
@@ -457,7 +457,7 @@ async function chainSignals(
   } else {
     drafts.push({
       location: "chain",
-      category: "chain_status",
+      category: "aircraft",
       confidence: "context",
       severity: 0,
       title: "Inbound aircraft",
@@ -485,7 +485,7 @@ async function chainSignals(
     if (cancels && cancels.cancelledFlights > 0) {
       drafts.push({
         location: "chain",
-        category: "chain_status",
+        category: "cancellation",
         confidence: "confirmed",
         severity: Math.min(80, 40 + cancels.cancelledFlights * 15),
         title: `${cancels.cancelledFlights} earlier flight${cancels.cancelledFlights === 1 ? "" : "s"} cancelled`,
@@ -498,6 +498,24 @@ async function chainSignals(
         active_from: null,
         active_until: null,
         fingerprint: `chain:earlier-cancels:${trip.id}`,
+      });
+    }
+    if (cancels && cancels.delayedFlights > 0) {
+      drafts.push({
+        location: "chain",
+        category: "flight",
+        confidence: "strong",
+        severity: Math.min(60, 25 + cancels.delayedFlights * 10),
+        title: `${cancels.delayedFlights} earlier flight${cancels.delayedFlights === 1 ? "" : "s"} running late`,
+        summary: `On this route ${cancels.window}, ${cancels.delayedFlights} departure${cancels.delayedFlights === 1 ? " is" : "s are"} running 15 minutes or more behind.`,
+        why_it_matters:
+          "When earlier departures slip, passengers shuffle between flights and later departures tend to tighten up.",
+        evidence: { delayed: cancels.delayedFlights, window: cancels.window },
+        source: "AeroDataBox",
+        retrieved_at: retrievedAt,
+        active_from: null,
+        active_until: null,
+        fingerprint: `chain:earlier-lates:${trip.id}`,
       });
     }
   }
@@ -552,7 +570,7 @@ function sellableDraft(trip: TripRow, retrievedAt: string, result: SellableResul
 /* -------------------------------- scoring -------------------------------- */
 
 function levelFor(draft: { severity: number; confidence: Confidence; category: string }): BriefStatus {
-  if (draft.category === "chain_status") return "incomplete";
+  
   if (draft.confidence === "confirmed" && draft.severity >= 85) return "disruption";
   if (draft.severity >= 65) return "elevated";
   if (draft.severity >= 35) return "watch";
@@ -573,7 +591,7 @@ function cardStatus(drafts: SignalDraft[], sourcesOk: boolean): CardStatus {
 
 function overallStatus(drafts: SignalDraft[], sourcesOk: boolean): BriefStatus {
   if (!sourcesOk) return "incomplete";
-  const material = drafts.filter((d) => d.category !== "chain_status" && d.severity >= 30);
+  const material = drafts.filter((d) => d.severity >= 30);
   if (material.some((d) => d.confidence === "confirmed" && d.severity >= 85)) return "disruption";
   const strong = material.filter((d) => d.confidence !== "context" && d.severity >= 55);
   if (strong.length >= 2) return "elevated";
@@ -588,15 +606,28 @@ function pressureIndex(drafts: SignalDraft[]): number {
 }
 
 function headlineFor(status: BriefStatus, drafts: SignalDraft[]): string {
-  const kinds = new Set(drafts.filter((d) => d.severity >= 30).map((d) => d.category));
+  const material = drafts.filter((d) => d.severity >= 30);
+  const kinds = new Set(material.map((d) => d.category));
+  const has = (fp: string) => material.some((d) => d.fingerprint.startsWith(fp));
+  const ownFlight = material.find((d) => d.fingerprint.startsWith("chain:status:"));
+  const ownState = (ownFlight?.evidence?.["state"] as string | undefined) ?? "";
+
   switch (status) {
     case "disruption":
+      if (ownState === "cancelled") return "Your flight is showing cancelled.";
+      if (ownState === "diverted") return "Your flight has been diverted.";
       return "An operational restriction is active in your window.";
     case "elevated":
+      if (has("chain:earlier-cancels"))
+        return "Earlier flights on this route were cancelled — later departures often fill.";
       return kinds.size > 1
         ? "Several conditions overlap in your window."
         : "One significant condition sits in your window.";
     case "watch":
+      if (ownState === "delayed") return "Your flight is running late.";
+      if (has("chain:earlier-lates")) return "Earlier flights on this route are running late.";
+      if (has("chain:earlier-cancels"))
+        return "An earlier flight on this route was cancelled.";
       return "Something is developing in your window.";
     case "incomplete":
       return "We could not check every required source.";
@@ -759,7 +790,7 @@ export async function generateBrief(tripId: string): Promise<void> {
   }
 
   const status = overallStatus(finalDrafts, sourcesOk);
-  const pressure = pressureIndex(finalDrafts.filter((d) => d.category !== "chain_status"));
+  const pressure = pressureIndex(finalDrafts);
 
   const { data: previous } = await supabaseAdmin
     .from("briefings")
@@ -852,7 +883,7 @@ function whySummary(drafts: SignalDraft[], status: BriefStatus): string {
   if (status === "incomplete")
     return "At least one required source did not respond, so Aircue cannot call this clear.";
   const top = drafts
-    .filter((d) => d.category !== "chain_status" && d.severity >= 30)
+    .filter((d) => d.severity >= 30)
     .sort((a, b) => b.severity - a.severity)
     .slice(0, 3)
     .map((d) => d.summary);
@@ -910,7 +941,7 @@ async function recordChanges(
 
   const { data: prevSignals } = await supabaseAdmin
     .from("signals")
-    .select("fingerprint,summary,category,evidence")
+    .select("fingerprint,summary,category,evidence,severity")
     .eq("briefing_id", previous.id);
   const before = new Set((prevSignals ?? []).map((s) => s.fingerprint));
   const after = new Set(drafts.map((d) => d.fingerprint));
@@ -934,7 +965,7 @@ async function recordChanges(
   }
 
   for (const draft of drafts) {
-    if (draft.category === "chain_status" || draft.severity < 30) continue;
+    if (draft.severity < 30) continue;
     if (!before.has(draft.fingerprint)) {
       events.push({
         trip_id: tripId,
@@ -945,14 +976,19 @@ async function recordChanges(
     }
   }
   for (const prev of prevSignals ?? []) {
-    if (!after.has(prev.fingerprint) && !prev.fingerprint.startsWith("chain:")) {
-      events.push({
-        trip_id: tripId,
-        briefing_id: briefingId,
-        change_type: "resolved",
-        headline: "Resolved: a condition from the last check is no longer active.",
-      });
-    }
+    if (after.has(prev.fingerprint)) continue;
+    // Context-only chain rows (aircraft, "not available") are noise, not resolutions.
+    if (prev.category === "aircraft" || (prev.severity ?? 0) < 30) continue;
+    events.push({
+      trip_id: tripId,
+      briefing_id: briefingId,
+      change_type: "resolved",
+      headline: prev.fingerprint.startsWith("chain:earlier-cancels")
+        ? "Resolved: earlier cancellations on this route are no longer showing."
+        : prev.fingerprint.startsWith("chain:status")
+          ? "Your flight's status changed since the last check."
+          : "Resolved: a condition from the last check is no longer active.",
+    });
   }
 
   if (events.length > 0) await supabaseAdmin.from("change_events").insert(events);
@@ -976,7 +1012,9 @@ const CATEGORY_MAP: Record<string, SignalCategory> = {
   faa_program: "faa",
   event: "event",
   holiday: "holiday",
-  chain_status: "flight",
+  cancellation: "cancellation",
+  flight: "flight",
+  aircraft: "aircraft",
   sellable_tightness: "flight",
 };
 

@@ -38,6 +38,8 @@ export interface InboundStatus {
 
 export interface RouteCancelSummary {
   cancelledFlights: number;
+  /** Earlier same-route departures running 15+ minutes behind. */
+  delayedFlights: number;
   window: string;
 }
 
@@ -245,15 +247,32 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     );
     if (budgetBlocked && departures.length === 0) return null;
 
-    const cancelled = departures.filter((f) => {
-      const sameDest = f.arrival?.airport?.iata === dest;
+    // Airport boards put the far endpoint under `movement`, not `arrival`.
+    const relevant = departures.filter((f) => {
+      const far = f.movement ?? f.arrival;
+      const sameDest = far?.airport?.iata === dest;
       const sameCarrier = carrier === "ALL" || f.airline?.iata === carrier;
-      const local = f.departure?.scheduledTime?.local ?? "";
-      const earlier = local.slice(11, 16) < beforeLocalTime;
-      return sameDest && sameCarrier && earlier && (f.status ?? "").toLowerCase().includes("cancel");
+      const local = (f.departure?.scheduledTime?.local ?? far?.scheduledTime?.local ?? "").slice(
+        11,
+        16,
+      );
+      return sameDest && sameCarrier && Boolean(local) && local < beforeLocalTime;
     });
 
-    return { cancelledFlights: cancelled.length, window: "earlier today" };
+    const cancelled = relevant.filter((f) => (f.status ?? "").toLowerCase().includes("cancel"));
+
+    const delayed = relevant.filter((f) => {
+      if ((f.status ?? "").toLowerCase().includes("cancel")) return false;
+      const mv = f.movement ?? f.departure;
+      const slip = minutesBetween(mv?.scheduledTime?.utc, mv?.revisedTime?.utc);
+      return (slip ?? 0) >= 15 || (f.status ?? "").toLowerCase().includes("delay");
+    });
+
+    return {
+      cancelledFlights: cancelled.length,
+      delayedFlights: delayed.length,
+      window: "earlier today",
+    };
   }
 }
 
