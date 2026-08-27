@@ -183,8 +183,8 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     const { flights } = await fetchFlightLegs(flightNumber, travelDate, {
       ...(deviceId ? { deviceId } : {}),
     });
-    return flights
-      .map((flight) => toResolution(flight))
+    const resolved = await Promise.all(flights.map((flight) => toResolution(flight)));
+    return resolved
       .filter((r): r is TripResolution => r !== null)
       .sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
   }
