@@ -170,66 +170,58 @@ function SearchScreen() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!manual && flightNumber) {
-        const found = await resolve({
-          data: { airline, flightNumber, travelDate, deviceId },
-        });
-        if (found.ok && found.legs && found.legs.length > 0) {
-          // A number like UA1448 can fly several legs that day — let the traveller pick.
-          if (found.legs.length > 1) {
-            setLegs(found.legs);
-            throw new Error("");
-          }
-          setPhase("building");
-          return briefFromLeg(found.legs[0]!);
-        }
-        setManual(true);
-        setNotice(
-          found.reason === "not_found"
-            ? "We couldn’t find that flight for that date — enter your route and we’ll still check conditions."
-            : "We couldn’t look that flight up right now — enter your route and we’ll still check conditions.",
-        );
-        throw new Error("");
-      }
+      // Route mode: always resolve real scheduled flights and let the traveller pick one.
+      if (manual) {
+        if (!origin || !dest) throw new Error("Enter both airports.");
 
-      if (!origin || !dest) throw new Error("Enter both airports.");
-
-      // No flight number: show the flights that actually fly this route that day.
-      if (!flightNumber) {
+        const carrier = airline && airline !== ALL_AIRLINES ? airline : undefined;
         const found = await resolveRouteFn({
           data: {
             origin,
             dest,
             travelDate,
-            airline,
+            ...(carrier ? { airline: carrier } : {}),
             ...(depTime ? { depTime } : {}),
           },
         });
+
+
         if (found.ok && found.legs && found.legs.length > 0) {
-          if (found.legs.length > 1) {
-            setLegs(found.legs);
-            throw new Error("");
-          }
-          setPhase("building");
-          return briefFromLeg(found.legs[0]!);
+          setLegs(found.legs);
+          throw new Error("");
         }
-        setNotice(
+
+        throw new Error(
           found.reason === "not_found"
-            ? "We couldn’t find scheduled flights on that route — we’ll still check conditions for the route."
-            : "We couldn’t pull the flight list right now — we’ll still check conditions for the route.",
+            ? "No scheduled flights found on that route for that date. Check the date and airports, or try a different airline."
+            : "We couldn’t pull the flight list right now. Give it a moment and try again.",
         );
       }
 
-      setPhase("building");
-      return create({
-        data: { tripName, travelDate, origin, dest, depTime, deviceId, airline },
+      if (!flightNumber) throw new Error("Enter a flight number, or enter your route manually.");
+
+      const found = await resolve({
+        data: { airline, flightNumber, travelDate, deviceId },
       });
+
+      if (found.ok && found.legs && found.legs.length > 0) {
+        // A number like UA1448 can fly several legs that day — let the traveller pick.
+        setLegs(found.legs);
+        throw new Error("");
+      }
+
+      setManual(true);
+      setAirline(ALL_AIRLINES);
+      setNotice(
+        found.reason === "not_found"
+          ? "We couldn’t find that flight for that date — enter your route and pick from the flights that actually fly it."
+          : "We couldn’t look that flight up right now — enter your route and pick from the flights that actually fly it.",
+      );
+      throw new Error("");
     },
 
-    onSuccess: async (result) => {
-      await navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
-    },
     onError: (e: Error) => {
+
       setPhase(null);
       setError(e.message || "");
     },
@@ -318,11 +310,14 @@ function SearchScreen() {
                 }}
               >
                 <div className="flex gap-3">
-                  <div className="w-[9.5rem]">
+                  <div className={manual ? "flex-1" : "w-[9.5rem]"}>
                     <Label htmlFor="airline" className="text-xs text-muted-foreground">
                       Airline
                     </Label>
-                    <Select value={airline} onValueChange={setAirline}>
+                    <Select
+                      value={airline}
+                      onValueChange={(value) => value && setAirline(value)}
+                    >
                       <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
                         <SelectValue placeholder="Airline" />
                       </SelectTrigger>
@@ -335,22 +330,25 @@ function SearchScreen() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex-1">
-                    <Label htmlFor="flight-number" className="text-xs text-muted-foreground">
-                      Flight number
-                    </Label>
-                    <Input
-                      id="flight-number"
-                      inputMode="numeric"
-                      maxLength={4}
-                      autoComplete="off"
-                      value={flightNumber}
-                      onChange={(e) => setFlightNumber(e.target.value.replace(/\D/g, ""))}
-                      placeholder="782"
-                      className="mt-1.5 h-12 bg-surface text-base"
-                    />
-                  </div>
+                  {!manual && (
+                    <div className="flex-1">
+                      <Label htmlFor="flight-number" className="text-xs text-muted-foreground">
+                        Flight number
+                      </Label>
+                      <Input
+                        id="flight-number"
+                        inputMode="numeric"
+                        maxLength={4}
+                        autoComplete="off"
+                        value={flightNumber}
+                        onChange={(e) => setFlightNumber(e.target.value.replace(/\D/g, ""))}
+                        placeholder="782"
+                        className="mt-1.5 h-12 bg-surface text-base"
+                      />
+                    </div>
+                  )}
                 </div>
+
 
                 <div className="mt-3">
                   <Label htmlFor="date" className="text-xs text-muted-foreground">
@@ -407,10 +405,11 @@ function SearchScreen() {
                 {legs.length > 0 && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-surface/60 p-3">
                     <p className="text-sm font-semibold">
-                      {flightNumber
-                        ? `${airline}${flightNumber} flies more than one leg that day`
-                        : `Flights from ${origin.toUpperCase()} to ${dest.toUpperCase()} that day`}
+                      {manual
+                        ? `Flights from ${origin.toUpperCase()} to ${dest.toUpperCase()} that day`
+                        : `${airline}${flightNumber} that day`}
                     </p>
+
                     <p className="mt-1 text-xs text-muted-foreground">
                       Pick the one you are listing for.
                     </p>
@@ -469,24 +468,47 @@ function SearchScreen() {
                 >
                   {mutation.isPending ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Checking conditions
+                      <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                      {manual ? "Finding flights" : "Checking conditions"}
                     </>
                   ) : (
                     <>
-                      <Plane className="h-4 w-4" /> Check standby pressure
+                      <Plane className="h-4 w-4" />{" "}
+                      {manual ? "Find flights" : "Check standby pressure"}
                     </>
                   )}
                 </Button>
 
-                {!manual && (
+                {!manual ? (
                   <button
                     type="button"
-                    onClick={() => setManual(true)}
+                    onClick={() => {
+                      setManual(true);
+                      setAirline(ALL_AIRLINES);
+                      setLegs([]);
+                      setError(null);
+                      setNotice(null);
+                    }}
                     className="mt-3 w-full text-center text-xs text-muted-foreground underline underline-offset-4"
                   >
                     Enter route manually
                   </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManual(false);
+                      setAirline("UA");
+                      setLegs([]);
+                      setError(null);
+                      setNotice(null);
+                    }}
+                    className="mt-3 w-full text-center text-xs text-muted-foreground underline underline-offset-4"
+                  >
+                    Use a flight number instead
+                  </button>
                 )}
+
               </form>
 
               {error && <p className="mt-3 text-sm text-rough">{error}</p>}
