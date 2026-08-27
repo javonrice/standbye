@@ -27,14 +27,22 @@ export const searchAirports = createServerFn({ method: "GET" })
     return (rows ?? []) as AirportOption[];
   });
 
+export interface FlightLeg {
+  origin: string;
+  dest: string;
+  schedDepUtc: string;
+  schedArrUtc: string;
+  /** Departure in the origin airport's local time, "HH:MM". */
+  depLocalTime?: string;
+
+  airlineName?: string;
+}
+
 export interface ResolvedFlight {
   ok: boolean;
   reason?: "not_found" | "quota" | "error";
-  origin?: string;
-  dest?: string;
-  schedDepUtc?: string;
-  schedArrUtc?: string;
-  airlineName?: string;
+  /** Upcoming legs this number flies that day, earliest first. */
+  legs?: FlightLeg[];
 }
 
 /** One Tier-2 AeroDataBox lookup, cached 24h, guarded by the daily and monthly caps. */
@@ -62,25 +70,31 @@ export const resolveFlight = createServerFn({ method: "POST" })
 
     const { AeroDataBoxFreeProvider } = await import("@/lib/aircue/flight-provider.server");
     try {
-      const resolved = await new AeroDataBoxFreeProvider().resolve(
+      const resolved = await new AeroDataBoxFreeProvider().resolveLegs(
         `${data.airline}${data.flightNumber}`,
         data.travelDate,
         data.deviceId,
       );
-      if (!resolved) return { ok: false, reason: "not_found" };
-      return {
-        ok: true,
-        origin: resolved.originIata,
-        dest: resolved.destIata,
-        schedDepUtc: resolved.schedDepUtc,
-        schedArrUtc: resolved.schedArrUtc,
-        ...(resolved.airlineName ? { airlineName: resolved.airlineName } : {}),
-      };
+      // A standby brief for a leg that already left is useless — hide those.
+      const cutoff = Date.now() - 30 * 60 * 1000;
+      const upcoming = resolved.filter((l) => new Date(l.schedDepUtc).getTime() > cutoff);
+      const legs = (upcoming.length > 0 ? upcoming : resolved).map((l) => ({
+        origin: l.originIata,
+        dest: l.destIata,
+        schedDepUtc: l.schedDepUtc,
+        schedArrUtc: l.schedArrUtc,
+        ...(l.depLocalTime ? { depLocalTime: l.depLocalTime } : {}),
+        ...(l.airlineName ? { airlineName: l.airlineName } : {}),
+
+      }));
+      if (legs.length === 0) return { ok: false, reason: "not_found" };
+      return { ok: true, legs };
     } catch (error) {
       console.error("resolveFlight failed", error);
       return { ok: false, reason: "error" };
     }
   });
+
 
 export const createBrief = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>

@@ -17,7 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createBrief, resolveFlight, searchAirports } from "@/lib/aircue/brief.functions";
+import {
+  createBrief,
+  resolveFlight,
+  searchAirports,
+  type FlightLeg,
+} from "@/lib/aircue/brief.functions";
+
 import { AIRLINES, ALL_AIRLINES } from "@/lib/aircue/airlines";
 import { getDeviceId } from "@/lib/aircue/device";
 import { searchDisclaimer } from "@/lib/aircue/data";
@@ -93,6 +99,17 @@ function AirportField({
   );
 }
 
+/** Airport-local departure time when the provider gives it, else the viewer's clock. */
+function legTime(leg: FlightLeg): string {
+  if (leg.depLocalTime) {
+    const [h, m] = leg.depLocalTime.split(":").map(Number);
+    const hour12 = ((h ?? 0) % 12) || 12;
+    return `${hour12}:${String(m ?? 0).padStart(2, "0")} ${(h ?? 0) < 12 ? "AM" : "PM"} local`;
+  }
+  return new Date(leg.schedDepUtc).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+
 function SearchScreen() {
   const navigate = useNavigate();
   const create = useServerFn(createBrief);
@@ -106,6 +123,7 @@ function SearchScreen() {
   const [depTime, setDepTime] = useState("");
   const [airline, setAirline] = useState("UA");
   const [manual, setManual] = useState(false);
+  const [legs, setLegs] = useState<FlightLeg[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,26 +131,42 @@ function SearchScreen() {
     setDeviceId(getDeviceId());
   }, []);
 
+  const briefFromLeg = (leg: FlightLeg) =>
+    create({
+      data: {
+        tripName,
+        travelDate,
+        origin: leg.origin,
+        dest: leg.dest,
+        airline,
+        flightNumber,
+        schedDepUtc: leg.schedDepUtc,
+        schedArrUtc: leg.schedArrUtc,
+        deviceId,
+      },
+    });
+
+  const legMutation = useMutation({
+    mutationFn: briefFromLeg,
+    onSuccess: (result) => {
+      void navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
+    },
+    onError: (e: Error) => setError(e.message || ""),
+  });
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!manual && flightNumber) {
         const found = await resolve({
           data: { airline, flightNumber, travelDate, deviceId },
         });
-        if (found.ok && found.origin && found.dest) {
-          return create({
-            data: {
-              tripName,
-              travelDate,
-              origin: found.origin,
-              dest: found.dest,
-              airline,
-              flightNumber,
-              schedDepUtc: found.schedDepUtc ?? "",
-              schedArrUtc: found.schedArrUtc ?? "",
-              deviceId,
-            },
-          });
+        if (found.ok && found.legs && found.legs.length > 0) {
+          // A number like UA1448 can fly several legs that day — let the traveller pick.
+          if (found.legs.length > 1) {
+            setLegs(found.legs);
+            throw new Error("");
+          }
+          return briefFromLeg(found.legs[0]!);
         }
         setManual(true);
         setNotice(
@@ -153,6 +187,7 @@ function SearchScreen() {
     },
     onError: (e: Error) => setError(e.message || ""),
   });
+
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -210,6 +245,8 @@ function SearchScreen() {
                 e.preventDefault();
                 setError(null);
                 setNotice(null);
+                setLegs([]);
+
                 mutation.mutate();
               }}
             >
@@ -299,6 +336,38 @@ function SearchScreen() {
               </div>
 
               {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
+
+              {legs.length > 1 && (
+                <div className="mt-4 rounded-2xl border border-border/60 bg-surface/60 p-3">
+                  <p className="text-sm font-semibold">
+                    {airline}
+                    {flightNumber} flies more than one leg that day
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">Pick the one you are listing for.</p>
+                  <div className="mt-3 space-y-2">
+                    {legs.map((leg) => (
+                      <button
+                        key={`${leg.origin}-${leg.schedDepUtc}`}
+                        type="button"
+                        disabled={legMutation.isPending}
+                        onClick={() => {
+                          setError(null);
+                          legMutation.mutate(leg);
+                        }}
+                        className="flex w-full items-center justify-between rounded-xl bg-card/80 px-3 py-3 text-left transition-colors hover:bg-card disabled:opacity-60"
+                      >
+                        <span className="text-sm font-medium">
+                          {leg.origin} → {leg.dest}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Departs {legTime(leg)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
 
               <Button
                 type="submit"

@@ -366,12 +366,15 @@ async function chainSignals(
     };
   }
 
+  const leg = { origin: trip.origin_iata, dest: trip.dest_iata };
   const status = await provider.getStatus(
     flightNumber,
     trip.travel_date,
     trip.id,
     allowRefresh,
+    leg,
   );
+
 
   if (allowRefresh && status) {
     await supabaseAdmin
@@ -432,7 +435,7 @@ async function chainSignals(
     fingerprint: `chain:status:${trip.id}:${status.state}`,
   });
 
-  const inbound = await provider.getInboundAircraft(flightNumber, trip.travel_date);
+  const inbound = await provider.getInboundAircraft(flightNumber, trip.travel_date, leg);
   if (inbound?.tail || inbound?.model) {
     drafts.push({
       location: "chain",
