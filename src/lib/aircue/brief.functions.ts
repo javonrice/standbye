@@ -27,6 +27,61 @@ export const searchAirports = createServerFn({ method: "GET" })
     return (rows ?? []) as AirportOption[];
   });
 
+export interface ResolvedFlight {
+  ok: boolean;
+  reason?: "not_found" | "quota" | "error";
+  origin?: string;
+  dest?: string;
+  schedDepUtc?: string;
+  schedArrUtc?: string;
+  airlineName?: string;
+}
+
+/** One Tier-2 AeroDataBox lookup, cached 24h, guarded by the daily and monthly caps. */
+export const resolveFlight = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        airline: z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[A-Z0-9]{2,3}$/, "Pick an airline"),
+        flightNumber: z
+          .string()
+          .trim()
+          .regex(/^\d{1,4}$/, "Enter the flight number digits"),
+        travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a travel date"),
+        deviceId: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }): Promise<ResolvedFlight> => {
+    const { aeroDataBoxEnabled } = await import("@/lib/aircue/aerodatabox.server");
+    if (!aeroDataBoxEnabled()) return { ok: false, reason: "quota" };
+
+    const { AeroDataBoxFreeProvider } = await import("@/lib/aircue/flight-provider.server");
+    try {
+      const resolved = await new AeroDataBoxFreeProvider().resolve(
+        `${data.airline}${data.flightNumber}`,
+        data.travelDate,
+        data.deviceId,
+      );
+      if (!resolved) return { ok: false, reason: "not_found" };
+      return {
+        ok: true,
+        origin: resolved.originIata,
+        dest: resolved.destIata,
+        schedDepUtc: resolved.schedDepUtc,
+        schedArrUtc: resolved.schedArrUtc,
+        ...(resolved.airlineName ? { airlineName: resolved.airlineName } : {}),
+      };
+    } catch (error) {
+      console.error("resolveFlight failed", error);
+      return { ok: false, reason: "error" };
+    }
+  });
+
 export const createBrief = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
@@ -36,6 +91,13 @@ export const createBrief = createServerFn({ method: "POST" })
         origin: iata,
         dest: iata,
         depTime: z.string().optional(),
+        flightNumber: z
+          .string()
+          .trim()
+          .regex(/^\d{1,4}$/)
+          .optional(),
+        schedDepUtc: z.string().optional(),
+        schedArrUtc: z.string().optional(),
         airline: z
           .string()
           .trim()
@@ -48,18 +110,37 @@ export const createBrief = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<{ tripId: string }> => {
     const { ensureTrip, generateBrief } = await import("@/lib/aircue/pipeline.server");
+    const live = Boolean(data.flightNumber && data.schedDepUtc);
+    const defaultLabel =
+      data.flightNumber && data.airline
+        ? `${data.airline}${data.flightNumber}`
+        : `${data.origin} → ${data.dest}`;
+
     const tripId = await ensureTrip({
-      flightLabel: data.tripName?.trim() || `${data.origin} → ${data.dest}`,
+      flightLabel: data.tripName?.trim() || defaultLabel,
       travelDate: data.travelDate,
       origin: data.origin,
       dest: data.dest,
       depTime: data.depTime || undefined,
       deviceId: data.deviceId,
       airline: data.airline || undefined,
+      flightNumber: data.flightNumber || undefined,
+      schedDepUtc: data.schedDepUtc || undefined,
+      schedArrUtc: data.schedArrUtc || undefined,
+      providerRef: live
+        ? {
+            provider: "aerodatabox",
+            plan: "basic_free",
+            last_status_at: new Date().toISOString(),
+            raw_status_id: `${data.airline}${data.flightNumber}`,
+            units_estimated: 2,
+          }
+        : undefined,
     });
     await generateBrief(tripId);
     return { tripId };
   });
+
 
 export const getBrief = createServerFn({ method: "GET" })
   .inputValidator((input: { tripId: string }) =>
