@@ -63,9 +63,11 @@ export function SearchingOverlay({ flightLabel, origin, dest }: SearchingOverlay
           <circle cx="168" cy="132" r="4.5" className="cue-node" />
         </svg>
 
-        <span aria-hidden className="cue-plane">
-          <Plane className="h-5 w-5 rotate-90 text-primary" />
-        </span>
+        <div aria-hidden className="cue-plane-field">
+          <span className="cue-plane">
+            <Plane className="h-5 w-5 rotate-90 text-primary" />
+          </span>
+        </div>
       </div>
 
       <p className="mt-2 font-display text-lg font-semibold tracking-tight">

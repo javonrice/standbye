@@ -342,10 +342,20 @@
   fill: var(--primary);
 }
 
+.cue-plane-field {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  height: 200px;
+  width: 200px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 .cue-plane {
   position: absolute;
-  inset: 0;
-  margin: auto;
+  top: -0.625rem;
+  left: -0.625rem;
   height: 1.25rem;
   width: 1.25rem;
   offset-path: path("M32 132 C 70 60, 130 60, 168 132");
