@@ -55,6 +55,7 @@ interface TripRow {
   dep_window_end: string | null;
   arr_window_end: string | null;
   share_token: string | null;
+  provider_ref: Record<string, unknown> | null;
 }
 
 interface SignalDraft {
@@ -336,7 +337,30 @@ async function chainSignals(
     };
   }
 
-  const status = await provider.getStatus(flightNumber, trip.travel_date, trip.id);
+  // Day-of, allow a paid refresh at most every 3 hours; otherwise reuse the 24h cache.
+  const depAt = trip.sched_dep_utc ? new Date(trip.sched_dep_utc).getTime() : Infinity;
+  const hoursToDep = (depAt - Date.now()) / 3600000;
+  const ref = (trip.provider_ref ?? {}) as { last_status_at?: string };
+  const lastStatusAge = ref.last_status_at
+    ? (Date.now() - new Date(ref.last_status_at).getTime()) / 3600000
+    : Infinity;
+  const allowRefresh = hoursToDep <= 12 && lastStatusAge >= 3;
+
+  const status = await provider.getStatus(
+    flightNumber,
+    trip.travel_date,
+    trip.id,
+    allowRefresh,
+  );
+
+  if (allowRefresh && status) {
+    await supabaseAdmin
+      .from("trips")
+      .update({
+        provider_ref: { ...ref, last_status_at: new Date().toISOString() } as never,
+      })
+      .eq("id", trip.id);
+  }
   if (!status) {
     return {
       drafts: [
