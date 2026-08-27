@@ -905,7 +905,7 @@ async function recordChanges(
 
   const { data: prevSignals } = await supabaseAdmin
     .from("signals")
-    .select("fingerprint,summary")
+    .select("fingerprint,summary,category,evidence")
     .eq("briefing_id", previous.id);
   const before = new Set((prevSignals ?? []).map((s) => s.fingerprint));
   const after = new Set(drafts.map((d) => d.fingerprint));
