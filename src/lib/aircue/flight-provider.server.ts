@@ -38,6 +38,8 @@ export interface InboundStatus {
 
 export interface RouteCancelSummary {
   cancelledFlights: number;
+  /** Earlier same-route departures running 15+ minutes behind. */
+  delayedFlights: number;
   window: string;
 }
 
