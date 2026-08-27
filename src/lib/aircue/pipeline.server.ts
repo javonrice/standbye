@@ -411,8 +411,8 @@ async function chainSignals(
 
   drafts.push({
     location: "chain",
-    category: "chain_status",
-    confidence: "confirmed",
+    category: status.state === "cancelled" ? "cancellation" : "flight",
+    confidence: severity > 0 ? "confirmed" : "context",
     severity,
     title: `${flightNumber}: ${status.label}`,
     summary:
