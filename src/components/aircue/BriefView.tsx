@@ -197,7 +197,7 @@ export function BriefView({
 
 
   return (
-    <div className="aurora relative mx-auto w-full max-w-md px-1">
+    <div className="aurora relative mx-auto w-full max-w-md px-1 lg:max-w-5xl">
       {!readOnly && (
         <div className="flex items-center justify-between gap-3 pb-2 pt-1">
           <Link
@@ -210,6 +210,8 @@ export function BriefView({
         </div>
       )}
 
+      <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <div className="lg:sticky lg:top-6">
       {/* Hero */}
       <div className="pt-2 text-center">
         <h1 className="font-display text-lg font-bold tracking-tight">
