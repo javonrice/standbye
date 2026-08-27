@@ -369,6 +369,8 @@ export function BriefView({
         </div>
       </div>
 
+      <InventoryCard inventory={brief.inventory} />
+
       {/* Primary CTA */}
       {!readOnly && (
         <button
@@ -388,8 +390,6 @@ export function BriefView({
           )}
         </button>
       )}
-
-      <InventoryCard inventory={brief.inventory} />
       </div>
 
       <div className="lg:min-w-0">
