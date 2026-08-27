@@ -146,6 +146,36 @@ function QuickAction({
   );
 }
 
+/** Explains a check we could not run, and offers more checks when the cap is the reason. */
+function UnavailableNote({ items }: { items: string[] }) {
+  const capped = items.some((i) => i.toLowerCase().includes("monthly limit reached"));
+  const rest = items.filter((i) => !i.toLowerCase().includes("monthly limit reached"));
+
+  return (
+    <div className="mt-3 space-y-2">
+      {capped && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+          <p className="text-xs text-foreground/85">
+            You’ve used your seat availability checks for this month, so we couldn’t look at
+            booking inventory for this flight.
+          </p>
+          <button
+            type="button"
+            disabled
+            title="Coming soon"
+            className="mt-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium text-muted-foreground opacity-60"
+          >
+            Get more checks (coming soon)
+          </button>
+        </div>
+      )}
+      {rest.length > 0 && (
+        <p className="text-xs text-muted-foreground">We could not check: {rest.join(", ")}.</p>
+      )}
+    </div>
+  );
+}
+
 
 function Section({
   title,
@@ -174,11 +204,8 @@ function Section({
         </div>
       )}
 
-      {unavailable && unavailable.length > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          We could not check: {unavailable.join(", ")}.
-        </p>
-      )}
+      {unavailable && unavailable.length > 0 && <UnavailableNote items={unavailable} />}
+
     </section>
   );
 }

@@ -14,7 +14,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const DEFAULT_TTL_MIN = 120;
 const NEAR_DEP_TTL_MIN = 60;
 const NEAR_DEP_HOURS = 6;
-const DEFAULT_DEVICE_MONTHLY_CAP = 3;
+const DEFAULT_DEVICE_MONTHLY_CAP = 25;
 const DEFAULT_GLOBAL_MONTHLY_CAP = 240;
 /** Max fresh probes spent on a single watched trip. */
 const WATCH_TRIP_PROBE_CAP = 5;
