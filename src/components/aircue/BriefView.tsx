@@ -241,12 +241,8 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
       {/* Quick actions */}
       {!readOnly && (
         <div className="mt-7 flex items-start gap-2">
-          <QuickAction
-            icon={Bell}
-            label="Watch"
-            to="/brief/$briefId/watch"
-            params={{ briefId: brief.id }}
-          />
+          <QuickAction icon={Bell} label="Watch" onClick={watch.start} />
+
           {brief.shareToken && (
             <QuickAction
               icon={Share2}
