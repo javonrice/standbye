@@ -111,8 +111,8 @@ export const startWatch = createServerFn({ method: "POST" })
     z
       .object({
         tripId: z.string().uuid(),
-        email: z.string().email(),
-        deviceId: z.string().optional(),
+        email: z.string().email().optional(),
+        deviceId: z.string().min(1),
       })
       .parse(input),
   )
@@ -122,19 +122,19 @@ export const startWatch = createServerFn({ method: "POST" })
       .from("watches")
       .select("id")
       .eq("trip_id", data.tripId)
-      .eq("email", data.email)
+      .eq("device_id", data.deviceId)
       .maybeSingle();
 
     if (existing) {
       await supabaseAdmin
         .from("watches")
-        .update({ state: "active", ended_at: null })
+        .update({ state: "active", ended_at: null, email: data.email ?? null })
         .eq("id", existing.id);
     } else {
       await supabaseAdmin.from("watches").insert({
         trip_id: data.tripId,
-        email: data.email,
-        device_id: data.deviceId ?? null,
+        email: data.email ?? null,
+        device_id: data.deviceId,
         state: "active",
         next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       });
@@ -146,6 +146,7 @@ export const startWatch = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
 
 export const stopWatch = createServerFn({ method: "POST" })
   .inputValidator((input: { watchId: string }) =>

@@ -1,18 +1,48 @@
-import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Bell,
   ChevronLeft,
   Clock3,
   History,
   Info,
+  Loader2,
   Share2,
 } from "lucide-react";
 
 import { SignalRow } from "@/components/aircue/SignalRow";
 import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
 import { cn } from "@/lib/utils";
+import { startWatch } from "@/lib/aircue/brief.functions";
+import { getDeviceId } from "@/lib/aircue/device";
 import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
 import { disclaimer } from "@/lib/aircue/data";
+
+function useWatchAction(tripId: string) {
+  const [deviceId, setDeviceId] = useState("");
+  const navigate = useNavigate();
+  const watchFn = useServerFn(startWatch);
+
+  useEffect(() => {
+    setDeviceId(getDeviceId());
+  }, []);
+
+  const mutation = useMutation({
+    mutationFn: () => watchFn({ data: { tripId, deviceId } }),
+    onSuccess: () => navigate({ to: "/watches" }),
+  });
+
+  return {
+    start: () => {
+      if (!deviceId || mutation.isPending) return;
+      mutation.mutate();
+    },
+    pending: mutation.isPending,
+  };
+}
+
 
 const orbGlow: Record<BriefStatus, string> = {
   clear: "radial-gradient(circle, var(--fine) 0%, transparent 70%)",
@@ -76,12 +106,31 @@ function QuickAction({
   label,
   to,
   params,
+  onClick,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  to: string;
+  to?: string;
   params?: Record<string, string>;
+  onClick?: () => void;
 }) {
+  const inner = (
+    <>
+      <span className="glass glass-press glass-sheen flex h-14 w-14 items-center justify-center rounded-full">
+        <Icon className="h-5 w-5 text-foreground" />
+      </span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className="flex flex-1 flex-col items-center gap-2">
+        {inner}
+      </button>
+    );
+  }
+
   return (
     <Link
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,13 +139,11 @@ function QuickAction({
       params={params as any}
       className="flex flex-1 flex-col items-center gap-2"
     >
-      <span className="glass glass-press glass-sheen flex h-14 w-14 items-center justify-center rounded-full">
-        <Icon className="h-5 w-5 text-foreground" />
-      </span>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      {inner}
     </Link>
   );
 }
+
 
 function Section({
   title,
@@ -136,6 +183,8 @@ function Section({
 
 export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?: boolean }) {
   const score = brief.pressure;
+  const watch = useWatchAction(brief.id);
+
 
   return (
     <div className="aurora relative mx-auto w-full max-w-md px-1">
@@ -192,12 +241,8 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
       {/* Quick actions */}
       {!readOnly && (
         <div className="mt-7 flex items-start gap-2">
-          <QuickAction
-            icon={Bell}
-            label="Watch"
-            to="/brief/$briefId/watch"
-            params={{ briefId: brief.id }}
-          />
+          <QuickAction icon={Bell} label="Watch" onClick={watch.start} />
+
           {brief.shareToken && (
             <QuickAction
               icon={Share2}
@@ -227,14 +272,24 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
 
       {/* Primary CTA */}
       {!readOnly && (
-        <Link
-          to="/brief/$briefId/watch"
-          params={{ briefId: brief.id }}
-          className="glass-press mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-card"
+        <button
+          type="button"
+          onClick={watch.start}
+          disabled={watch.pending}
+          className="glass-press mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 font-display text-base font-bold text-primary-foreground shadow-card disabled:opacity-70"
         >
-          <Bell className="h-5 w-5" /> Watch
-        </Link>
+          {watch.pending ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" /> Adding to Watching
+            </>
+          ) : (
+            <>
+              <Bell className="h-5 w-5" /> Watch this flight
+            </>
+          )}
+        </button>
       )}
+
 
       {/* Why */}
       <section className="glass glass-sheen mt-6 rounded-3xl p-5">
