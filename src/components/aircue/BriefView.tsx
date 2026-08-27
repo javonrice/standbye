@@ -305,7 +305,7 @@ export function BriefView({
 
       <div className="lg:min-w-0">
       {/* Why */}
-      <section className="glass glass-sheen mt-6 rounded-3xl p-5">
+      <section className="glass glass-sheen mt-6 rounded-3xl p-5 lg:mt-2">
         <h2 className="font-display text-base font-bold tracking-tight">Why</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-foreground/85">{brief.outlook}</p>
       </section>
