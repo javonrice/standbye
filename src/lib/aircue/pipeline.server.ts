@@ -570,7 +570,7 @@ function sellableDraft(trip: TripRow, retrievedAt: string, result: SellableResul
 /* -------------------------------- scoring -------------------------------- */
 
 function levelFor(draft: { severity: number; confidence: Confidence; category: string }): BriefStatus {
-  if (draft.category === "chain_status") return "incomplete";
+  
   if (draft.confidence === "confirmed" && draft.severity >= 85) return "disruption";
   if (draft.severity >= 65) return "elevated";
   if (draft.severity >= 35) return "watch";
