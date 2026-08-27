@@ -54,8 +54,8 @@ function WatchesPage() {
   const ended = (watches ?? []).filter((w) => w.state !== "active");
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-md px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8">
+    <div className="min-h-screen bg-background md:pl-[5.5rem] lg:pl-56">
+      <div className="mx-auto w-full max-w-md px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-8 md:max-w-4xl md:px-10 md:pb-12 md:pt-12">
         <h1 className="font-display text-2xl font-bold tracking-tight">Watching</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Aircue rechecks these flights and flags meaningful changes.
@@ -74,7 +74,7 @@ function WatchesPage() {
           </div>
         )}
 
-        <ul className="mt-5 space-y-3">
+        <ul className="mt-5 space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
           {active.map((w) => (
             <li key={w.watchId} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-start justify-between gap-3">

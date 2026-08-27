@@ -6,7 +6,7 @@ import mark from "@/assets/aircue-mark.png.asset.json";
 
 export function AppShell({ children, nav = true }: { children: ReactNode; nav?: boolean }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background md:pl-[5.5rem] lg:pl-56">
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
           <Link to="/" className="flex items-center gap-2.5">

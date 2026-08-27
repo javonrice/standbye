@@ -24,7 +24,7 @@ export const Route = createFileRoute("/buddies")({
 function BuddiesPage() {
   return (
     <>
-      <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 pb-[calc(7rem+env(safe-area-inset-bottom))] text-center">
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 pb-[calc(7rem+env(safe-area-inset-bottom))] text-center md:pb-12 md:pl-[5.5rem] lg:pl-56">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary">
           <Users className="h-7 w-7 text-muted-foreground" />
         </div>
