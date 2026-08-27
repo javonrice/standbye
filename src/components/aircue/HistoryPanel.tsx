@@ -66,6 +66,59 @@ function SeatTrend({ title, rows }: { title: string; rows: HistoryLoadRow[] }) {
   );
 }
 
+function ByDay({ rows, activeDow }: { rows: HistoryPatternRow[]; activeDow: number }) {
+  if (rows.length === 0) return null;
+  const max = Math.max(...rows.map((r) => r.flightsSampled), 1);
+  const busiest = rows.reduce((a, b) => (b.flightsSampled > a.flightsSampled ? b : a));
+  const lightest = rows.reduce((a, b) => (b.flightsSampled < a.flightsSampled ? b : a));
+  const mine = rows.find((r) => r.dow === activeDow);
+
+  return (
+    <div className="mt-5">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Flights each day
+      </p>
+      <div className="mt-2.5 flex items-end gap-1.5">
+        {rows.map((row) => {
+          const active = row.dow === activeDow;
+          const height = Math.max(12, (row.flightsSampled / max) * 72);
+          return (
+            <div key={row.label} className="flex flex-1 flex-col items-center gap-1.5">
+              <span
+                className={cn(
+                  "text-[0.65rem] tabular-nums",
+                  active ? "text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {Math.round(row.flightsSampled / 4)}
+              </span>
+              <div
+                className={cn(
+                  "w-full rounded-t-md",
+                  active ? "bg-primary" : "bg-white/15",
+                )}
+                style={{ height: `${height}px` }}
+              />
+              <span
+                className={cn(
+                  "text-[0.65rem]",
+                  active ? "font-medium text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {row.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
+        Average flights per day this month. Busiest {busiest.label}, lightest {lightest.label}.
+        {mine ? ` Your day: ${pct(mine.dep15Rate)} left late, ${mine.medianLaterBackups} later flight${mine.medianLaterBackups === 1 ? "" : "s"}.` : ""}
+      </p>
+    </div>
+  );
+}
+
 function TimeOfDay({ rows, activeBlock }: { rows: HistoryPatternRow[]; activeBlock: string | null }) {
   if (rows.length === 0) return null;
   const max = Math.max(...rows.map((r) => r.dep15Rate), 10);
