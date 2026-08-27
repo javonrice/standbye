@@ -7,11 +7,11 @@ import { timeBlockRange, timeBlockShort } from "@/lib/aircue/history";
 import type { HistoryLoadRow, HistoryPatternRow, RouteHistory } from "@/lib/aircue/history";
 
 function pct(value: number) {
-  return `${value >= 10 ? Math.round(value) : value.toFixed(1)}%`;
+  return `${Math.round(value)}%`;
 }
 
 function seats(value: number) {
-  return value >= 10 ? String(Math.round(value)) : value.toFixed(1);
+  return String(Math.round(value));
 }
 
 function seatTone(empty: number) {
@@ -44,7 +44,7 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function SeatTrend({ title, rows, caption }: { title: string; rows: HistoryLoadRow[]; caption: string }) {
+function SeatTrend({ title, rows }: { title: string; rows: HistoryLoadRow[] }) {
   if (rows.length === 0) return null;
   const max = Math.max(...rows.map((r) => r.avgEmptySeats), 5);
 
@@ -57,12 +57,11 @@ function SeatTrend({ title, rows, caption }: { title: string; rows: HistoryLoadR
             <span className="w-16 shrink-0 text-xs text-muted-foreground">{row.label}</span>
             <Bar value={row.avgEmptySeats} max={max} tone={seatTone(row.avgEmptySeats)} />
             <span className="w-24 shrink-0 text-right text-xs text-foreground/80">
-              {seats(row.avgEmptySeats)} open · {Math.round(row.loadFactor)}% full
+              ~{seats(row.avgEmptySeats)} empty · {Math.round(row.loadFactor)}% sold
             </span>
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">{caption}</p>
     </div>
   );
 }
@@ -120,9 +119,9 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
   return (
     <section className="glass glass-sheen mt-4 rounded-3xl p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-base font-bold tracking-tight">Seat history</h2>
+        <h2 className="font-display text-base font-bold tracking-tight">Past averages</h2>
         <span className="rounded-full bg-white/10 px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-          Context
+          Not today&apos;s flight
         </span>
       </div>
 
@@ -134,48 +133,33 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
         <>
           <div className="mt-4 text-center">
             <p className="font-display text-4xl font-bold leading-none tracking-tight">
-              {seats(seatsInfo.avgEmptySeats)}
+              ~{seats(seatsInfo.avgEmptySeats)}
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              empty seats on a typical departure
+              average empty seats per flight
             </p>
           </div>
 
-          <div className="mt-4">
-            <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-              <span>{Math.round(seatsInfo.loadFactor)}% of seats sold</span>
-              <span>
-                {seats(seatsInfo.minEmptySeats)}–{seats(seatsInfo.maxEmptySeats)} across years
-              </span>
-            </div>
-            <div className="mt-1.5">
-              <Bar value={seatsInfo.loadFactor} max={100} tone={seatTone(seatsInfo.avgEmptySeats)} />
-            </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Stat value={pct(seatsInfo.loadFactor)} label="seats sold" />
+            <Stat
+              value={`${seats(seatsInfo.minEmptySeats)}–${seats(seatsInfo.maxEmptySeats)}`}
+              label="empty-seat range by year"
+            />
           </div>
 
-          <p className="mt-3 text-sm leading-relaxed text-foreground/80">
-            Across {seatsInfo.departures.toLocaleString()} {history.monthName} departures in the last{" "}
-            {seatsInfo.years} published year{seatsInfo.years === 1 ? "" : "s"}, this route flew with
-            about {seats(seatsInfo.avgEmptySeats)} seats unsold per flight
-            {history.load?.vsNetworkPp !== null && history.load?.vsNetworkPp !== undefined
-              ? ` — ${Math.abs(history.load.vsNetworkPp).toFixed(1)} points ${
-                  history.load.vsNetworkPp >= 0 ? "fuller" : "emptier"
-                } than this airline's average`
-              : ""}
-            . That is a past average, not today&apos;s open seats or your list position.
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Based on {seatsInfo.departures.toLocaleString()} {history.monthName} departures over
+            the last {seatsInfo.years} published year{seatsInfo.years === 1 ? "" : "s"}.
           </p>
         </>
       ) : (
         <p className="mt-2 text-sm text-muted-foreground">
-          Seat and passenger records for this route are not published yet.
+          Seat records for this route are not published yet.
         </p>
       )}
 
-      <SeatTrend
-        title={`Open seats each ${history.monthName}`}
-        rows={history.loadPriorYears}
-        caption="Same month, earlier years — how much room this route usually leaves."
-      />
+      <SeatTrend title={`Avg empty seats each ${history.monthName}`} rows={history.loadPriorYears} />
 
       <button
         type="button"
@@ -191,7 +175,7 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
           {reliability && (
             <>
               <div className="mt-4 grid grid-cols-3 gap-2">
-                <Stat value={pct(reliability.dep15Rate)} label="left 15+ min late" />
+                <Stat value={pct(reliability.dep15Rate)} label="left late" />
                 <Stat value={pct(reliability.cancelRate)} label="cancelled" />
                 <Stat
                   value={String(reliability.medianLaterBackups)}
@@ -204,30 +188,20 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 {blockName ? `${blockName} departures in ` : "Departures in "}
-                {history.monthName}, {reliability.flightsSampled.toLocaleString()} flights sampled.
+                {history.monthName}, {reliability.flightsSampled.toLocaleString()} flights.
               </p>
             </>
           )}
 
           <TimeOfDay rows={history.timeBlocks} activeBlock={history.timeBlock} />
 
-          <SeatTrend
-            title="Recent months"
-            rows={history.loadRecentMonths}
-            caption="Most recent published months of seat and passenger counts."
-          />
+          <SeatTrend title="Recent months" rows={history.loadRecentMonths} />
 
-          <ul className="mt-5 space-y-1 text-xs text-muted-foreground">
-            <li>Source: U.S. Bureau of Transportation Statistics (free public data).</li>
-            {history.notes.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-            <li>
-              Government data is published a few months behind, so recent weeks are not covered.
-              History is context only — not today&apos;s seats, your list position, or a chance of
-              clearing.
-            </li>
-          </ul>
+          <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
+            Source: U.S. Bureau of Transportation Statistics, published a few months behind. Past
+            averages only — not today&apos;s seats or your spot on the list.
+            {history.notes.length > 0 ? ` ${history.notes.join(" ")}` : ""}
+          </p>
         </div>
       )}
     </section>
