@@ -36,6 +36,12 @@ export const createBrief = createServerFn({ method: "POST" })
         origin: iata,
         dest: iata,
         depTime: z.string().optional(),
+        airline: z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[A-Z0-9]{2,3}$/, "Pick an airline")
+          .optional(),
         deviceId: z.string().optional(),
       })
       .parse(input),
@@ -49,6 +55,7 @@ export const createBrief = createServerFn({ method: "POST" })
       dest: data.dest,
       depTime: data.depTime || undefined,
       deviceId: data.deviceId,
+      airline: data.airline || undefined,
     });
     await generateBrief(tripId);
     return { tripId };

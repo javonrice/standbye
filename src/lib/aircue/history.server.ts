@@ -122,8 +122,10 @@ export async function getRouteHistory(input: {
   dest: string;
   travelDate: string;
   localHour: number | null;
+  carrier?: string | null;
 }): Promise<RouteHistory | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const carrier = input.carrier && input.carrier !== "NA" ? input.carrier : "ALL";
 
   const date = new Date(`${input.travelDate}T12:00:00Z`);
   const month = date.getUTCMonth() + 1;
@@ -138,13 +140,13 @@ export async function getRouteHistory(input: {
       )
       .eq("origin_iata", input.origin)
       .eq("dest_iata", input.dest)
-      .eq("marketing_carrier", "UA"),
+      .eq("marketing_carrier", carrier),
     supabaseAdmin
       .from("hist_t100_route_month")
       .select("year,month,departures,load_factor,avg_empty_seats,vs_network_pp,source_period")
       .eq("origin_iata", input.origin)
       .eq("dest_iata", input.dest)
-      .eq("marketing_carrier", "UA")
+      .eq("marketing_carrier", carrier)
       .order("year", { ascending: false }),
     publishedMonths(supabaseAdmin as never, "ontime"),
     publishedMonths(supabaseAdmin as never, "t100"),
@@ -219,6 +221,7 @@ export async function getRouteHistory(input: {
   return {
     origin: input.origin,
     dest: input.dest,
+    carrier,
     month,
     monthName,
     dow,

@@ -13,7 +13,7 @@ export const getTripHistory = createServerFn({ method: "GET" })
 
     const { data: trip } = await supabaseAdmin
       .from("trips")
-      .select("origin_iata,dest_iata,travel_date,sched_dep_utc")
+      .select("origin_iata,dest_iata,travel_date,sched_dep_utc,marketing_carrier")
       .eq("id", data.tripId)
       .maybeSingle();
     if (!trip) return null;
@@ -40,5 +40,6 @@ export const getTripHistory = createServerFn({ method: "GET" })
       dest: trip.dest_iata,
       travelDate: trip.travel_date,
       localHour,
+      carrier: trip.marketing_carrier ?? "ALL",
     });
   });

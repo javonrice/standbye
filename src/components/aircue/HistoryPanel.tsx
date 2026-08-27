@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { airlineName } from "@/lib/aircue/airlines";
 import type { RouteHistory } from "@/lib/aircue/history";
 
 function pct(value: number) {
@@ -63,7 +64,8 @@ export function HistoryPanel({ history }: { history: RouteHistory }) {
 
       {headline ? (
         <p className="mt-2 text-sm leading-relaxed text-foreground/85">
-          On {history.origin} → {history.dest}, {headline.label} have historically
+          On {history.origin} → {history.dest} with {airlineName(history.carrier)},{" "}
+          {headline.label} have historically
           been cancelled {pct(headline.cancelRate)} of the time and left 15+ minutes late{" "}
           {pct(headline.dep15Rate)} of the time, with a typical{" "}
           {headline.medianLaterBackups === 0

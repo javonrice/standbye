@@ -837,6 +837,7 @@ export async function ensureTrip(input: {
   dest: string;
   depTime?: string | undefined;
   deviceId?: string | undefined;
+  airline?: string | undefined;
 }): Promise<string> {
   const { data: airports } = await supabaseAdmin
     .from("airports")
@@ -864,11 +865,13 @@ export async function ensureTrip(input: {
     .eq("travel_date", input.travelDate)
     .eq("origin_iata", input.origin)
     .eq("dest_iata", input.dest)
+    .eq("marketing_carrier", input.airline || "ALL")
     .maybeSingle();
   if (existing) return existing.id;
 
-  // No flight-status provider yet, so we store a user-facing trip name instead of a flight number.
-  const carrier = "NA";
+  // No flight-status provider yet, so we store the airline the traveller picked
+  // plus a user-facing trip name instead of a flight number.
+  const carrier = input.airline || "ALL";
   const number = "0";
 
   const { data: inserted, error } = await supabaseAdmin
