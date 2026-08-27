@@ -770,7 +770,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
 
   return {
     id: trip.id,
-    flightNumber: trip.flight_label,
+    tripName: trip.flight_label,
     origin: origin.iata,
     destination: dest.iata,
     originCity: origin.city ?? origin.iata,
@@ -867,8 +867,9 @@ export async function ensureTrip(input: {
     .maybeSingle();
   if (existing) return existing.id;
 
-  const carrier = input.flightLabel.replace(/[0-9].*$/, "") || "UA";
-  const number = input.flightLabel.replace(/^[A-Za-z]+/, "");
+  // No flight-status provider yet, so we store a user-facing trip name instead of a flight number.
+  const carrier = "NA";
+  const number = "0";
 
   const { data: inserted, error } = await supabaseAdmin
     .from("trips")

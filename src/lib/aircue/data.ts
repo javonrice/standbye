@@ -52,7 +52,7 @@ export interface ChangeEntry {
 
 export interface Brief {
   id: string;
-  flightNumber: string;
+  tripName: string;
   origin: string;
   destination: string;
   originCity: string;

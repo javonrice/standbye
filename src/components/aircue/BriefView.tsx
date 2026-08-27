@@ -154,7 +154,7 @@ export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?
       {/* Hero */}
       <div className="pt-2 text-center">
         <h1 className="font-display text-lg font-bold tracking-tight">
-          {brief.flightNumber} · {brief.origin} → {brief.destination}
+          {brief.tripName} · {brief.origin} → {brief.destination}
         </h1>
         <p className="mt-1 text-xs text-muted-foreground">
           {brief.date} · {brief.departsLocal}
