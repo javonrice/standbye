@@ -779,7 +779,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
     departsLocal: formatLocalTime(schedDep, origin.tz),
     arrivesLocal: formatLocalTime(schedArr, dest.tz),
     countdown: formatCountdown(schedDep),
-    status: briefing.status as BriefStatus,
+    status: cardToStatus(briefing.status),
     pressure: briefing.pressure_index ?? 0,
     outlook: briefing.headline,
     impact: briefing.why_summary ?? "",
