@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { startWatch } from "@/lib/aircue/brief.functions";
 import { getDeviceId } from "@/lib/aircue/device";
 import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
+import type { RouteHistory } from "@/lib/aircue/history.server";
 import { disclaimer } from "@/lib/aircue/data";
 
 function useWatchAction(tripId: string) {
