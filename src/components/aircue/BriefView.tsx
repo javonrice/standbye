@@ -301,8 +301,9 @@ export function BriefView({
           )}
         </button>
       )}
+      </div>
 
-
+      <div className="lg:min-w-0">
       {/* Why */}
       <section className="glass glass-sheen mt-6 rounded-3xl p-5">
         <h2 className="font-display text-base font-bold tracking-tight">Why</h2>
