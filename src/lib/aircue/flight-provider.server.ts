@@ -113,12 +113,20 @@ function toIso(raw: string): string {
 }
 
 /** One AeroDataBox leg → a trip resolution, or null when key fields are missing. */
-function toResolution(flight: AdbFlight): TripResolution | null {
-  const origin = flight.departure?.airport?.iata;
-  const dest = flight.arrival?.airport?.iata;
+async function toResolution(flight: AdbFlight): Promise<TripResolution | null> {
   const dep = flight.departure?.scheduledTime?.utc;
+  if (!dep) return null;
+  const origin =
+    flight.departure?.airport?.iata ??
+    (await iataFromAirportName(
+      flight.departure?.airport?.name,
+      flight.departure?.airport?.icao,
+    ));
+  const dest =
+    flight.arrival?.airport?.iata ??
+    (await iataFromAirportName(flight.arrival?.airport?.name, flight.arrival?.airport?.icao));
   const arr = flight.arrival?.scheduledTime?.utc;
-  if (!origin || !dest || !dep) return null;
+  if (!origin || !dest) return null;
   const depLocal = flight.departure?.scheduledTime?.local;
   return {
     originIata: origin,
