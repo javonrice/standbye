@@ -7,6 +7,7 @@ import {
   fetchFlightStatus,
   type AdbFlight,
 } from "@/lib/aircue/aerodatabox.server";
+import { iataFromAirportName } from "@/lib/aircue/airport-lookup.server";
 
 
 export interface TripResolution {
