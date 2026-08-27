@@ -176,13 +176,17 @@ async function cachedCall<T>(
 
 /* -------------------------------- endpoints ------------------------------- */
 
-/** Tier 2: flight status by number for a specific local date. Cached 24h. */
-export async function fetchFlightStatus(
+/**
+ * Tier 2: every leg flown under this flight number on that local date. Cached 24h.
+ * A number like UA1448 can operate RDU→ORD and then ORD→IAH, so callers must
+ * pick the leg the traveller means instead of assuming the first one.
+ */
+export async function fetchFlightLegs(
   flightNumber: string,
   travelDate: string,
   opts: { tripId?: string | undefined; deviceId?: string | undefined; force?: boolean | undefined } = {},
-): Promise<{ flight: AdbFlight | null; budgetBlocked: boolean }> {
-  if (!aeroDataBoxEnabled()) return { flight: null, budgetBlocked: true };
+): Promise<{ flights: AdbFlight[]; budgetBlocked: boolean }> {
+  if (!aeroDataBoxEnabled()) return { flights: [], budgetBlocked: true };
 
   const number = flightNumber.replace(/\s+/g, "").toUpperCase();
   const cacheKey = `adb:status:${number}:${travelDate}`;
@@ -195,7 +199,7 @@ export async function fetchFlightStatus(
 
   // Only a cache miss counts against the per-device daily cap.
   if (!cachedRow.data && !(await deviceResolveAllowed(opts.deviceId))) {
-    return { flight: null, budgetBlocked: true };
+    return { flights: [], budgetBlocked: true };
   }
 
   const result = await cachedCall<AdbFlight[]>(
@@ -209,8 +213,47 @@ export async function fetchFlightStatus(
   if (!result.fromCache && result.data) await noteDeviceResolve(opts.deviceId);
 
   const list = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
-  return { flight: list[0] ?? null, budgetBlocked: result.budgetBlocked };
+  return { flights: list, budgetBlocked: result.budgetBlocked };
 }
+
+/** One leg: the one departing `origin` when given, otherwise the first of the day. */
+export async function fetchFlightStatus(
+  flightNumber: string,
+  travelDate: string,
+  opts: {
+    tripId?: string | undefined;
+    deviceId?: string | undefined;
+    force?: boolean | undefined;
+    origin?: string | undefined;
+    dest?: string | undefined;
+  } = {},
+): Promise<{ flight: AdbFlight | null; budgetBlocked: boolean }> {
+  const { flights, budgetBlocked } = await fetchFlightLegs(flightNumber, travelDate, opts);
+  return { flight: pickLeg(flights, opts.origin, opts.dest), budgetBlocked };
+}
+
+/** Match on origin (and destination when known); fall back to the first leg. */
+export function pickLeg(
+  flights: AdbFlight[],
+  origin?: string | undefined,
+  dest?: string | undefined,
+): AdbFlight | null {
+  if (flights.length === 0) return null;
+  if (origin) {
+    const o = origin.toUpperCase();
+    const d = dest?.toUpperCase();
+    const exact = flights.find(
+      (f) =>
+        f.departure?.airport?.iata?.toUpperCase() === o &&
+        (!d || f.arrival?.airport?.iata?.toUpperCase() === d),
+    );
+    if (exact) return exact;
+    const byOrigin = flights.find((f) => f.departure?.airport?.iata?.toUpperCase() === o);
+    if (byOrigin) return byOrigin;
+  }
+  return flights[0] ?? null;
+}
+
 
 /** Tier 2: departures board for one airport/day, shared across every watch. Cached 1h. */
 export async function fetchDepartureBoard(

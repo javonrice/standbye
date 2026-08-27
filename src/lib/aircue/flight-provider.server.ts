@@ -3,18 +3,23 @@
 import {
   aeroDataBoxEnabled,
   fetchDepartureBoard,
+  fetchFlightLegs,
   fetchFlightStatus,
   type AdbFlight,
 } from "@/lib/aircue/aerodatabox.server";
 
+
 export interface TripResolution {
   schedDepUtc: string;
   schedArrUtc: string;
+  /** Scheduled departure in the origin airport's local time, "HH:MM". */
+  depLocalTime?: string;
   originIata: string;
   destIata: string;
   airlineName?: string;
   rawStatusId?: string;
 }
+
 
 export interface FlightStatus {
   state: "scheduled" | "delayed" | "cancelled" | "departed" | "diverted";
@@ -35,6 +40,11 @@ export interface RouteCancelSummary {
   window: string;
 }
 
+export interface LegFilter {
+  origin?: string | undefined;
+  dest?: string | undefined;
+}
+
 export interface FlightProvider {
   readonly name: string;
   readonly live: boolean;
@@ -43,13 +53,25 @@ export interface FlightProvider {
     travelDate: string,
     deviceId?: string,
   ): Promise<TripResolution | null>;
+  /** Every leg the number flies that day, in schedule order. */
+  resolveLegs(
+    flightNumber: string,
+    travelDate: string,
+    deviceId?: string,
+  ): Promise<TripResolution[]>;
   getStatus(
     flightNumber: string,
     travelDate: string,
     tripId?: string,
     allowRefresh?: boolean,
+    leg?: LegFilter,
   ): Promise<FlightStatus | null>;
-  getInboundAircraft(flightNumber: string, travelDate: string): Promise<InboundStatus | null>;
+  getInboundAircraft(
+    flightNumber: string,
+    travelDate: string,
+    leg?: LegFilter,
+  ): Promise<InboundStatus | null>;
+
   getEarlierRouteCancellations(
     origin: string,
     dest: string,
@@ -66,6 +88,10 @@ export class ManualFlightProvider implements FlightProvider {
   async resolve() {
     return null;
   }
+  async resolveLegs() {
+    return [];
+  }
+
   async getStatus() {
     return null;
   }
@@ -81,6 +107,31 @@ function minutesBetween(a?: string, b?: string): number | undefined {
   if (!a || !b) return undefined;
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
 }
+
+function toIso(raw: string): string {
+  return new Date(raw.replace(" ", "T").replace("Z", "") + "Z").toISOString();
+}
+
+/** One AeroDataBox leg → a trip resolution, or null when key fields are missing. */
+function toResolution(flight: AdbFlight): TripResolution | null {
+  const origin = flight.departure?.airport?.iata;
+  const dest = flight.arrival?.airport?.iata;
+  const dep = flight.departure?.scheduledTime?.utc;
+  const arr = flight.arrival?.scheduledTime?.utc;
+  if (!origin || !dest || !dep) return null;
+  const depLocal = flight.departure?.scheduledTime?.local;
+  return {
+    originIata: origin,
+    destIata: dest,
+    schedDepUtc: toIso(dep),
+    schedArrUtc: arr ? toIso(arr) : new Date(new Date(toIso(dep)).getTime() + 3 * 3600000).toISOString(),
+    ...(depLocal ? { depLocalTime: depLocal.slice(11, 16) } : {}),
+    ...(flight.airline?.name ? { airlineName: flight.airline.name } : {}),
+    ...(flight.number ? { rawStatusId: flight.number } : {}),
+  };
+
+}
+
 
 function toFlightStatus(flight: AdbFlight): FlightStatus {
   const raw = (flight.status ?? "").toLowerCase();
@@ -112,25 +163,22 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     travelDate: string,
     deviceId?: string,
   ): Promise<TripResolution | null> {
-    const { flight } = await fetchFlightStatus(flightNumber, travelDate, {
+    const legs = await this.resolveLegs(flightNumber, travelDate, deviceId);
+    return legs[0] ?? null;
+  }
+
+  async resolveLegs(
+    flightNumber: string,
+    travelDate: string,
+    deviceId?: string,
+  ): Promise<TripResolution[]> {
+    const { flights } = await fetchFlightLegs(flightNumber, travelDate, {
       ...(deviceId ? { deviceId } : {}),
     });
-    const origin = flight?.departure?.airport?.iata;
-    const dest = flight?.arrival?.airport?.iata;
-    const dep = flight?.departure?.scheduledTime?.utc;
-    const arr = flight?.arrival?.scheduledTime?.utc;
-    if (!flight || !origin || !dest || !dep) return null;
-
-    return {
-      originIata: origin,
-      destIata: dest,
-      schedDepUtc: new Date(dep.replace(" ", "T").replace("Z", "") + "Z").toISOString(),
-      schedArrUtc: arr
-        ? new Date(arr.replace(" ", "T").replace("Z", "") + "Z").toISOString()
-        : new Date(new Date(dep.replace(" ", "T").replace("Z", "") + "Z").getTime() + 3 * 3600000).toISOString(),
-      ...(flight.airline?.name ? { airlineName: flight.airline.name } : {}),
-      ...(flight.number ? { rawStatusId: flight.number } : {}),
-    };
+    return flights
+      .map((flight) => toResolution(flight))
+      .filter((r): r is TripResolution => r !== null)
+      .sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
   }
 
   async getStatus(
@@ -138,17 +186,27 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     travelDate: string,
     tripId?: string,
     allowRefresh = false,
+    leg?: LegFilter,
   ): Promise<FlightStatus | null> {
     const { flight } = await fetchFlightStatus(flightNumber, travelDate, {
       ...(tripId ? { tripId } : {}),
       force: allowRefresh,
+      origin: leg?.origin,
+      dest: leg?.dest,
     });
     return flight ? toFlightStatus(flight) : null;
   }
 
   /** Uses the includes on the cached status response — never a second call. */
-  async getInboundAircraft(flightNumber: string, travelDate: string): Promise<InboundStatus | null> {
-    const { flight } = await fetchFlightStatus(flightNumber, travelDate);
+  async getInboundAircraft(
+    flightNumber: string,
+    travelDate: string,
+    leg?: LegFilter,
+  ): Promise<InboundStatus | null> {
+    const { flight } = await fetchFlightStatus(flightNumber, travelDate, {
+      origin: leg?.origin,
+      dest: leg?.dest,
+    });
     if (!flight?.aircraft?.reg && !flight?.aircraft?.model) return null;
     return {
       ...(flight.aircraft.reg ? { tail: flight.aircraft.reg } : {}),
@@ -159,6 +217,7 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
   async getEarlierRouteCancellations(
     origin: string,
     dest: string,
+
     travelDate: string,
     carrier: string,
     beforeLocalTime: string,
