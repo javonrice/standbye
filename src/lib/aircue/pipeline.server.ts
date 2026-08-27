@@ -28,6 +28,8 @@ import type {
   Brief,
   BriefStatus,
   Confidence,
+  InventoryBucket,
+  InventoryCheck,
   Signal,
   SignalCategory,
   SignalLocation,
@@ -1046,7 +1048,31 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
   };
 
   const rows = (signalRows ?? []) as unknown as Record<string, unknown>[];
-  const pick = (location: string) => rows.filter((r) => r["location"] === location).map(toSignal);
+  const isSellable = (r: Record<string, unknown>) => String(r["category"]) === "sellable_tightness";
+  const sellableRow = rows.find(isSellable);
+
+  const toInventory = (row: Record<string, unknown> | undefined): InventoryCheck | null => {
+    if (!row) return null;
+    const evidence = (row["evidence"] ?? {}) as Record<string, unknown>;
+    const bucketRaw = String(evidence["bucket"] ?? "");
+    const bucket: InventoryBucket =
+      bucketRaw === "9+" ? "plenty" : bucketRaw === "0" ? "none" : "tight";
+    const largestN =
+      evidence["largest_n"] == null ? null : Number(evidence["largest_n"]);
+    return {
+      signal: toSignal(row),
+      bucket,
+      seats: bucket === "plenty" ? null : bucket === "none" ? 0 : largestN,
+      capped: false,
+    };
+  };
+
+  const inventory = toInventory(sellableRow);
+
+  const pick = (location: string) =>
+    rows
+      .filter((r) => r["location"] === location && !isSellable(r))
+      .map(toSignal);
 
   const cardToStatus = (value: string): BriefStatus =>
     value === "active" || value === "active_disruption"
@@ -1058,6 +1084,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
           : "clear";
 
   const unavailable = (briefing.unavailable_categories ?? []) as string[];
+  const inventoryUnavailable = unavailable.find((u) => u.includes("inventory check"));
 
   return {
     id: trip.id,
@@ -1102,8 +1129,27 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
       summary: "",
       status: cardToStatus(briefing.chain_card_status),
       signals: pick("flight_chain"),
-      unavailable: unavailable.filter((u) => u.includes("inventory check")),
+      unavailable: unavailable.filter((u) => !u.includes("inventory check")),
     },
+    inventory: inventoryUnavailable
+      ? {
+          signal: {
+            id: `sellable:capped:${trip.id}`,
+            category: "flight",
+            location: "chain",
+            title: "AirCue inventory check",
+            detail: "Seat availability checks are paused for this device this month.",
+            why: "Public booking inventory gives a coarse sense of how full a flight is selling.",
+            confidence: "context",
+            level: "incomplete",
+            source: "Aircue",
+            updated: "—",
+          },
+          bucket: "none",
+          seats: null,
+          capped: true,
+        }
+      : inventory,
     ...(watch
       ? {
           watch: {

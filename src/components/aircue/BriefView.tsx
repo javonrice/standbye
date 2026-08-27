@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  Armchair,
   Bell,
   ChevronLeft,
   Clock3,
@@ -18,7 +19,7 @@ import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
 import { cn } from "@/lib/utils";
 import { startWatch } from "@/lib/aircue/brief.functions";
 import { getDeviceId } from "@/lib/aircue/device";
-import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
+import type { Brief, BriefStatus, InventoryCheck, Signal } from "@/lib/aircue/data";
 import type { RouteHistory } from "@/lib/aircue/history";
 import { disclaimer } from "@/lib/aircue/data";
 
@@ -176,6 +177,65 @@ function UnavailableNote({ items }: { items: string[] }) {
   );
 }
 
+function InventoryCard({ inventory }: { inventory: InventoryCheck | null }) {
+  const seatLabel =
+    inventory?.capped || !inventory
+      ? "—"
+      : inventory.bucket === "plenty"
+        ? "9+"
+        : String(inventory.seats ?? 0);
+
+  const seatColor =
+    !inventory || inventory.capped
+      ? "text-muted-foreground"
+      : inventory.bucket === "plenty"
+        ? "text-fine"
+        : inventory.bucket === "tight"
+          ? "text-watch"
+          : "text-rough";
+
+  const barColor =
+    !inventory || inventory.capped
+      ? "bg-muted-foreground"
+      : inventory.bucket === "plenty"
+        ? "bg-fine"
+        : inventory.bucket === "tight"
+          ? "bg-watch"
+          : "bg-rough";
+
+  const fillWidth =
+    !inventory || inventory.capped ? 0 : inventory.bucket === "plenty" ? 100 : inventory.bucket === "none" ? 5 : Math.max(10, (inventory.seats ?? 1) * 10);
+
+  return (
+    <div className="glass glass-sheen mt-4 rounded-3xl p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Armchair className="h-4 w-4 text-muted-foreground" />
+          <h2 className="font-display text-base font-bold tracking-tight">Open seats</h2>
+        </div>
+        <span className={cn("font-display text-4xl font-bold tracking-tight", seatColor)}>
+          {seatLabel}
+        </span>
+      </div>
+
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className={cn("h-full rounded-full transition-all", barColor)}
+          style={{ width: `${fillWidth}%` }}
+        />
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-foreground/85">
+        {inventory?.capped
+          ? "You’ve used your seat availability checks for this month, so we couldn’t look at booking inventory for this flight."
+          : inventory
+            ? inventory.signal.detail
+            : "We couldn’t check public booking inventory for this flight."}
+      </p>
+    </div>
+  );
+}
+
 
 function Section({
   title,
@@ -308,6 +368,8 @@ export function BriefView({
           />
         </div>
       </div>
+
+      <InventoryCard inventory={brief.inventory} />
 
       {/* Primary CTA */}
       {!readOnly && (
