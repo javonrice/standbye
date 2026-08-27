@@ -74,7 +74,7 @@ function WatchesPage() {
           </div>
         )}
 
-        <ul className="mt-5 space-y-3">
+        <ul className="mt-5 space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
           {active.map((w) => (
             <li key={w.watchId} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-start justify-between gap-3">
