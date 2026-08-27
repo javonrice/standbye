@@ -388,6 +388,8 @@ export function BriefView({
           )}
         </button>
       )}
+
+      <InventoryCard inventory={brief.inventory} />
       </div>
 
       <div className="lg:min-w-0">
