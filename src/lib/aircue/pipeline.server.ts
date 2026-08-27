@@ -485,7 +485,7 @@ async function chainSignals(
     if (cancels && cancels.cancelledFlights > 0) {
       drafts.push({
         location: "chain",
-        category: "chain_status",
+        category: "cancellation",
         confidence: "confirmed",
         severity: Math.min(80, 40 + cancels.cancelledFlights * 15),
         title: `${cancels.cancelledFlights} earlier flight${cancels.cancelledFlights === 1 ? "" : "s"} cancelled`,
@@ -498,6 +498,24 @@ async function chainSignals(
         active_from: null,
         active_until: null,
         fingerprint: `chain:earlier-cancels:${trip.id}`,
+      });
+    }
+    if (cancels && cancels.delayedFlights > 0) {
+      drafts.push({
+        location: "chain",
+        category: "flight",
+        confidence: "strong",
+        severity: Math.min(60, 25 + cancels.delayedFlights * 10),
+        title: `${cancels.delayedFlights} earlier flight${cancels.delayedFlights === 1 ? "" : "s"} running late`,
+        summary: `On this route ${cancels.window}, ${cancels.delayedFlights} departure${cancels.delayedFlights === 1 ? " is" : "s are"} running 15 minutes or more behind.`,
+        why_it_matters:
+          "When earlier departures slip, passengers shuffle between flights and later departures tend to tighten up.",
+        evidence: { delayed: cancels.delayedFlights, window: cancels.window },
+        source: "AeroDataBox",
+        retrieved_at: retrievedAt,
+        active_from: null,
+        active_until: null,
+        fingerprint: `chain:earlier-lates:${trip.id}`,
       });
     }
   }
