@@ -198,7 +198,7 @@ function SearchScreen() {
           </div>
 
           <div className="md:w-[26rem] md:shrink-0">
-          <div className="rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl md:w-[26rem] md:p-6">
+            <div className="rounded-3xl border border-border/60 bg-card/85 p-5 shadow-card backdrop-blur-xl md:p-6">
             <h1 className="font-display text-2xl font-bold tracking-tight">Check a flight</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               What could make getting on standby harder today.
@@ -335,6 +335,7 @@ function SearchScreen() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
