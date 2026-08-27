@@ -28,11 +28,19 @@ function toIso(raw: string): string {
   return new Date(raw.replace(" ", "T").replace("Z", "") + "Z").toISOString();
 }
 
-function toRouteLeg(flight: AdbFlight): RouteLeg | null {
-  const origin = flight.departure?.airport?.iata;
-  const dest = flight.arrival?.airport?.iata;
+async function toRouteLeg(flight: AdbFlight): Promise<RouteLeg | null> {
   const dep = flight.departure?.scheduledTime?.utc;
-  if (!origin || !dest || !dep) return null;
+  if (!dep) return null;
+  const origin =
+    flight.departure?.airport?.iata ??
+    (await iataFromAirportName(
+      flight.departure?.airport?.name,
+      flight.departure?.airport?.icao,
+    ));
+  const dest =
+    flight.arrival?.airport?.iata ??
+    (await iataFromAirportName(flight.arrival?.airport?.name, flight.arrival?.airport?.icao));
+  if (!origin || !dest) return null;
   const arr = flight.arrival?.scheduledTime?.utc;
   const depLocal = flight.departure?.scheduledTime?.local;
   const digits = (flight.number ?? "").replace(/\D/g, "");
