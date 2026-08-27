@@ -104,7 +104,7 @@ function SearchScreen() {
   const mutation = useMutation({
     mutationFn: () =>
       create({
-        data: { flightNumber, travelDate, origin, dest, depTime, deviceId },
+        data: { tripName, travelDate, origin, dest, depTime, deviceId },
       }),
     onSuccess: (result) => {
       void navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
