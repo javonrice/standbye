@@ -391,19 +391,21 @@ function SearchScreen() {
 
                 {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
 
-                {legs.length > 1 && (
+                {legs.length > 0 && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-surface/60 p-3">
                     <p className="text-sm font-semibold">
-                      {airline}
-                      {flightNumber} flies more than one leg that day
+                      {flightNumber
+                        ? `${airline}${flightNumber} flies more than one leg that day`
+                        : `Flights from ${origin.toUpperCase()} to ${dest.toUpperCase()} that day`}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Pick the one you are listing for.
                     </p>
                     <div className="mt-3 space-y-2">
                       {legs.map((leg) => {
-                        const legKey = `${leg.origin}-${leg.schedDepUtc}`;
+                        const legKey = `${leg.airlineCode ?? ""}${leg.flightNumber ?? ""}-${leg.origin}-${leg.schedDepUtc}`;
                         const isSelected = selectedLeg === legKey;
+
                         return (
                           <button
                             key={legKey}
