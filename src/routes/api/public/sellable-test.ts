@@ -37,25 +37,36 @@ export const Route = createFileRoute("/api/public/sellable-test")({
         url.searchParams.set("outbound_date", date);
         url.searchParams.set("type", "2");
         url.searchParams.set("adults", "1");
+        url.searchParams.set("travel_class", "1");
+        url.searchParams.set("include_airlines", "UA");
+        url.searchParams.set("stops", "0");
         url.searchParams.set("currency", "USD");
         url.searchParams.set("hl", "en");
         url.searchParams.set("api_key", key);
         const res = await fetch(url);
         const raw = (await res.json()) as Record<string, unknown>;
-        const flightNos = [
+        const groups = [
           ...((raw["best_flights"] as unknown[]) ?? []),
           ...((raw["other_flights"] as unknown[]) ?? []),
-        ]
-          .flatMap((g) => (g as { flights?: { flight_number?: string }[] }).flights ?? [])
-          .map((f) => f.flight_number)
-          .slice(0, 40);
+        ] as { price?: number; flights?: { flight_number?: string }[] }[];
+        const matching = groups
+          .filter((g) =>
+            (g.flights ?? []).some((f) =>
+              (f.flight_number ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase() === `UA${fn}`,
+            ),
+          )
+          .map((g) => ({
+            price: g.price ?? null,
+            segments: (g.flights ?? []).length,
+            legs: (g.flights ?? []).map((f) => f.flight_number),
+          }));
         return Response.json({
           tripId,
           result,
           rawStatus: res.status,
           rawError: raw["error"] ?? null,
-          totalOptions: flightNos.length,
-          sampleFlightNumbers: flightNos,
+          totalOptions: groups.length,
+          matchingItineraries: matching,
         });
       },
     },
