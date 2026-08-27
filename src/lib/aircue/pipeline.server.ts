@@ -11,6 +11,11 @@ import {
 } from "@/lib/aircue/sources.server";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import {
+  probeSellable,
+  type SellableBucket,
+  type SellableResult,
+} from "@/lib/aircue/serpapi-flights.server";
+import {
   buildWindows,
   distanceKm,
   formatChecked,
@@ -55,6 +60,7 @@ interface TripRow {
   dep_window_end: string | null;
   arr_window_end: string | null;
   share_token: string | null;
+  device_id: string | null;
   provider_ref: Record<string, unknown> | null;
 }
 
@@ -494,6 +500,50 @@ async function chainSignals(
   return { drafts, live: true };
 }
 
+function sellableSeverity(bucket: SellableBucket, largestN: number | null): number {
+  if (bucket === "9+") return 15;
+  if (bucket === "0") return 80;
+  return (largestN ?? 1) >= 4 ? 45 : 65;
+}
+
+function sellableSummary(bucket: SellableBucket, largestN: number | null): string {
+  if (bucket === "9+")
+    return "Public booking inventory still shows 9 or more sellable seats in economy for this flight.";
+  if (bucket === "0")
+    return "This flight is not offering sellable economy seats in the public booking search.";
+  return `Public booking inventory looks limited — about ${largestN ?? 1} sellable seats left in this search.`;
+}
+
+function sellableDraft(trip: TripRow, retrievedAt: string, result: SellableResult): SignalDraft {
+  const bucket = result.bucket ?? "0";
+  const flightNormal = `${trip.marketing_carrier}${trip.flight_number}`
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase();
+  return {
+    location: "chain",
+    category: "sellable_tightness",
+    confidence: "strong",
+    severity: sellableSeverity(bucket, result.largestN),
+    title: "AirCue inventory check",
+    summary: sellableSummary(bucket, result.largestN),
+    why_it_matters:
+      "Standby flexibility often tracks how aggressively the flight is still being sold. This is a coarse public check, not airline load data.",
+    evidence: {
+      bucket,
+      largest_n: result.largestN,
+      engine: "serpapi_google_flights",
+      adults_tested: result.adultsTested,
+      flight_matched: flightNormal,
+      retrieved_at: retrievedAt,
+    },
+    source: "AirCue · SerpAPI Google Flights",
+    retrieved_at: retrievedAt,
+    active_from: null,
+    active_until: null,
+    fingerprint: `sellable:${trip.marketing_carrier}:${flightNormal}:${trip.travel_date}:${bucket}:${result.largestN ?? "x"}`,
+  };
+}
+
 /* -------------------------------- scoring -------------------------------- */
 
 function levelFor(draft: { severity: number; confidence: Confidence; category: string }): BriefStatus {
@@ -663,6 +713,22 @@ export async function generateBrief(tripId: string): Promise<void> {
   const chain = await chainSignals(trip, retrievedAt);
   drafts.push(...chain.drafts);
 
+  // AirCue inventory check: public sellable-seats bucket via SerpAPI Google Flights.
+  const sellable = await probeSellable({
+    tripId: trip.id,
+    flightLabel: trip.flight_label,
+    carrier: trip.marketing_carrier,
+    flightNumber: trip.flight_number,
+    origin: trip.origin_iata,
+    dest: trip.dest_iata,
+    date: trip.travel_date,
+    schedDepUtc: trip.sched_dep_utc,
+    deviceId: trip.device_id,
+  });
+  if (sellable.ok && sellable.bucket) {
+    drafts.push(sellableDraft(trip, retrievedAt, sellable));
+  }
+
   // Dedupe by fingerprint, highest severity wins.
   const byFingerprint = new Map<string, SignalDraft>();
   for (const draft of drafts) {
@@ -679,6 +745,13 @@ export async function generateBrief(tripId: string): Promise<void> {
   if (!ok(faa)) unavailable.push("FAA airport status");
   if (!ok(depTaf) && !ok(depMetar)) unavailable.push(`${origin.iata} aviation weather`);
   if (!ok(arrTaf) && !ok(arrMetar)) unavailable.push(`${dest.iata} aviation weather`);
+  if (!sellable.ok || !sellable.bucket) {
+    unavailable.push(
+      sellable.reason === "device-cap"
+        ? "AirCue inventory check (monthly limit reached)"
+        : "AirCue inventory check",
+    );
+  }
 
   const status = overallStatus(finalDrafts, sourcesOk);
   const pressure = pressureIndex(finalDrafts.filter((d) => d.category !== "chain_status"));
@@ -705,9 +778,20 @@ export async function generateBrief(tripId: string): Promise<void> {
       arr_card_status: toDbStatus(
         cardStatus(finalDrafts.filter((d) => d.location === "arrival"), arrSourcesOk),
       ),
-      chain_card_status: chain.live
-        ? toDbStatus(cardStatus(chain.drafts, true))
-        : "incomplete",
+      chain_card_status:
+        chain.live || (sellable.ok && sellable.bucket)
+          ? toDbStatus(
+              cardStatus(
+                [
+                  ...chain.drafts,
+                  ...(sellable.ok && sellable.bucket
+                    ? [sellableDraft(trip, retrievedAt, sellable)]
+                    : []),
+                ],
+                true,
+              ),
+            )
+          : "incomplete",
       generated_at: retrievedAt,
       source_freshness: {
         faa: faa.fetchedAt,
@@ -821,10 +905,28 @@ async function recordChanges(
 
   const { data: prevSignals } = await supabaseAdmin
     .from("signals")
-    .select("fingerprint,summary")
+    .select("fingerprint,summary,category,evidence")
     .eq("briefing_id", previous.id);
   const before = new Set((prevSignals ?? []).map((s) => s.fingerprint));
   const after = new Set(drafts.map((d) => d.fingerprint));
+
+  // AirCue inventory check dropped from plenty (9+) to tight — flag it explicitly.
+  const prevSellable = (prevSignals ?? []).find((s) => s.category === "sellable_tightness");
+  const nextSellable = drafts.find((d) => d.category === "sellable_tightness");
+  if (prevSellable && nextSellable) {
+    const prevBucket = (prevSellable.evidence as Record<string, unknown> | null)?.["bucket"];
+    const tight =
+      nextSellable.evidence["bucket"] === "0" ||
+      (nextSellable.evidence["bucket"] === "1-8" && Number(nextSellable.evidence["largest_n"]) <= 3);
+    if (prevBucket === "9+" && tight) {
+      events.push({
+        trip_id: tripId,
+        briefing_id: briefingId,
+        change_type: "sellable_drop",
+        headline: "AirCue: sellable inventory dropped from 9+ to tight",
+      });
+    }
+  }
 
   for (const draft of drafts) {
     if (draft.category === "chain_status" || draft.severity < 30) continue;
@@ -870,6 +972,7 @@ const CATEGORY_MAP: Record<string, SignalCategory> = {
   event: "event",
   holiday: "holiday",
   chain_status: "flight",
+  sellable_tightness: "flight",
 };
 
 export async function buildBriefView(tripId: string): Promise<Brief | null> {
@@ -996,6 +1099,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
       summary: "",
       status: cardToStatus(briefing.chain_card_status),
       signals: pick("flight_chain"),
+      unavailable: unavailable.filter((u) => u.includes("inventory check")),
     },
     ...(watch
       ? {

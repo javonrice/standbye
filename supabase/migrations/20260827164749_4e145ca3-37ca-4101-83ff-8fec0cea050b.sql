@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.serpapi_probes_this_month(text) FROM anon, authenticated;
