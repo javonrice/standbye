@@ -31,11 +31,7 @@ export const createBrief = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        flightNumber: z
-          .string()
-          .trim()
-          .toUpperCase()
-          .regex(/^[A-Z]{1,3}\s?\d{1,4}$/, "Use a flight number like UA782"),
+        tripName: z.string().trim().max(40, "Keep the trip name short").optional(),
         travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a travel date"),
         origin: iata,
         dest: iata,
