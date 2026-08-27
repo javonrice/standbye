@@ -319,6 +319,11 @@ function levelFor(draft: { severity: number; confidence: Confidence; category: s
   return "clear";
 }
 
+/** DB check constraints use `active_disruption`; the app model uses `disruption`/`active`. */
+function toDbStatus(value: string): string {
+  return value === "disruption" || value === "active" ? "active_disruption" : value;
+}
+
 function cardStatus(drafts: SignalDraft[], sourcesOk: boolean): CardStatus {
   if (!sourcesOk) return "incomplete";
   if (drafts.some((d) => d.confidence === "confirmed" && d.severity >= 85)) return "active";
@@ -507,17 +512,15 @@ export async function generateBrief(tripId: string): Promise<void> {
     .from("briefings")
     .insert({
       trip_id: trip.id,
-      status,
+      status: toDbStatus(status),
       pressure_index: pressure,
       headline: headlineFor(status, finalDrafts),
       why_summary: whySummary(finalDrafts, status),
-      dep_card_status: cardStatus(
-        finalDrafts.filter((d) => d.location === "departure"),
-        depSourcesOk,
+      dep_card_status: toDbStatus(
+        cardStatus(finalDrafts.filter((d) => d.location === "departure"), depSourcesOk),
       ),
-      arr_card_status: cardStatus(
-        finalDrafts.filter((d) => d.location === "arrival"),
-        arrSourcesOk,
+      arr_card_status: toDbStatus(
+        cardStatus(finalDrafts.filter((d) => d.location === "arrival"), arrSourcesOk),
       ),
       chain_card_status: chainStatus ? "clear" : "incomplete",
       generated_at: retrievedAt,
@@ -755,7 +758,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
   const pick = (location: string) => rows.filter((r) => r["location"] === location).map(toSignal);
 
   const cardToStatus = (value: string): BriefStatus =>
-    value === "active"
+    value === "active" || value === "active_disruption"
       ? "disruption"
       : value === "elevated"
         ? "elevated"
@@ -776,7 +779,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
     departsLocal: formatLocalTime(schedDep, origin.tz),
     arrivesLocal: formatLocalTime(schedArr, dest.tz),
     countdown: formatCountdown(schedDep),
-    status: briefing.status as BriefStatus,
+    status: cardToStatus(briefing.status),
     pressure: briefing.pressure_index ?? 0,
     outlook: briefing.headline,
     impact: briefing.why_summary ?? "",
