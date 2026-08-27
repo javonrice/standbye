@@ -507,7 +507,7 @@ export async function generateBrief(tripId: string): Promise<void> {
     .from("briefings")
     .insert({
       trip_id: trip.id,
-      status,
+      status: toDbStatus(status),
       pressure_index: pressure,
       headline: headlineFor(status, finalDrafts),
       why_summary: whySummary(finalDrafts, status),
