@@ -116,6 +116,8 @@ function SearchScreen() {
   const navigate = useNavigate();
   const create = useServerFn(createBrief);
   const resolve = useServerFn(resolveFlight);
+  const resolveRouteFn = useServerFn(resolveRoute);
+
   const [deviceId, setDeviceId] = useState("");
   const [tripName, setTripName] = useState("");
   const [travelDate, setTravelDate] = useState(todayISO());
