@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createBrief, searchAirports } from "@/lib/aircue/brief.functions";
+import { createBrief, resolveFlight, searchAirports } from "@/lib/aircue/brief.functions";
 import { AIRLINES, ALL_AIRLINES } from "@/lib/aircue/airlines";
 import { getDeviceId } from "@/lib/aircue/device";
 import { searchDisclaimer } from "@/lib/aircue/data";
@@ -97,13 +97,17 @@ function AirportField({
 function SearchScreen() {
   const navigate = useNavigate();
   const create = useServerFn(createBrief);
+  const resolve = useServerFn(resolveFlight);
   const [deviceId, setDeviceId] = useState("");
   const [tripName, setTripName] = useState("");
   const [travelDate, setTravelDate] = useState(todayISO());
+  const [flightNumber, setFlightNumber] = useState("");
   const [origin, setOrigin] = useState("");
   const [dest, setDest] = useState("");
   const [depTime, setDepTime] = useState("");
-  const [airline, setAirline] = useState(ALL_AIRLINES);
+  const [airline, setAirline] = useState("UA");
+  const [manual, setManual] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -111,14 +115,44 @@ function SearchScreen() {
   }, []);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      create({
+    mutationFn: async () => {
+      if (!manual && flightNumber) {
+        const found = await resolve({
+          data: { airline, flightNumber, travelDate, deviceId },
+        });
+        if (found.ok && found.origin && found.dest) {
+          return create({
+            data: {
+              tripName,
+              travelDate,
+              origin: found.origin,
+              dest: found.dest,
+              airline,
+              flightNumber,
+              schedDepUtc: found.schedDepUtc ?? "",
+              schedArrUtc: found.schedArrUtc ?? "",
+              deviceId,
+            },
+          });
+        }
+        setManual(true);
+        setNotice(
+          found.reason === "not_found"
+            ? "We couldn’t find that flight for that date — enter your route and we’ll still check conditions."
+            : "We couldn’t look that flight up right now — enter your route and we’ll still check conditions.",
+        );
+        throw new Error("");
+      }
+
+      if (!origin || !dest) throw new Error("Enter both airports.");
+      return create({
         data: { tripName, travelDate, origin, dest, depTime, deviceId, airline },
-      }),
+      });
+    },
     onSuccess: (result) => {
       void navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
     },
-    onError: (e: Error) => setError(e.message || "Could not build that brief."),
+    onError: (e: Error) => setError(e.message || ""),
   });
 
   return (
@@ -162,76 +196,96 @@ function SearchScreen() {
             onSubmit={(e) => {
               e.preventDefault();
               setError(null);
+              setNotice(null);
               mutation.mutate();
             }}
           >
-            <Label htmlFor="trip-name" className="text-xs text-muted-foreground">
-              Trip name (optional)
-            </Label>
-            <Input
-              id="trip-name"
-              value={tripName}
-              autoComplete="off"
-              maxLength={40}
-              onChange={(e) => setTripName(e.target.value)}
-              placeholder="Morning to Chicago"
-              className="mt-1.5 h-12 bg-surface text-base"
-            />
-
-            <div className="mt-3 flex gap-3">
-              <AirportField id="origin" label="From" value={origin} onChange={setOrigin} />
-              <AirportField id="dest" label="To" value={dest} onChange={setDest} />
-            </div>
-
-            <div className="mt-3 flex gap-3">
-              <div className="flex-1">
-                <Label htmlFor="date" className="text-xs text-muted-foreground">
-                  Travel date
+            <div className="flex gap-3">
+              <div className="w-[9.5rem]">
+                <Label htmlFor="airline" className="text-xs text-muted-foreground">
+                  Airline
                 </Label>
-                <Input
-                  id="date"
-                  type="date"
-                  required
-                  value={travelDate}
-                  onChange={(e) => setTravelDate(e.target.value)}
-                  className="mt-1.5 h-12 bg-surface text-base"
-                />
+                <Select value={airline} onValueChange={setAirline}>
+                  <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
+                    <SelectValue placeholder="Airline" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AIRLINES.filter((a) => a.code !== ALL_AIRLINES || manual).map((a) => (
+                      <SelectItem key={a.code} value={a.code}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex-1">
-                <Label htmlFor="time" className="text-xs text-muted-foreground">
-                  Departs (optional)
+                <Label htmlFor="flight-number" className="text-xs text-muted-foreground">
+                  Flight number
                 </Label>
                 <Input
-                  id="time"
-                  type="time"
-                  value={depTime}
-                  onChange={(e) => setDepTime(e.target.value)}
+                  id="flight-number"
+                  inputMode="numeric"
+                  maxLength={4}
+                  autoComplete="off"
+                  value={flightNumber}
+                  onChange={(e) => setFlightNumber(e.target.value.replace(/\D/g, ""))}
+                  placeholder="782"
                   className="mt-1.5 h-12 bg-surface text-base"
                 />
               </div>
             </div>
 
             <div className="mt-3">
-              <Label htmlFor="airline" className="text-xs text-muted-foreground">
-                Airline
+              <Label htmlFor="date" className="text-xs text-muted-foreground">
+                Travel date
               </Label>
-              <Select value={airline} onValueChange={setAirline}>
-                <SelectTrigger id="airline" className="mt-1.5 h-12 bg-surface text-base">
-                  <SelectValue placeholder="All airlines" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AIRLINES.map((a) => (
-                    <SelectItem key={a.code} value={a.code}>
-                      {a.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="date"
+                type="date"
+                required
+                value={travelDate}
+                onChange={(e) => setTravelDate(e.target.value)}
+                className="mt-1.5 h-12 bg-surface text-base"
+              />
             </div>
 
-            <p className="mt-3 text-xs text-muted-foreground">
-              We’ll connect live flight lookup soon — confirm your route for now.
-            </p>
+            {manual && (
+              <>
+                <div className="mt-3 flex gap-3">
+                  <AirportField id="origin" label="From" value={origin} onChange={setOrigin} />
+                  <AirportField id="dest" label="To" value={dest} onChange={setDest} />
+                </div>
+                <div className="mt-3">
+                  <Label htmlFor="time" className="text-xs text-muted-foreground">
+                    Departs (optional)
+                  </Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={depTime}
+                    onChange={(e) => setDepTime(e.target.value)}
+                    className="mt-1.5 h-12 bg-surface text-base"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="mt-3">
+              <Label htmlFor="trip-name" className="text-xs text-muted-foreground">
+                Trip name (optional)
+              </Label>
+              <Input
+                id="trip-name"
+                value={tripName}
+                autoComplete="off"
+                maxLength={40}
+                onChange={(e) => setTripName(e.target.value)}
+                placeholder="Morning to Chicago"
+                className="mt-1.5 h-12 bg-surface text-base"
+              />
+            </div>
+
+            {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
 
             <Button
               type="submit"
@@ -248,6 +302,16 @@ function SearchScreen() {
                 </>
               )}
             </Button>
+
+            {!manual && (
+              <button
+                type="button"
+                onClick={() => setManual(true)}
+                className="mt-3 w-full text-center text-xs text-muted-foreground underline underline-offset-4"
+              >
+                Enter route manually
+              </button>
+            )}
           </form>
 
           {error && <p className="mt-3 text-sm text-rough">{error}</p>}
@@ -262,3 +326,4 @@ function SearchScreen() {
     </div>
   );
 }
+

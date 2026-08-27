@@ -55,6 +55,7 @@ interface TripRow {
   dep_window_end: string | null;
   arr_window_end: string | null;
   share_token: string | null;
+  provider_ref: Record<string, unknown> | null;
 }
 
 interface SignalDraft {
@@ -336,7 +337,44 @@ async function chainSignals(
     };
   }
 
-  const status = await provider.getStatus(flightNumber, trip.travel_date, trip.id);
+  // Day-of, allow a paid refresh at most every 3 hours; otherwise reuse the 24h cache.
+  const depAt = trip.sched_dep_utc ? new Date(trip.sched_dep_utc).getTime() : Infinity;
+  const hoursToDep = (depAt - Date.now()) / 3600000;
+  const ref = (trip.provider_ref ?? {}) as { last_status_at?: string };
+  const lastStatusAge = ref.last_status_at
+    ? (Date.now() - new Date(ref.last_status_at).getTime()) / 3600000
+    : Infinity;
+  const allowRefresh = hoursToDep <= 12 && lastStatusAge >= 3;
+
+  // More than three days out, live flight status tells us nothing new — save the budget.
+  if (hoursToDep > 72 && lastStatusAge > 24) {
+    return {
+      drafts: [
+        chainStub(
+          retrievedAt,
+          trip.id,
+          "Live flight status starts closer to your travel date.",
+        ),
+      ],
+      live: false,
+    };
+  }
+
+  const status = await provider.getStatus(
+    flightNumber,
+    trip.travel_date,
+    trip.id,
+    allowRefresh,
+  );
+
+  if (allowRefresh && status) {
+    await supabaseAdmin
+      .from("trips")
+      .update({
+        provider_ref: { ...ref, last_status_at: new Date().toISOString() } as never,
+      })
+      .eq("id", trip.id);
+  }
   if (!status) {
     return {
       drafts: [
@@ -985,6 +1023,10 @@ export async function ensureTrip(input: {
   depTime?: string | undefined;
   deviceId?: string | undefined;
   airline?: string | undefined;
+  flightNumber?: string | undefined;
+  schedDepUtc?: string | undefined;
+  schedArrUtc?: string | undefined;
+  providerRef?: Record<string, unknown> | undefined;
 }): Promise<string> {
   const { data: airports } = await supabaseAdmin
     .from("airports")
@@ -1005,6 +1047,22 @@ export async function ensureTrip(input: {
     distanceKm: km,
   });
 
+  // A resolved flight gives us real scheduled times; otherwise we keep the estimated windows.
+  const schedDep = input.schedDepUtc ? new Date(input.schedDepUtc) : w.schedDep;
+  const schedArr = input.schedArrUtc ? new Date(input.schedArrUtc) : w.schedArr;
+  const depWindowStart = input.schedDepUtc
+    ? new Date(schedDep.getTime() - 2 * 3600000)
+    : w.depWindowStart;
+  const depWindowEnd = input.schedDepUtc
+    ? new Date(schedDep.getTime() + 4 * 3600000)
+    : w.depWindowEnd;
+  const arrWindowEnd = input.schedArrUtc
+    ? new Date(schedArr.getTime() + 2 * 3600000)
+    : w.arrWindowEnd;
+
+  const carrier = input.airline || "ALL";
+  const number = input.flightNumber || "0";
+
   const { data: existing } = await supabaseAdmin
     .from("trips")
     .select("id")
@@ -1012,14 +1070,10 @@ export async function ensureTrip(input: {
     .eq("travel_date", input.travelDate)
     .eq("origin_iata", input.origin)
     .eq("dest_iata", input.dest)
-    .eq("marketing_carrier", input.airline || "ALL")
+    .eq("marketing_carrier", carrier)
+    .eq("flight_number", number)
     .maybeSingle();
   if (existing) return existing.id;
-
-  // No flight-status provider yet, so we store the airline the traveller picked
-  // plus a user-facing trip name instead of a flight number.
-  const carrier = input.airline || "ALL";
-  const number = "0";
 
   const { data: inserted, error } = await supabaseAdmin
     .from("trips")
@@ -1030,15 +1084,17 @@ export async function ensureTrip(input: {
       travel_date: input.travelDate,
       origin_iata: input.origin,
       dest_iata: input.dest,
-      sched_dep_utc: w.schedDep.toISOString(),
-      sched_arr_utc: w.schedArr.toISOString(),
-      dep_window_start: w.depWindowStart.toISOString(),
-      dep_window_end: w.depWindowEnd.toISOString(),
-      arr_window_end: w.arrWindowEnd.toISOString(),
-      flight_provider: "manual",
+      sched_dep_utc: schedDep.toISOString(),
+      sched_arr_utc: schedArr.toISOString(),
+      dep_window_start: depWindowStart.toISOString(),
+      dep_window_end: depWindowEnd.toISOString(),
+      arr_window_end: arrWindowEnd.toISOString(),
+      flight_provider: input.providerRef ? "aerodatabox" : "manual",
+      provider_ref: (input.providerRef ?? {}) as never,
       share_token: crypto.randomUUID().replace(/-/g, "").slice(0, 16),
       device_id: input.deviceId ?? null,
     })
+
     .select("id")
     .single();
   if (error || !inserted) throw error ?? new Error("Could not create trip");
