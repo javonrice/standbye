@@ -910,6 +910,24 @@ async function recordChanges(
   const before = new Set((prevSignals ?? []).map((s) => s.fingerprint));
   const after = new Set(drafts.map((d) => d.fingerprint));
 
+  // AirCue inventory check dropped from plenty (9+) to tight — flag it explicitly.
+  const prevSellable = (prevSignals ?? []).find((s) => s.category === "sellable_tightness");
+  const nextSellable = drafts.find((d) => d.category === "sellable_tightness");
+  if (prevSellable && nextSellable) {
+    const prevBucket = (prevSellable.evidence as Record<string, unknown> | null)?.["bucket"];
+    const tight =
+      nextSellable.evidence["bucket"] === "0" ||
+      (nextSellable.evidence["bucket"] === "1-8" && Number(nextSellable.evidence["largest_n"]) <= 3);
+    if (prevBucket === "9+" && tight) {
+      events.push({
+        trip_id: tripId,
+        briefing_id: briefingId,
+        change_type: "sellable_drop",
+        headline: "AirCue: sellable inventory dropped from 9+ to tight",
+      });
+    }
+  }
+
   for (const draft of drafts) {
     if (draft.category === "chain_status" || draft.severity < 30) continue;
     if (!before.has(draft.fingerprint)) {
