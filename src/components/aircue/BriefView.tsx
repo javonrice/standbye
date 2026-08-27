@@ -1,18 +1,48 @@
-import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Bell,
   ChevronLeft,
   Clock3,
   History,
   Info,
+  Loader2,
   Share2,
 } from "lucide-react";
 
 import { SignalRow } from "@/components/aircue/SignalRow";
 import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
 import { cn } from "@/lib/utils";
+import { startWatch } from "@/lib/aircue/brief.functions";
+import { getDeviceId } from "@/lib/aircue/device";
 import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
 import { disclaimer } from "@/lib/aircue/data";
+
+function useWatchAction(tripId: string) {
+  const [deviceId, setDeviceId] = useState("");
+  const navigate = useNavigate();
+  const watchFn = useServerFn(startWatch);
+
+  useEffect(() => {
+    setDeviceId(getDeviceId());
+  }, []);
+
+  const mutation = useMutation({
+    mutationFn: () => watchFn({ data: { tripId, deviceId } }),
+    onSuccess: () => navigate({ to: "/watches" }),
+  });
+
+  return {
+    start: () => {
+      if (!deviceId || mutation.isPending) return;
+      mutation.mutate();
+    },
+    pending: mutation.isPending,
+  };
+}
+
 
 const orbGlow: Record<BriefStatus, string> = {
   clear: "radial-gradient(circle, var(--fine) 0%, transparent 70%)",
