@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { Check, Plane } from "lucide-react";
 
 /**
- * Full-screen "we are working" screen shown while a brief is being built.
- * Reads like a departure board coming to life: a radar sweep over a great-circle
- * arc, a plane tracing the route, and the checks ticking off as they run.
+ * Full-screen "we are working" screen shown while a flight is being resolved
+ * and while its brief is being built. Reads like a departure board coming to
+ * life: a radar sweep over a great-circle arc, a plane tracing the route, and
+ * the checks ticking off as they run.
  */
 
-const STEPS = [
+export type SearchingPhase = "resolving" | "building";
+
+const RESOLVING_STEPS = ["Looking up your flight", "Finding today's legs"] as const;
+
+const BUILDING_STEPS = [
   "Reading airport conditions",
   "Pulling weather at both ends",
   "Tracing the aircraft chain",
@@ -15,22 +20,34 @@ const STEPS = [
   "Weighing standby pressure",
 ] as const;
 
+/** Slowing cadence so the list never runs out before the work is done. */
+const STEP_AT_MS = [0, 1400, 3200, 5600, 8800, 13000];
+
 interface SearchingOverlayProps {
+  phase: SearchingPhase;
   /** e.g. "UA1448" — omitted when the traveller entered a route by hand. */
   flightLabel?: string | undefined;
   origin?: string | undefined;
   dest?: string | undefined;
 }
 
-export function SearchingOverlay({ flightLabel, origin, dest }: SearchingOverlayProps) {
-  const [step, setStep] = useState(0);
+export function SearchingOverlay({ phase, flightLabel, origin, dest }: SearchingOverlayProps) {
+  const steps = phase === "resolving" ? RESOLVING_STEPS : BUILDING_STEPS;
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setStep((s) => Math.min(s + 1, STEPS.length - 1));
-    }, 1400);
+    const started = Date.now();
+    setElapsed(0);
+    const id = window.setInterval(() => setElapsed(Date.now() - started), 200);
     return () => window.clearInterval(id);
-  }, []);
+  }, [phase]);
+
+  // The last step stays active rather than completing — the screen only ends
+  // when the real work does.
+  const step = Math.min(
+    steps.length - 1,
+    STEP_AT_MS.filter((t) => elapsed >= t).length - 1,
+  );
 
   return (
     <div
@@ -40,8 +57,8 @@ export function SearchingOverlay({ flightLabel, origin, dest }: SearchingOverlay
     >
       <div className="relative flex h-56 w-56 items-center justify-center">
         <span aria-hidden className="cue-radar-ring" style={{ animationDelay: "0s" }} />
-        <span aria-hidden className="cue-radar-ring" style={{ animationDelay: "1s" }} />
-        <span aria-hidden className="cue-radar-ring" style={{ animationDelay: "2s" }} />
+        <span aria-hidden className="cue-radar-ring" style={{ animationDelay: "1.1s" }} />
+        <span aria-hidden className="cue-radar-ring" style={{ animationDelay: "2.2s" }} />
         <span aria-hidden className="cue-radar-sweep" />
 
         <svg viewBox="0 0 200 200" className="relative h-56 w-56" aria-hidden>
@@ -65,7 +82,7 @@ export function SearchingOverlay({ flightLabel, origin, dest }: SearchingOverlay
 
         <div aria-hidden className="cue-plane-field">
           <span className="cue-plane">
-            <Plane className="h-5 w-5 rotate-90 text-primary" />
+            <Plane className="h-4 w-4 rotate-90 text-primary" />
           </span>
         </div>
       </div>
@@ -79,10 +96,12 @@ export function SearchingOverlay({ flightLabel, origin, dest }: SearchingOverlay
           </span>
         ) : null}
       </p>
-      <p className="mt-1 text-sm text-muted-foreground">Building your standby brief</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {phase === "resolving" ? "Finding your flight" : "Building your standby brief"}
+      </p>
 
       <ul className="mt-6 w-full max-w-xs space-y-2">
-        {STEPS.map((label, i) => {
+        {steps.map((label, i) => {
           const done = i < step;
           const active = i === step;
           return (
@@ -104,7 +123,13 @@ export function SearchingOverlay({ flightLabel, origin, dest }: SearchingOverlay
                 {done ? (
                   <Check className="h-3 w-3" />
                 ) : (
-                  <span className={active ? "cue-dot-pulse h-1.5 w-1.5 rounded-full bg-primary" : "h-1.5 w-1.5 rounded-full bg-muted-foreground/50"} />
+                  <span
+                    className={
+                      active
+                        ? "cue-dot-pulse h-1.5 w-1.5 rounded-full bg-primary"
+                        : "h-1.5 w-1.5 rounded-full bg-muted-foreground/50"
+                    }
+                  />
                 )}
               </span>
               <span className={active ? "font-medium text-foreground" : "text-muted-foreground"}>

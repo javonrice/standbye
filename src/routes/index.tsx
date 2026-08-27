@@ -7,7 +7,7 @@ import { Check, Loader2, Plane, User } from "lucide-react";
 import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
-import { SearchingOverlay } from "@/components/aircue/SearchingOverlay";
+import { SearchingOverlay, type SearchingPhase } from "@/components/aircue/SearchingOverlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,6 +128,8 @@ function SearchScreen() {
   const [selectedLeg, setSelectedLeg] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<SearchingPhase | null>(null);
+
 
   useEffect(() => {
     setDeviceId(getDeviceId());
@@ -149,16 +151,24 @@ function SearchScreen() {
     });
 
   const legMutation = useMutation({
-    mutationFn: briefFromLeg,
-    onSuccess: (result) => {
-      void navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
+    mutationFn: (leg: FlightLeg) => {
+      setPhase("building");
+      return briefFromLeg(leg);
     },
-    onError: (e: Error) => setError(e.message || ""),
+    onSuccess: async (result) => {
+      // Keep the searching screen up until the brief page has its data.
+      await navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
+    },
+    onError: (e: Error) => {
+      setPhase(null);
+      setError(e.message || "");
+    },
   });
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!manual && flightNumber) {
+        setPhase("resolving");
         const found = await resolve({
           data: { airline, flightNumber, travelDate, deviceId },
         });
@@ -168,6 +178,7 @@ function SearchScreen() {
             setLegs(found.legs);
             throw new Error("");
           }
+          setPhase("building");
           return briefFromLeg(found.legs[0]!);
         }
         setManual(true);
@@ -180,29 +191,34 @@ function SearchScreen() {
       }
 
       if (!origin || !dest) throw new Error("Enter both airports.");
+      setPhase("building");
       return create({
         data: { tripName, travelDate, origin, dest, depTime, deviceId, airline },
       });
     },
-    onSuccess: (result) => {
-      void navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
+    onSuccess: async (result) => {
+      await navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
     },
-    onError: (e: Error) => setError(e.message || ""),
+    onError: (e: Error) => {
+      setPhase(null);
+      setError(e.message || "");
+    },
   });
 
 
-  const busy = mutation.isPending || legMutation.isPending;
   const chosenLeg = legs.find((l) => `${l.origin}-${l.schedDepUtc}` === selectedLeg);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
-      {busy && (
+      {phase && (
         <SearchingOverlay
+          phase={phase}
           flightLabel={!manual && flightNumber ? `${airline}${flightNumber}` : undefined}
           origin={chosenLeg?.origin ?? (manual ? origin.toUpperCase() : undefined)}
           dest={chosenLeg?.dest ?? (manual ? dest.toUpperCase() : undefined)}
         />
       )}
+
       <img
         src={earth}
         alt=""
