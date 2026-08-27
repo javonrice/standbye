@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import type { RouteHistory } from "@/lib/aircue/history.server";
+import type { RouteHistory } from "@/lib/aircue/history";
 
 export const getTripHistory = createServerFn({ method: "GET" })
   .inputValidator((input: { tripId: string }) =>
