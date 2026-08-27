@@ -29,21 +29,29 @@ function toIso(raw: string): string {
   return new Date(raw.replace(" ", "T").replace("Z", "") + "Z").toISOString();
 }
 
-async function toRouteLeg(flight: AdbFlight): Promise<RouteLeg | null> {
-  const dep = flight.departure?.scheduledTime?.utc;
+async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<RouteLeg | null> {
+  // A departures board reports the queried airport implicitly and the far end
+  // under `movement`; a flight-status record carries departure/arrival instead.
+  const depMovement = flight.departure ?? flight.movement;
+  const arrMovement = flight.arrival ?? flight.movement;
+
+  const dep = depMovement?.scheduledTime?.utc;
   if (!dep) return null;
-  const origin =
-    flight.departure?.airport?.iata ??
-    (await iataFromAirportName(
-      flight.departure?.airport?.name,
-      flight.departure?.airport?.icao,
-    ));
+
+  const origin = flight.departure
+    ? (flight.departure.airport?.iata ??
+      (await iataFromAirportName(
+        flight.departure.airport?.name,
+        flight.departure.airport?.icao,
+      )))
+    : boardOrigin;
   const dest =
-    flight.arrival?.airport?.iata ??
-    (await iataFromAirportName(flight.arrival?.airport?.name, flight.arrival?.airport?.icao));
+    arrMovement?.airport?.iata ??
+    (await iataFromAirportName(arrMovement?.airport?.name, arrMovement?.airport?.icao));
   if (!origin || !dest) return null;
-  const arr = flight.arrival?.scheduledTime?.utc;
-  const depLocal = flight.departure?.scheduledTime?.local;
+
+  const arr = flight.arrival && flight.departure ? flight.arrival.scheduledTime?.utc : undefined;
+  const depLocal = depMovement?.scheduledTime?.local;
   const digits = (flight.number ?? "").replace(/\D/g, "");
   return {
     origin,
