@@ -40,18 +40,19 @@ export function StatusPill({
   size?: "sm" | "md";
   className?: string;
 }) {
-  const Icon = icons[status];
+  const safe: BriefStatus = icons[status] ? status : "incomplete";
+  const Icon = icons[safe];
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-full font-semibold uppercase tracking-wide",
         size === "sm" ? "px-3 py-1 text-[0.7rem]" : "px-4 py-1.5 text-xs",
-        styles[status],
+        styles[safe],
         className,
       )}
     >
       <Icon className={size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"} />
-      {labels[status]}
+      {labels[safe]}
     </span>
   );
 }
