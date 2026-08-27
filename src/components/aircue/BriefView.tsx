@@ -181,7 +181,15 @@ function Section({
   );
 }
 
-export function BriefView({ brief, readOnly = false }: { brief: Brief; readOnly?: boolean }) {
+export function BriefView({
+  brief,
+  readOnly = false,
+  history = null,
+}: {
+  brief: Brief;
+  readOnly?: boolean;
+  history?: RouteHistory | null;
+}) {
   const score = brief.pressure;
   const watch = useWatchAction(brief.id);
 
