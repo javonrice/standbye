@@ -234,7 +234,11 @@ function SearchScreen() {
     },
   });
 
-  const chosenLeg = legs.find((l) => `${l.origin}-${l.schedDepUtc}` === selectedLeg);
+  const chosenLeg = legs.find(
+    (l) =>
+      `${l.airlineCode ?? ""}${l.flightNumber ?? ""}-${l.origin}-${l.schedDepUtc}` === selectedLeg,
+  );
+
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
