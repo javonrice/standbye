@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  Armchair,
   Bell,
   ChevronLeft,
   Clock3,
@@ -18,7 +19,7 @@ import { StatusPill, statusLabel } from "@/components/aircue/StatusPill";
 import { cn } from "@/lib/utils";
 import { startWatch } from "@/lib/aircue/brief.functions";
 import { getDeviceId } from "@/lib/aircue/device";
-import type { Brief, BriefStatus, Signal } from "@/lib/aircue/data";
+import type { Brief, BriefStatus, InventoryCheck, Signal } from "@/lib/aircue/data";
 import type { RouteHistory } from "@/lib/aircue/history";
 import { disclaimer } from "@/lib/aircue/data";
 
