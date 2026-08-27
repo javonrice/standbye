@@ -40,7 +40,8 @@ export function StatusPill({
   size?: "sm" | "md";
   className?: string;
 }) {
-  const Icon = icons[status];
+  const safe: BriefStatus = icons[status] ? status : "incomplete";
+  const Icon = icons[safe];
   return (
     <span
       className={cn(
