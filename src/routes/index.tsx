@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Plane, User } from "lucide-react";
+import { Check, Loader2, Plane, User } from "lucide-react";
 
 import earth from "@/assets/home-earth.jpg";
 import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
+import { SearchingOverlay } from "@/components/aircue/SearchingOverlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -190,8 +191,18 @@ function SearchScreen() {
   });
 
 
+  const busy = mutation.isPending || legMutation.isPending;
+  const chosenLeg = legs.find((l) => `${l.origin}-${l.schedDepUtc}` === selectedLeg);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
+      {busy && (
+        <SearchingOverlay
+          flightLabel={!manual && flightNumber ? `${airline}${flightNumber}` : undefined}
+          origin={chosenLeg?.origin ?? (manual ? origin.toUpperCase() : undefined)}
+          dest={chosenLeg?.dest ?? (manual ? dest.toUpperCase() : undefined)}
+        />
+      )}
       <img
         src={earth}
         alt=""
