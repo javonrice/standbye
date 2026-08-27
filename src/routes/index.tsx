@@ -21,9 +21,11 @@ import {
 import {
   createBrief,
   resolveFlight,
+  resolveRoute,
   searchAirports,
   type FlightLeg,
 } from "@/lib/aircue/brief.functions";
+
 
 import { AIRLINES, ALL_AIRLINES } from "@/lib/aircue/airlines";
 import { getDeviceId } from "@/lib/aircue/device";
@@ -114,6 +116,8 @@ function SearchScreen() {
   const navigate = useNavigate();
   const create = useServerFn(createBrief);
   const resolve = useServerFn(resolveFlight);
+  const resolveRouteFn = useServerFn(resolveRoute);
+
   const [deviceId, setDeviceId] = useState("");
   const [tripName, setTripName] = useState("");
   const [travelDate, setTravelDate] = useState(todayISO());
@@ -140,8 +144,8 @@ function SearchScreen() {
         travelDate,
         origin: leg.origin,
         dest: leg.dest,
-        airline,
-        flightNumber,
+        airline: leg.airlineCode ?? airline,
+        flightNumber: leg.flightNumber ?? flightNumber,
         schedDepUtc: leg.schedDepUtc,
         schedArrUtc: leg.schedArrUtc,
         deviceId,
@@ -188,11 +192,39 @@ function SearchScreen() {
       }
 
       if (!origin || !dest) throw new Error("Enter both airports.");
+
+      // No flight number: show the flights that actually fly this route that day.
+      if (!flightNumber) {
+        const found = await resolveRouteFn({
+          data: {
+            origin,
+            dest,
+            travelDate,
+            airline,
+            ...(depTime ? { depTime } : {}),
+          },
+        });
+        if (found.ok && found.legs && found.legs.length > 0) {
+          if (found.legs.length > 1) {
+            setLegs(found.legs);
+            throw new Error("");
+          }
+          setPhase("building");
+          return briefFromLeg(found.legs[0]!);
+        }
+        setNotice(
+          found.reason === "not_found"
+            ? "We couldn’t find scheduled flights on that route — we’ll still check conditions for the route."
+            : "We couldn’t pull the flight list right now — we’ll still check conditions for the route.",
+        );
+      }
+
       setPhase("building");
       return create({
         data: { tripName, travelDate, origin, dest, depTime, deviceId, airline },
       });
     },
+
     onSuccess: async (result) => {
       await navigate({ to: "/brief/$briefId", params: { briefId: result.tripId } });
     },
@@ -202,14 +234,24 @@ function SearchScreen() {
     },
   });
 
-  const chosenLeg = legs.find((l) => `${l.origin}-${l.schedDepUtc}` === selectedLeg);
+  const chosenLeg = legs.find(
+    (l) =>
+      `${l.airlineCode ?? ""}${l.flightNumber ?? ""}-${l.origin}-${l.schedDepUtc}` === selectedLeg,
+  );
+
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {phase && (
         <SearchingOverlay
           phase={phase}
-          flightLabel={!manual && flightNumber ? `${airline}${flightNumber}` : undefined}
+          flightLabel={
+            chosenLeg?.flightNumber
+              ? `${chosenLeg.airlineCode ?? airline}${chosenLeg.flightNumber}`
+              : !manual && flightNumber
+                ? `${airline}${flightNumber}`
+                : undefined
+          }
           origin={chosenLeg?.origin ?? (manual ? origin.toUpperCase() : undefined)}
           dest={chosenLeg?.dest ?? (manual ? dest.toUpperCase() : undefined)}
         />
@@ -361,19 +403,21 @@ function SearchScreen() {
 
                 {notice && <p className="mt-3 text-sm text-foreground/85">{notice}</p>}
 
-                {legs.length > 1 && (
+                {legs.length > 0 && (
                   <div className="mt-4 rounded-2xl border border-border/60 bg-surface/60 p-3">
                     <p className="text-sm font-semibold">
-                      {airline}
-                      {flightNumber} flies more than one leg that day
+                      {flightNumber
+                        ? `${airline}${flightNumber} flies more than one leg that day`
+                        : `Flights from ${origin.toUpperCase()} to ${dest.toUpperCase()} that day`}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Pick the one you are listing for.
                     </p>
                     <div className="mt-3 space-y-2">
                       {legs.map((leg) => {
-                        const legKey = `${leg.origin}-${leg.schedDepUtc}`;
+                        const legKey = `${leg.airlineCode ?? ""}${leg.flightNumber ?? ""}-${leg.origin}-${leg.schedDepUtc}`;
                         const isSelected = selectedLeg === legKey;
+
                         return (
                           <button
                             key={legKey}
@@ -402,8 +446,11 @@ function SearchScreen() {
                                   <Check className="h-3 w-3 text-primary-foreground" />
                                 )}
                               </span>
-                              {leg.origin} → {leg.dest}
+                              {leg.flightNumber
+                                ? `${leg.airlineCode ?? airline}${leg.flightNumber} · ${leg.origin} → ${leg.dest}`
+                                : `${leg.origin} → ${leg.dest}`}
                             </span>
+
                             <span className="text-xs text-muted-foreground">
                               Departs {legTime(leg)}
                             </span>
