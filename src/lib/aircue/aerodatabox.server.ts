@@ -135,7 +135,7 @@ async function cachedCall<T>(
   ttlSeconds: number,
   endpoint: string,
   path: string,
-  opts: { tripId?: string; force?: boolean } = {},
+  opts: { tripId?: string | undefined; force?: boolean | undefined } = {},
 ): Promise<{ data: T | null; fromCache: boolean; budgetBlocked: boolean }> {
   const now = Date.now();
   const { data: row } = await supabaseAdmin
@@ -180,7 +180,7 @@ async function cachedCall<T>(
 export async function fetchFlightStatus(
   flightNumber: string,
   travelDate: string,
-  opts: { tripId?: string; deviceId?: string; force?: boolean } = {},
+  opts: { tripId?: string | undefined; deviceId?: string | undefined; force?: boolean | undefined } = {},
 ): Promise<{ flight: AdbFlight | null; budgetBlocked: boolean }> {
   if (!aeroDataBoxEnabled()) return { flight: null, budgetBlocked: true };
 
