@@ -963,14 +963,19 @@ async function recordChanges(
     }
   }
   for (const prev of prevSignals ?? []) {
-    if (!after.has(prev.fingerprint) && !prev.fingerprint.startsWith("chain:")) {
-      events.push({
-        trip_id: tripId,
-        briefing_id: briefingId,
-        change_type: "resolved",
-        headline: "Resolved: a condition from the last check is no longer active.",
-      });
-    }
+    if (after.has(prev.fingerprint)) continue;
+    // Context-only chain rows (aircraft, "not available") are noise, not resolutions.
+    if (prev.category === "aircraft") continue;
+    events.push({
+      trip_id: tripId,
+      briefing_id: briefingId,
+      change_type: "resolved",
+      headline: prev.fingerprint.startsWith("chain:earlier-cancels")
+        ? "Resolved: earlier cancellations on this route are no longer showing."
+        : prev.fingerprint.startsWith("chain:status")
+          ? "Your flight's status changed since the last check."
+          : "Resolved: a condition from the last check is no longer active.",
+    });
   }
 
   if (events.length > 0) await supabaseAdmin.from("change_events").insert(events);
