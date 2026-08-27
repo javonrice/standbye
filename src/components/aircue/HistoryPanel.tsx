@@ -90,7 +90,7 @@ function ByDay({ rows, activeDow }: { rows: HistoryPatternRow[]; activeDow: numb
                   active ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                {Math.round(row.flightsSampled / 4)}
+                {Math.round((row.flightsSampled / max) * 100)}%
               </span>
               <div
                 className={cn(
@@ -112,7 +112,8 @@ function ByDay({ rows, activeDow }: { rows: HistoryPatternRow[]; activeDow: numb
         })}
       </div>
       <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-        Average flights per day this month. Busiest {busiest.label}, lightest {lightest.label}.
+        Share of the busiest day's flight count. Busiest {busiest.label}, lightest{" "}
+        {lightest.label}.
         {mine ? ` Your day: ${pct(mine.dep15Rate)} left late, ${mine.medianLaterBackups} later flight${mine.medianLaterBackups === 1 ? "" : "s"}.` : ""}
       </p>
     </div>
