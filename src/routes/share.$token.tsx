@@ -63,7 +63,7 @@ function SharedBriefPage() {
         <p className="text-xs text-muted-foreground">Read-only</p>
 
         <h1 className="mt-5 font-display text-2xl font-bold tracking-tight">
-          {brief.flightNumber} · {brief.origin} → {brief.destination}
+          {brief.tripName} · {brief.origin} → {brief.destination}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {brief.date} · {brief.departsLocal}

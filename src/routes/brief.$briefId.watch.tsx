@@ -63,7 +63,7 @@ function WatchPage() {
         </Link>
 
         <h1 className="font-display text-2xl font-bold tracking-tight">
-          Watch {brief.flightNumber}
+          Watch {brief.tripName}
         </h1>
 
         <form
@@ -121,7 +121,7 @@ function WatchPage() {
         {mutation.isSuccess && (
           <p className="mt-3 flex items-center gap-2 text-sm text-fine-foreground">
             <BellRing className="h-4 w-4 shrink-0" />
-            Watching {brief.flightNumber}. Changes show up under Watching.
+            Watching {brief.tripName}. Changes show up under Watching.
           </p>
         )}
         {mutation.isError && (

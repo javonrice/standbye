@@ -770,7 +770,7 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
 
   return {
     id: trip.id,
-    flightNumber: trip.flight_label,
+    tripName: trip.flight_label,
     origin: origin.iata,
     destination: dest.iata,
     originCity: origin.city ?? origin.iata,
