@@ -1,263 +1,133 @@
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-
 import { cn } from "@/lib/utils";
-import { airlineName } from "@/lib/aircue/airlines";
-import { timeBlockRange, timeBlockShort } from "@/lib/aircue/history";
-import type { HistoryLoadRow, HistoryPatternRow, RouteHistory } from "@/lib/aircue/history";
+import { timeBlockShort } from "@/lib/aircue/history";
+import type { HistoryPatternRow, RouteHistory } from "@/lib/aircue/history";
 
-function pct(value: number) {
-  return `${Math.round(value)}%`;
+function pct(value: number, digits = 0) {
+  return `${value.toFixed(digits)}%`;
 }
 
-function seats(value: number) {
-  return String(Math.round(value));
-}
+type Mood = "good" | "mixed" | "poor";
 
-function seatTone(empty: number) {
-  if (empty >= 15) return "bg-fine";
-  if (empty >= 6) return "bg-watch";
-  return "bg-rough";
-}
+const moodFace: Record<Mood, string> = {
+  good: "🙂",
+  mixed: "😐",
+  poor: "🙁",
+};
 
-function lateTone(rate: number) {
-  if (rate < 18) return "bg-fine";
-  if (rate < 30) return "bg-watch";
-  return "bg-rough";
-}
+const moodTone: Record<Mood, string> = {
+  good: "text-fine",
+  mixed: "text-watch",
+  poor: "text-rough",
+};
 
-function Bar({ value, max, tone }: { value: number; max: number; tone: string }) {
-  const width = max <= 0 ? 0 : Math.min(100, (value / max) * 100);
+function Line({ mood, title, detail }: { mood: Mood; title: string; detail: string }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-      <div className={cn("h-full rounded-full", tone)} style={{ width: `${width}%` }} />
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-2xl bg-white/5 px-3 py-3 text-center">
-      <p className="font-display text-xl font-bold leading-none tracking-tight">{value}</p>
-      <p className="mt-1.5 text-[0.7rem] leading-tight text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
-function SeatTrend({ title, rows }: { title: string; rows: HistoryLoadRow[] }) {
-  if (rows.length === 0) return null;
-  const max = Math.max(...rows.map((r) => r.avgEmptySeats), 5);
-
-  return (
-    <div className="mt-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
-      <div className="mt-2 space-y-2">
-        {rows.map((row) => (
-          <div key={row.label} className="flex items-center gap-3">
-            <span className="w-16 shrink-0 text-xs text-muted-foreground">{row.label}</span>
-            <Bar value={row.avgEmptySeats} max={max} tone={seatTone(row.avgEmptySeats)} />
-            <span className="w-24 shrink-0 text-right text-xs text-foreground/80">
-              ~{seats(row.avgEmptySeats)} empty · {Math.round(row.loadFactor)}% sold
-            </span>
-          </div>
-        ))}
+    <div className="flex items-start gap-3">
+      <span className="text-lg leading-none" aria-hidden>
+        {moodFace[mood]}
+      </span>
+      <div className="min-w-0">
+        <p className={cn("text-sm font-medium leading-tight", moodTone[mood])}>{title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>
       </div>
     </div>
   );
 }
 
-function ByDay({ rows, activeDow }: { rows: HistoryPatternRow[]; activeDow: number }) {
-  if (rows.length === 0) return null;
-  const max = Math.max(...rows.map((r) => r.flightsSampled), 1);
-  const busiest = rows.reduce((a, b) => (b.flightsSampled > a.flightsSampled ? b : a));
-  const lightest = rows.reduce((a, b) => (b.flightsSampled < a.flightsSampled ? b : a));
-  const mine = rows.find((r) => r.dow === activeDow);
-
-  return (
-    <div className="mt-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Flights each day
-      </p>
-      <div className="mt-2.5 flex items-end gap-1.5">
-        {rows.map((row) => {
-          const active = row.dow === activeDow;
-          const height = Math.max(12, (row.flightsSampled / max) * 72);
-          return (
-            <div key={row.label} className="flex flex-1 flex-col items-center gap-1.5">
-              <span
-                className={cn(
-                  "text-[0.65rem] tabular-nums",
-                  active ? "text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {Math.round((row.flightsSampled / max) * 100)}%
-              </span>
-              <div
-                className={cn(
-                  "w-full rounded-t-md",
-                  active ? "bg-primary" : "bg-white/15",
-                )}
-                style={{ height: `${height}px` }}
-              />
-              <span
-                className={cn(
-                  "text-[0.65rem]",
-                  active ? "font-medium text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {row.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-        Share of the busiest day's flight count. Busiest {busiest.label}, lightest{" "}
-        {lightest.label}.
-        {mine ? ` Your day: ${pct(mine.dep15Rate)} left late, ${mine.medianLaterBackups} later flight${mine.medianLaterBackups === 1 ? "" : "s"}.` : ""}
-      </p>
-    </div>
-  );
+function delayMood(rate: number): Mood {
+  if (rate < 18) return "good";
+  if (rate < 30) return "mixed";
+  return "poor";
 }
 
-function TimeOfDay({ rows, activeBlock }: { rows: HistoryPatternRow[]; activeBlock: string | null }) {
-  if (rows.length === 0) return null;
-  const max = Math.max(...rows.map((r) => r.dep15Rate), 10);
+function cancelMood(rate: number): Mood {
+  if (rate < 2) return "good";
+  if (rate < 4) return "mixed";
+  return "poor";
+}
 
-  return (
-    <div className="mt-5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        By time of day
-      </p>
-      <div className="mt-2.5 space-y-2.5">
-        {rows.map((row) => {
-          const active = row.block === activeBlock;
-          return (
-            <div
-              key={row.label}
-              className={cn(
-                "rounded-2xl px-3 py-2.5",
-                active ? "bg-white/10 ring-1 ring-white/15" : "bg-white/[0.03]",
-              )}
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-medium">
-                  {row.label}
-                  {active && <span className="ml-2 text-[0.7rem] text-primary">your flight</span>}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {timeBlockRange[row.block ?? ""] ?? ""}
-                </span>
-              </div>
-              <div className="mt-2">
-                <Bar value={row.dep15Rate} max={max} tone={lateTone(row.dep15Rate)} />
-              </div>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                {pct(row.dep15Rate)} left late · {pct(row.cancelRate)} cancelled ·{" "}
-                {row.medianLaterBackups} later flight{row.medianLaterBackups === 1 ? "" : "s"}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+function backupMood(count: number): Mood {
+  if (count >= 3) return "good";
+  if (count >= 1.5) return "mixed";
+  return "poor";
+}
+
+function weighted(rows: HistoryPatternRow[], pick: (r: HistoryPatternRow) => number) {
+  const total = rows.reduce((sum, r) => sum + r.flightsSampled, 0);
+  if (total <= 0) return null;
+  return rows.reduce((sum, r) => sum + pick(r) * r.flightsSampled, 0) / total;
 }
 
 export function HistoryPanel({ history }: { history: RouteHistory }) {
-  const [open, setOpen] = useState(false);
-  const seatsInfo = history.loadTypical;
-  const reliability = history.byTimeBlock ?? history.typical;
-  const blockName = history.timeBlock ? timeBlockShort[history.timeBlock] : null;
+  const row = history.byTimeBlock ?? history.typical;
+  if (!row) return null;
+
+  const blockName = history.timeBlock ? timeBlockShort[history.timeBlock]?.toLowerCase() : null;
+  const when = blockName
+    ? `${history.dowName} ${blockName}s in ${history.monthName}`
+    : `${history.dowName}s in ${history.monthName}`;
+
+  const overallDelay = weighted(history.timeBlocks, (r) => r.dep15Rate);
+  let comparison: string | null = null;
+  if (overallDelay !== null && history.byTimeBlock) {
+    const diff = history.byTimeBlock.dep15Rate - overallDelay;
+    const label = blockName ? `${blockName} departures` : "This window";
+    if (Math.abs(diff) < 2) comparison = `${label} run about the same as the rest of the day`;
+    else if (diff > 0)
+      comparison = `${label} are ${Math.abs(diff) >= 6 ? "notably" : "slightly"} less reliable`;
+    else
+      comparison = `${label} are ${Math.abs(diff) >= 6 ? "notably" : "slightly"} more reliable`;
+  }
+
+  const backups = row.medianLaterBackups;
 
   return (
     <section className="glass glass-sheen mt-4 rounded-3xl p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-base font-bold tracking-tight">Past averages</h2>
-        <span className="rounded-full bg-white/10 px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
-          Not today&apos;s flight
-        </span>
+      <h2 className="font-display text-base font-bold tracking-tight">Your travel pattern</h2>
+      <p className="mt-1 text-xs text-muted-foreground">{when}</p>
+
+      <div className="mt-4 space-y-3.5">
+        <Line
+          mood={delayMood(row.dep15Rate)}
+          title={
+            delayMood(row.dep15Rate) === "good"
+              ? "Usually reliable"
+              : delayMood(row.dep15Rate) === "mixed"
+                ? "Sometimes late"
+                : "Often late"
+          }
+          detail={`${pct(row.dep15Rate)} historically delayed`}
+        />
+        <Line
+          mood={cancelMood(row.cancelRate)}
+          title={
+            cancelMood(row.cancelRate) === "good"
+              ? "Rarely cancelled"
+              : cancelMood(row.cancelRate) === "mixed"
+                ? "Occasionally cancelled"
+                : "Cancelled more often"
+          }
+          detail={`${pct(row.cancelRate, 1)} historically cancelled`}
+        />
+        <Line
+          mood={backupMood(backups)}
+          title={
+            backupMood(backups) === "good"
+              ? "Good backup options"
+              : backupMood(backups) === "mixed"
+                ? "Limited backup options"
+                : "Few backup options"
+          }
+          detail={`${backups.toFixed(1)} later flights on average`}
+        />
       </div>
 
-      <p className="mt-1 text-xs text-muted-foreground">
-        {history.origin} → {history.dest} · {airlineName(history.carrier)} · {history.monthName}
-      </p>
-
-      {seatsInfo ? (
-        <>
-          <div className="mt-4 text-center">
-            <p className="font-display text-4xl font-bold leading-none tracking-tight">
-              ~{seats(seatsInfo.avgEmptySeats)}
-            </p>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              average empty seats per flight
-            </p>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <Stat value={pct(seatsInfo.loadFactor)} label="seats sold" />
-            <Stat
-              value={`${seats(seatsInfo.minEmptySeats)}–${seats(seatsInfo.maxEmptySeats)}`}
-              label="empty-seat range by year"
-            />
-          </div>
-
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            Based on {seatsInfo.departures.toLocaleString()} {history.monthName} departures over
-            the last {seatsInfo.years} published year{seatsInfo.years === 1 ? "" : "s"}.
+      {comparison && (
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Compared with this route overall
           </p>
-        </>
-      ) : (
-        <p className="mt-2 text-sm text-muted-foreground">
-          Seat records for this route are not published yet.
-        </p>
-      )}
-
-      <SeatTrend title="Last 3 published months" rows={history.loadRecentMonths} />
-
-      <SeatTrend title={`Each ${history.monthName}, by year`} rows={history.loadPriorYears} />
-
-      <ByDay rows={history.byDow} activeDow={history.dow} />
-
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="mt-4 flex w-full items-center justify-between rounded-2xl bg-white/5 px-3 py-2.5 text-sm"
-      >
-        <span>Delays, cancellations and backups</span>
-        <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
-      </button>
-
-      {open && (
-        <div className="mt-1">
-          {reliability && (
-            <>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <Stat value={pct(reliability.dep15Rate)} label="left late" />
-                <Stat value={pct(reliability.cancelRate)} label="cancelled" />
-                <Stat
-                  value={String(reliability.medianLaterBackups)}
-                  label={
-                    reliability.medianLaterBackups === 1
-                      ? "later flight same day"
-                      : "later flights same day"
-                  }
-                />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {blockName ? `${blockName} departures in ` : "Departures in "}
-                {history.monthName}, {reliability.flightsSampled.toLocaleString()} flights.
-              </p>
-            </>
-          )}
-
-          <TimeOfDay rows={history.timeBlocks} activeBlock={history.timeBlock} />
-
-          <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
-            Source: U.S. Bureau of Transportation Statistics, published a few months behind. Past
-            averages only — not today&apos;s seats or your spot on the list.
-            {history.notes.length > 0 ? ` ${history.notes.join(" ")}` : ""}
-          </p>
+          <p className="mt-1 text-sm">{comparison}</p>
         </div>
       )}
     </section>
