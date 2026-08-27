@@ -30,10 +30,7 @@ export function AppShell({ children, nav = true }: { children: ReactNode; nav?: 
 
       <footer className="border-t border-border bg-surface">
         <div className="mx-auto max-w-5xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-6 text-xs text-muted-foreground sm:px-6">
-          <p>
-            Conditions are informational and may change. Aircue is not affiliated with any airline,
-            the FAA, or a data provider.
-          </p>
+          <p>Aircue is a standby pressure monitor, not a seat predictor.</p>
         </div>
       </footer>
     </div>

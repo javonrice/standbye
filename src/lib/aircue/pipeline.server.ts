@@ -384,6 +384,11 @@ export async function generateBrief(tripId: string): Promise<void> {
     arrEnd: new Date(trip.arr_window_end ?? Date.now()),
   };
   const retrievedAt = new Date().toISOString();
+  const hoursToWindow = (windows.depStart.getTime() - Date.now()) / 3600000;
+  // FAA programs describe right now; TAFs cover about a day. Beyond those horizons the
+  // sources cannot say anything about this flight's window.
+  const faaRelevant = hoursToWindow <= 12;
+  const forecastRelevant = hoursToWindow <= 30;
 
   const [faa, depTaf, arrTaf, depMetar, arrMetar, depAlerts, arrAlerts] = await Promise.all([
     getFaaPrograms(),
@@ -407,7 +412,7 @@ export async function generateBrief(tripId: string): Promise<void> {
 
   const drafts: SignalDraft[] = [];
 
-  if (faa.data) {
+  if (faa.data && faaRelevant) {
     drafts.push(
       ...faaSignals(faa.data, origin, "departure", faa.fetchedAt, trip.travel_date),
       ...faaSignals(faa.data, dest, "arrival", faa.fetchedAt, trip.travel_date),
@@ -416,10 +421,10 @@ export async function generateBrief(tripId: string): Promise<void> {
 
   const rawDep = depTaf.data?.[0]?.rawTAF ?? depMetar.data?.[0]?.rawOb ?? "";
   const rawArr = arrTaf.data?.[0]?.rawTAF ?? arrMetar.data?.[0]?.rawOb ?? "";
-  const depWx = rawDep
+  const depWx = rawDep && forecastRelevant
     ? tafSignal(rawDep, origin, "departure", depTaf.fetchedAt, trip.travel_date)
     : null;
-  const arrWx = rawArr
+  const arrWx = rawArr && forecastRelevant
     ? tafSignal(rawArr, dest, "arrival", arrTaf.fetchedAt, trip.travel_date)
     : null;
   if (depWx) drafts.push(depWx);
@@ -566,7 +571,7 @@ function addDays(dateISO: string, days: number): string {
 
 function whySummary(drafts: SignalDraft[], status: BriefStatus): string {
   if (status === "clear")
-    return "Airport operations and weather looked normal for both airports at the last check.";
+    return "Nothing material found for your window at the last check. Airport and weather conditions are rechecked as departure gets closer.";
   if (status === "incomplete")
     return "At least one required source did not respond, so Aircue cannot call this clear.";
   const top = drafts
