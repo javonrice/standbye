@@ -19,7 +19,7 @@ If the check can't run (no key, kill switch off, monthly cap hit, or an error), 
 1. Look for a fresh flight-level cache entry; return its bucket if found.
 2. Otherwise run one route-level search at `adults=9` for the carrier/origin/dest/date and cache it — that one call covers every flight in the bank that day.
 3. Target flight present with a price at 9 adults → bucket `9+`.
-4. Not present → step down 7, 5, 4, 3, 2, 1 and stop at the first hit → bucket `1-8` with the largest N found.
+4. Not present → step down 7, 5, 4, 3, 2, 1 and stop at the first hit → bucket `1-8` with the exact largest N (that N is stored and shown).
 5. Never present → bucket `0`.
 
 Typical cost: 1 search for soft banks, 2-4 for tight flights. No blind 1..9 loop.
