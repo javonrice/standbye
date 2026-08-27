@@ -1057,7 +1057,8 @@ export async function buildBriefView(tripId: string): Promise<Brief | null> {
     const bucketRaw = String(evidence["bucket"] ?? "");
     const bucket: InventoryBucket =
       bucketRaw === "9+" ? "plenty" : bucketRaw === "0" ? "none" : "tight";
-    const largestN = evidence["largestN"] == null ? null : Number(evidence["largestN"]);
+    const largestN =
+      evidence["largest_n"] == null ? null : Number(evidence["largest_n"]);
     return {
       signal: toSignal(row),
       bucket,
