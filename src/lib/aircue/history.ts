@@ -20,6 +20,16 @@ export interface HistoryLoadRow {
   sourcePeriod: string;
 }
 
+export interface HistoryLoadTypical {
+  label: string;
+  years: number;
+  departures: number;
+  avgEmptySeats: number;
+  loadFactor: number;
+  minEmptySeats: number;
+  maxEmptySeats: number;
+}
+
 export const TIME_BLOCKS = ["morning", "midday", "evening", "late"] as const;
 
 export type TimeBlock = (typeof TIME_BLOCKS)[number];
@@ -63,5 +73,9 @@ export interface RouteHistory {
   /** How full this route typically ran in this month (T-100). */
   load: HistoryLoadRow | null;
   loadPriorYears: HistoryLoadRow[];
+  /** Most recent published months of seat data, oldest first. */
+  loadRecentMonths: HistoryLoadRow[];
+  /** Seat math pooled across the last few published years of this month. */
+  loadTypical: HistoryLoadTypical | null;
   notes: string[];
 }
