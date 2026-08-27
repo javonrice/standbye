@@ -217,7 +217,10 @@ export const listWatches = createServerFn({ method: "GET" })
         destination: trip.dest_iata,
         travelDate: trip.travel_date,
         state: row.state,
-        status: briefing?.status ?? "incomplete",
+        status:
+          briefing?.status === "active_disruption"
+            ? "disruption"
+            : (briefing?.status ?? "incomplete"),
         headline: briefing?.headline ?? "No brief generated yet.",
         lastChange: change?.headline ?? null,
       });
