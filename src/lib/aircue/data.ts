@@ -50,6 +50,17 @@ export interface ChangeEntry {
   text: string;
 }
 
+export type InventoryBucket = "plenty" | "tight" | "none";
+
+export interface InventoryCheck {
+  signal: Signal;
+  bucket: InventoryBucket;
+  /** Exact seat count when known; null means 9+. */
+  seats: number | null;
+  /** True when the check could not run because the monthly probe cap was hit. */
+  capped: boolean;
+}
+
 export interface Brief {
   id: string;
   tripName: string;
@@ -78,6 +89,8 @@ export interface Brief {
     signals: Signal[];
     unavailable?: string[];
   };
+  /** Public sellable-seat inventory check, when available. */
+  inventory: InventoryCheck | null;
   watch?: {
     active: boolean;
     nextCheck: string;
