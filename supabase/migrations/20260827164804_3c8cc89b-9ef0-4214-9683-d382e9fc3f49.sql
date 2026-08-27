@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.api_units_this_month(text) FROM anon, authenticated;
