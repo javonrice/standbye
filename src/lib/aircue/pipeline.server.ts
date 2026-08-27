@@ -346,6 +346,20 @@ async function chainSignals(
     : Infinity;
   const allowRefresh = hoursToDep <= 12 && lastStatusAge >= 3;
 
+  // More than three days out, live flight status tells us nothing new — save the budget.
+  if (hoursToDep > 72 && lastStatusAge > 24) {
+    return {
+      drafts: [
+        chainStub(
+          retrievedAt,
+          trip.id,
+          "Live flight status starts closer to your travel date.",
+        ),
+      ],
+      live: false,
+    };
+  }
+
   const status = await provider.getStatus(
     flightNumber,
     trip.travel_date,
