@@ -11,6 +11,11 @@ import {
 } from "@/lib/aircue/sources.server";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import {
+  probeSellable,
+  type SellableBucket,
+  type SellableResult,
+} from "@/lib/aircue/serpapi-flights.server";
+import {
   buildWindows,
   distanceKm,
   formatChecked,
@@ -55,6 +60,7 @@ interface TripRow {
   dep_window_end: string | null;
   arr_window_end: string | null;
   share_token: string | null;
+  device_id: string | null;
   provider_ref: Record<string, unknown> | null;
 }
 
