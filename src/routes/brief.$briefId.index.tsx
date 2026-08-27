@@ -3,6 +3,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { AppShell } from "@/components/aircue/AppShell";
 import { BriefView } from "@/components/aircue/BriefView";
 import { getBrief } from "@/lib/aircue/brief.functions";
+import { getTripHistory } from "@/lib/aircue/history.functions";
 
 export const Route = createFileRoute("/brief/$briefId/")({
   head: () => ({
