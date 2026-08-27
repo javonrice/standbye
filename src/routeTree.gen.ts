@@ -15,7 +15,6 @@ import { Route as WatchesRouteImport } from './routes/watches'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
-import { Route as BriefBriefIdWatchRouteImport } from './routes/brief.$briefId.watch'
 import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -48,11 +47,6 @@ const BriefBriefIdIndexRoute = BriefBriefIdIndexRouteImport.update({
   path: '/brief/$briefId/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BriefBriefIdWatchRoute = BriefBriefIdWatchRouteImport.update({
-  id: '/brief/$briefId/watch',
-  path: '/brief/$briefId/watch',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BriefBriefIdSignalSignalIdRoute =
   BriefBriefIdSignalSignalIdRouteImport.update({
     id: '/brief/$briefId/signal/$signalId',
@@ -66,7 +60,6 @@ export interface FileRoutesByFullPath {
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
-  '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -76,7 +69,6 @@ export interface FileRoutesByTo {
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
-  '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
   '/brief/$briefId': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -87,7 +79,6 @@ export interface FileRoutesById {
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
-  '/brief/$briefId/watch': typeof BriefBriefIdWatchRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -99,7 +90,6 @@ export interface FileRouteTypes {
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
-    | '/brief/$briefId/watch'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
   fileRoutesByTo: FileRoutesByTo
@@ -109,7 +99,6 @@ export interface FileRouteTypes {
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
-    | '/brief/$briefId/watch'
     | '/brief/$briefId'
     | '/brief/$briefId/signal/$signalId'
   id:
@@ -119,7 +108,6 @@ export interface FileRouteTypes {
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
-    | '/brief/$briefId/watch'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
   fileRoutesById: FileRoutesById
@@ -130,7 +118,6 @@ export interface RootRouteChildren {
   WatchesRoute: typeof WatchesRoute
   ShareTokenRoute: typeof ShareTokenRoute
   ApiPublicRunWatchesRoute: typeof ApiPublicRunWatchesRoute
-  BriefBriefIdWatchRoute: typeof BriefBriefIdWatchRoute
   BriefBriefIdIndexRoute: typeof BriefBriefIdIndexRoute
   BriefBriefIdSignalSignalIdRoute: typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -179,13 +166,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BriefBriefIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/brief/$briefId/watch': {
-      id: '/brief/$briefId/watch'
-      path: '/brief/$briefId/watch'
-      fullPath: '/brief/$briefId/watch'
-      preLoaderRoute: typeof BriefBriefIdWatchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/brief/$briefId/signal/$signalId': {
       id: '/brief/$briefId/signal/$signalId'
       path: '/brief/$briefId/signal/$signalId'
@@ -202,7 +182,6 @@ const rootRouteChildren: RootRouteChildren = {
   WatchesRoute: WatchesRoute,
   ShareTokenRoute: ShareTokenRoute,
   ApiPublicRunWatchesRoute: ApiPublicRunWatchesRoute,
-  BriefBriefIdWatchRoute: BriefBriefIdWatchRoute,
   BriefBriefIdIndexRoute: BriefBriefIdIndexRoute,
   BriefBriefIdSignalSignalIdRoute: BriefBriefIdSignalSignalIdRoute,
 }
