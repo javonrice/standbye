@@ -43,6 +43,9 @@ interface AirportRow {
 interface TripRow {
   id: string;
   flight_label: string;
+  flight_number: string;
+  marketing_carrier: string;
+  flight_provider: string;
   travel_date: string;
   origin_iata: string;
   dest_iata: string;
@@ -290,16 +293,16 @@ function eventSignals(
   });
 }
 
-function chainStub(retrievedAt: string, tripId: string): SignalDraft {
+function chainStub(retrievedAt: string, tripId: string, reason: string): SignalDraft {
   return {
     location: "chain",
     category: "chain_status",
     confidence: "context",
     severity: 0,
-    title: "Flight data not connected",
-    summary: "Live flight status and inbound aircraft tracking are not connected yet.",
+    title: "Flight status not available",
+    summary: reason,
     why_it_matters:
-      "Aircue cannot see delays to the aircraft flying in, or earlier cancellations on this route. Everything above is still live.",
+      "Aircue cannot confirm this flight's own status right now. Everything above is still live.",
     evidence: { provider: "manual" },
     source: "Aircue",
     retrieved_at: retrievedAt,
@@ -307,6 +310,150 @@ function chainStub(retrievedAt: string, tripId: string): SignalDraft {
     active_until: null,
     fingerprint: `chain:unavailable:${tripId}`,
   };
+}
+
+/** Live flight-chain signals from the flight data provider. */
+async function chainSignals(
+  trip: TripRow,
+  retrievedAt: string,
+): Promise<{ drafts: SignalDraft[]; live: boolean }> {
+  const provider = getFlightProvider();
+  const flightNumber =
+    trip.flight_number && trip.flight_number !== "0"
+      ? `${trip.marketing_carrier}${trip.flight_number}`
+      : null;
+
+  if (!provider.live || !flightNumber) {
+    return {
+      drafts: [
+        chainStub(
+          retrievedAt,
+          trip.id,
+          "This brief was built from a route you entered, so there is no flight number to track.",
+        ),
+      ],
+      live: false,
+    };
+  }
+
+  const status = await provider.getStatus(flightNumber, trip.travel_date, trip.id);
+  if (!status) {
+    return {
+      drafts: [
+        chainStub(
+          retrievedAt,
+          trip.id,
+          "Live flight data could not be reached for this flight right now.",
+        ),
+      ],
+      live: false,
+    };
+  }
+
+  const drafts: SignalDraft[] = [];
+  const severity =
+    status.state === "cancelled"
+      ? 95
+      : status.state === "diverted"
+        ? 85
+        : status.state === "delayed"
+          ? Math.min(80, 40 + (status.delayMinutes ?? 0) / 3)
+          : 0;
+
+  drafts.push({
+    location: "chain",
+    category: "chain_status",
+    confidence: "confirmed",
+    severity,
+    title: `${flightNumber}: ${status.label}`,
+    summary:
+      status.state === "cancelled"
+        ? "This flight is showing as cancelled."
+        : status.state === "delayed"
+          ? `This flight is running about ${status.delayMinutes ?? 0} minutes late.`
+          : status.state === "diverted"
+            ? "This flight has been diverted."
+            : status.state === "departed"
+              ? "This flight has already departed."
+              : "This flight is currently showing on schedule.",
+    why_it_matters:
+      status.state === "scheduled"
+        ? "No flight-level problem is showing, so pressure comes from the conditions above."
+        : "Changes to your own flight move standby lists more than anything else.",
+    evidence: { state: status.state, delay_minutes: status.delayMinutes ?? null },
+    source: "AeroDataBox",
+    retrieved_at: retrievedAt,
+    active_from: null,
+    active_until: null,
+    fingerprint: `chain:status:${trip.id}:${status.state}`,
+  });
+
+  const inbound = await provider.getInboundAircraft(flightNumber, trip.travel_date);
+  if (inbound?.tail || inbound?.model) {
+    drafts.push({
+      location: "chain",
+      category: "chain_status",
+      confidence: "context",
+      severity: 0,
+      title: "Aircraft assigned",
+      summary: [inbound.model, inbound.tail].filter(Boolean).join(" · "),
+      why_it_matters: "The assigned aircraft sets how many seats there are to work with.",
+      evidence: { tail: inbound.tail ?? null, model: inbound.model ?? null },
+      source: "AeroDataBox",
+      retrieved_at: retrievedAt,
+      active_from: null,
+      active_until: null,
+      fingerprint: `chain:aircraft:${trip.id}`,
+    });
+  } else {
+    drafts.push({
+      location: "chain",
+      category: "chain_status",
+      confidence: "context",
+      severity: 0,
+      title: "Inbound aircraft",
+      summary: "Not available on free flight data.",
+      why_it_matters: "A late inbound aircraft can delay this departure, but we cannot see it here.",
+      evidence: {},
+      source: "Aircue",
+      retrieved_at: retrievedAt,
+      active_from: null,
+      active_until: null,
+      fingerprint: `chain:inbound-unavailable:${trip.id}`,
+    });
+  }
+
+  const depLocal = trip.sched_dep_utc ? new Date(trip.sched_dep_utc) : null;
+  const hoursOut = depLocal ? (depLocal.getTime() - Date.now()) / 3600000 : 999;
+  if (hoursOut <= 12) {
+    const cancels = await provider.getEarlierRouteCancellations(
+      trip.origin_iata,
+      trip.dest_iata,
+      trip.travel_date,
+      trip.marketing_carrier,
+      new Date(trip.sched_dep_utc ?? Date.now()).toISOString().slice(11, 16),
+    );
+    if (cancels && cancels.cancelledFlights > 0) {
+      drafts.push({
+        location: "chain",
+        category: "chain_status",
+        confidence: "confirmed",
+        severity: Math.min(80, 40 + cancels.cancelledFlights * 15),
+        title: `${cancels.cancelledFlights} earlier flight${cancels.cancelledFlights === 1 ? "" : "s"} cancelled`,
+        summary: `On this route ${cancels.window}, ${cancels.cancelledFlights} departure${cancels.cancelledFlights === 1 ? " was" : "s were"} cancelled.`,
+        why_it_matters:
+          "Displaced passengers from cancelled flights are usually rebooked onto later departures, which fills them up.",
+        evidence: { cancelled: cancels.cancelledFlights, window: cancels.window },
+        source: "AeroDataBox",
+        retrieved_at: retrievedAt,
+        active_from: null,
+        active_until: null,
+        fingerprint: `chain:earlier-cancels:${trip.id}`,
+      });
+    }
+  }
+
+  return { drafts, live: true };
 }
 
 /* -------------------------------- scoring -------------------------------- */
@@ -475,10 +622,8 @@ export async function generateBrief(tripId: string): Promise<void> {
     ),
   );
 
-  // Phase 2 seam: flight chain stays unavailable while the manual provider is active.
-  const provider = getFlightProvider();
-  const chainStatus = await provider.getStatus(trip.flight_label, trip.travel_date);
-  drafts.push(chainStub(retrievedAt, trip.id));
+  const chain = await chainSignals(trip, retrievedAt);
+  drafts.push(...chain.drafts);
 
   // Dedupe by fingerprint, highest severity wins.
   const byFingerprint = new Map<string, SignalDraft>();
@@ -522,7 +667,9 @@ export async function generateBrief(tripId: string): Promise<void> {
       arr_card_status: toDbStatus(
         cardStatus(finalDrafts.filter((d) => d.location === "arrival"), arrSourcesOk),
       ),
-      chain_card_status: chainStatus ? "clear" : "incomplete",
+      chain_card_status: chain.live
+        ? toDbStatus(cardStatus(chain.drafts, true))
+        : "incomplete",
       generated_at: retrievedAt,
       source_freshness: {
         faa: faa.fetchedAt,

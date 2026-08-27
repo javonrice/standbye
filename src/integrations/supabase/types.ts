@@ -47,6 +47,36 @@ export type Database = {
         }
         Relationships: []
       }
+      api_usage_log: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          provider: string
+          tier_est: number | null
+          trip_id: string | null
+          units_est: number
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          provider?: string
+          tier_est?: number | null
+          trip_id?: string | null
+          units_est?: number
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          provider?: string
+          tier_est?: number | null
+          trip_id?: string | null
+          units_est?: number
+        }
+        Relationships: []
+      }
       briefings: {
         Row: {
           arr_card_status: string
@@ -586,7 +616,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      api_units_this_month: { Args: { _provider?: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
