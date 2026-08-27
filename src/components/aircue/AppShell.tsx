@@ -18,6 +18,10 @@ export function AppShell({ children, nav = true }: { children: ReactNode; nav?: 
               <Link to="/" className="text-muted-foreground hover:text-foreground">
                 Check a flight
               </Link>
+              <Link to="/routes" className="text-muted-foreground hover:text-foreground">
+                Routes
+              </Link>
+
               <Link to="/watches" className="text-muted-foreground hover:text-foreground">
                 My watches
               </Link>
