@@ -7,10 +7,10 @@ Adds one new AirCue signal to each brief: is this flight still selling many econ
 A new signal row in the flight chain section titled **AirCue inventory check**:
 
 - 9+: "Public booking inventory still shows 9 or more sellable seats in economy for this flight."
-- 1-8: "Public booking inventory looks limited — about {n} sellable seats in this search."
+- 1-8: "Public booking inventory looks limited — about {n} sellable seats left in this search." (exact number shown)
 - 0: "This flight is not offering sellable economy seats in the public booking search."
 
-Every row keeps the same why-it-matters line: standby flexibility often tracks how aggressively a flight is still being sold; this is a coarse public check, not airline load data. The existing disclaimer footer stays as-is. Wording never uses seat totals, "you'll clear", or the name AirQ.
+Every row keeps the same why-it-matters line: standby flexibility often tracks how aggressively a flight is still being sold; this is a coarse public check, not airline load data. The existing disclaimer footer stays as-is. Copy always frames the number as public sellable inventory ("about {n} sellable seats"), never as open seats on the plane, "you'll clear", or the name AirQ.
 
 If the check can't run (no key, kill switch off, monthly cap hit, or an error), the brief still scores from FAA/weather and the category is listed as unavailable — it is never treated as "looks loose".
 
