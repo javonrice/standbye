@@ -144,10 +144,8 @@ export async function getFaaPrograms(): Promise<SourceResult<FaaProgram[]>> {
 
 /* --------------------------------- AWC ----------------------------------- */
 
-export function icaoFor(iata: string, state: string | null): string {
-  if (state === "HI" || state === "AK") return `P${iata}`;
-  return `K${iata}`;
-}
+export { icaoForAirport } from "@/lib/aircue/airport-lookup.server";
+
 
 export interface TafReport {
   icaoId?: string;
