@@ -38,7 +38,7 @@ export function MainNav() {
       {/* Desktop: side rail */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-card px-4 py-6 md:block">
         <Link to="/plan" className="mb-9 block px-1">
-          <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain" />
+          <img src={wordmark.url} alt="Standbye" className="h-14 w-auto object-contain" />
         </Link>
         <ul className="space-y-1">
           {items.map(({ to, label, icon: Icon }) => (
