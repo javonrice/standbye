@@ -6,7 +6,7 @@ export interface OnboardingDraft {
   painPoint: string;
   travelerType: string;
   homeAirline: string;
-  accessMode: AccessMode;
+  accessMode: AccessMode | "";
   airlineAccess: string[];
   homeAirport: string;
 }
