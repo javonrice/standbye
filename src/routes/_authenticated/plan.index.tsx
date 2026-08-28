@@ -308,3 +308,31 @@ function PlanHome() {
     </main>
   );
 }
+
+function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
+  const body = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-semibold tracking-tight">
+          {p.origin} → {p.dest}
+        </span>
+        <span className="block text-[12px] text-muted-foreground">
+          {p.mode === "escape" ? "Escape · " : ""}
+          {p.travelDate} · {p.optionCount} option{p.optionCount === 1 ? "" : "s"}
+        </span>
+      </span>
+      {p.bestJudgment && <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />}
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </>
+  );
+  const className = "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50";
+  return p.mode === "escape" ? (
+    <Link to="/escape/$planId" params={{ planId: p.id }} className={className}>
+      {body}
+    </Link>
+  ) : (
+    <Link to="/plans/$planId" params={{ planId: p.id }} className={className}>
+      {body}
+    </Link>
+  );
+}
