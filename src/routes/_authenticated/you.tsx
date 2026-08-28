@@ -111,6 +111,13 @@ function YouPage() {
           know your list position or whether you will clear. A load you enter yourself always beats
           what AirCue can infer.
         </p>
+        <Link
+          to="/how-it-works"
+          className="mt-3 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium"
+        >
+          How AirCue works
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
       </section>
 
       <button
