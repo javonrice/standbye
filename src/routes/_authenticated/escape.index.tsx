@@ -49,10 +49,10 @@ function EscapeHome() {
   const loadProfile = useServerFn(getStandbyProfile);
   const create = useServerFn(createEscapePlan);
 
-  const [origin, setOrigin] = useState(initial.from);
-  const [dest, setDest] = useState(initial.to);
+  const [origin, setOrigin] = useState(initial.from ?? "");
+  const [dest, setDest] = useState(initial.to ?? "");
   const [when, setWhen] = useState<"now" | "later">("now");
-  const [date, setDate] = useState(initial.date || today());
+  const [date, setDate] = useState(initial.date ?? today());
   const [depTime, setDepTime] = useState("");
 
   useQuery({ queryKey: ["standby-profile"], queryFn: () => loadProfile() });
