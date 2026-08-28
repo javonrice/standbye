@@ -58,7 +58,10 @@ function KnownFlightPage() {
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-xl md:px-10 md:pt-12">
       {run.isPending && (
-        <SearchingOverlay origin={carrier.toUpperCase() || "—"} destination={flightNumber || "—"} />
+        <SearchingOverlay
+          phase="building"
+          flightLabel={`${carrier.toUpperCase()}${flightNumber}`}
+        />
       )}
 
       <Link to="/plan" className="flex items-center gap-1.5 text-sm text-muted-foreground">
