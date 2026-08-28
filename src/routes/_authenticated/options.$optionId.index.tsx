@@ -96,7 +96,10 @@ function CueScreen() {
           {option.flightLabel} · {option.origin} → {option.dest}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {option.depLocal} – {option.arrLocal} local · Confidence:{" "}
+          {option.arrLocal
+            ? `${option.depLocal} – ${option.arrLocal} local`
+            : `Departs ${option.depLocal} local`}{" "}
+          · Confidence:{" "}
           {confidenceLabel[option.confidence as Confidence]} · checked {agoLabel(option.refreshedAt)}
         </p>
         <p className="mt-3 text-base text-foreground/90">{option.headline}</p>
