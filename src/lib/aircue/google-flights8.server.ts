@@ -12,7 +12,13 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const DEFAULT_TTL_MIN = 120;
 const NEAR_DEP_TTL_MIN = 60;
-const STEPDOWN = [7, 5, 4, 3, 2, 1] as const;
+/**
+ * The provider stops returning real carrier itineraries above a party of 4 —
+ * it falls back to a couple of long connections regardless of true inventory.
+ * So 4 is our "still selling freely" ceiling, not 9.
+ */
+const CEILING_PARTY = 4;
+const STEPDOWN = [3, 2, 1] as const;
 const API_HOST = "google-flights8.p.rapidapi.com";
 
 export type SellableBucket = "9+" | "1-8" | "0";
