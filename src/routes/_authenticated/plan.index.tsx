@@ -131,7 +131,7 @@ function PlanHome() {
             onChange={setDest}
           />
 
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 px-4 py-3.5">
             <CalendarDays className="h-5 w-5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
               <Label htmlFor="date" className="text-[12px] font-medium text-muted-foreground">
@@ -144,17 +144,17 @@ function PlanHome() {
                 value={date}
                 min={today()}
                 onChange={(e) => setDate(e.target.value)}
-                className="h-8 border-0 bg-transparent p-0 text-[17px] font-semibold tracking-tight shadow-none focus-visible:ring-0"
+                className="h-8 w-full border-0 bg-transparent p-0 text-[17px] font-semibold tracking-tight shadow-none focus-visible:ring-0"
               />
             </div>
           </div>
 
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 px-4 py-3.5">
             <Users className="h-5 w-5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
               <Label className="text-[12px] font-medium text-muted-foreground">Travelers</Label>
               <Select value={String(travelers)} onValueChange={(v) => setTravelers(Number(v))}>
-                <SelectTrigger className="h-8 border-0 bg-transparent p-0 text-[17px] font-semibold tracking-tight shadow-none focus:ring-0">
+                <SelectTrigger className="h-8 w-full justify-between border-0 bg-transparent p-0 text-[17px] font-semibold tracking-tight shadow-none focus:ring-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -167,6 +167,7 @@ function PlanHome() {
               </Select>
             </div>
           </div>
+
         </div>
 
         <button
