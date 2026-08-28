@@ -166,3 +166,15 @@ function emptyBody(reason: EmptyReason, origin: string, dest: string): string {
     return `Live flight data did not come back for this search, so we would rather show you nothing than guess. Try again in a few minutes.`;
   return `We could not find a workable ${origin} → ${dest} routing for this date — not even through a connection. Smaller cities often need a nearby airport instead.`;
 }
+
+/** "2026-08-29" -> "Saturday, Aug 29" without shifting into another timezone. */
+function longDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
