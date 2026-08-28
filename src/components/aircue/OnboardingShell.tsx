@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 
-import wordmark from "@/assets/standbye-wordmark.png.asset.json";
+import mark from "@/assets/standbye-mark.png.asset.json";
 
 export function OnboardingShell({
   step,
@@ -16,38 +16,60 @@ export function OnboardingShell({
   children: ReactNode;
   action?: ReactNode;
 }) {
+  const progress = Math.round(((step + 1) / total) * 100);
+
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-8 pt-5">
-      <header className="flex items-center justify-between">
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pb-6 pt-4">
+      <header className="flex items-center gap-3 py-2">
         {onBack ? (
           <button
             type="button"
             onClick={onBack}
             aria-label="Go back"
-            className="-ml-2 rounded-lg p-2 text-muted-foreground hover:text-foreground"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors hover:bg-accent"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
         ) : (
-          <span className="h-9 w-9" />
+          <span className="h-10 w-10 shrink-0" />
         )}
-        <img src={wordmark.url} alt="Standbye" className="h-7 w-auto object-contain" />
-        <span className="h-9 w-9" />
+
+        <div
+          className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuenow={step + 1}
+          aria-valuemin={1}
+          aria-valuemax={total}
+          aria-label="Onboarding progress"
+        >
+          <span
+            className="block h-full rounded-full bg-foreground transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        <img
+          src={mark.url}
+          alt=""
+          aria-hidden
+          className="h-6 w-6 shrink-0 object-contain opacity-60"
+        />
       </header>
 
-      <div className="mt-4 flex gap-1" aria-hidden>
-        {Array.from({ length: total }).map((_, i) => (
-          <span
-            key={i}
-            className={`h-1 flex-1 rounded-full ${i <= step ? "bg-primary" : "bg-border"}`}
-          />
-        ))}
-      </div>
+      <div className="flex-1 pt-8">{children}</div>
 
-      <div className="flex-1 pt-7">{children}</div>
-
-      {action && <div className="pt-6">{action}</div>}
+      {action && (
+        <div className="sticky bottom-0 -mx-6 mt-8 bg-gradient-to-t from-background via-background to-transparent px-6 pb-2 pt-5">
+          {action}
+        </div>
+      )}
     </main>
+  );
+}
+
+export function OnboardingTitle({ children }: { children: ReactNode }) {
+  return (
+    <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">{children}</h1>
   );
 }
 
@@ -65,15 +87,21 @@ export function ChoiceButton({
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left text-[15px] font-semibold leading-snug transition-colors ${
+      className={`flex w-full items-center gap-3.5 rounded-2xl px-4 py-4 text-left text-[16px] font-semibold leading-snug transition-all duration-200 active:scale-[0.99] ${
         selected
-          ? "border-primary bg-accent text-accent-foreground"
-          : "border-border bg-card text-foreground hover:border-primary/50"
+          ? "bg-foreground text-background shadow-card"
+          : "bg-muted text-foreground hover:bg-accent"
       }`}
     >
       {emoji && (
-        <span aria-hidden className="text-lg">
+        <span
+          aria-hidden
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg ${
+            selected ? "bg-background/15" : "bg-background"
+          }`}
+        >
           {emoji}
         </span>
       )}

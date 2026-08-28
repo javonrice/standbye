@@ -36,6 +36,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEmail, setShowEmail] = useState(false);
   const moved = useRef(false);
 
   // A session can arrive from the Google popup/redirect without this component
@@ -79,21 +80,31 @@ function AuthPage() {
     navigate({ to: readDraft() ? "/welcome" : "/plan" });
   }
 
+  const draft = readDraft();
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-5 py-12">
-      <div className="w-full max-w-sm">
-        <img src={mark.url} alt="" aria-hidden className="h-10 w-10" />
-        <h1 className="mt-5 font-display text-2xl font-bold tracking-tight">
-          {mode === "signin" ? "Welcome back" : "Create your Standbye account"}
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pb-8 pt-16">
+      <div className="flex-1">
+        <img src={mark.url} alt="" aria-hidden className="h-9 w-9 object-contain" />
+        <h1 className="mt-8 font-display text-[32px] font-bold leading-[1.1] tracking-tight">
+          {mode === "signin" ? "Welcome back" : "Save your setup"}
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Your standby profile, plans, and watches follow you across devices.
+        <p className="mt-4 max-w-[19rem] text-[16px] leading-relaxed text-muted-foreground">
+          {mode === "signin"
+            ? "Your standby profile, plans, and watches are waiting."
+            : draft
+              ? "So your standby profile, plans, and watches are here the next time you travel."
+              : "So your standby profile, plans, and watches follow you across devices."}
         </p>
+      </div>
+
+      <div className="space-y-3">
+        {error && <p className="text-sm text-rough-foreground">{error}</p>}
 
         <Button
           type="button"
           variant="outline"
-          className="mb-4 h-12 w-full"
+          className="h-14 w-full rounded-full text-base font-semibold"
           onClick={() => {
             setError(null);
             void lovable.auth
@@ -111,52 +122,72 @@ function AuthPage() {
           Continue with Google
         </Button>
 
-        <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="h-px flex-1 bg-border" />
-          or
-          <span className="h-px flex-1 bg-border" />
-        </div>
-
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1.5 h-12"
-            />
-          </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              required
-              minLength={8}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 h-12"
-            />
-          </div>
-          {error && <p className="text-sm text-rough-foreground">{error}</p>}
-          <Button type="submit" disabled={busy} className="h-12 w-full">
-            {busy ? "One moment…" : mode === "signin" ? "Sign in" : "Create account"}
+        {showEmail ? (
+          <form onSubmit={submit} className="space-y-3 pt-1">
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1.5 h-12"
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                minLength={8}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1.5 h-12"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={busy}
+              className="h-14 w-full rounded-full text-base font-semibold"
+            >
+              {busy ? "One moment\u2026" : mode === "signin" ? "Sign in" : "Create account"}
+            </Button>
+          </form>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-14 w-full rounded-full text-base font-semibold"
+            onClick={() => setShowEmail(true)}
+          >
+            Continue with email
           </Button>
-        </form>
+        )}
 
         <button
           type="button"
           onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          className="mt-4 w-full text-sm text-muted-foreground hover:text-foreground"
+          className="w-full pt-2 text-sm text-muted-foreground hover:text-foreground"
         >
-          {mode === "signin"
-            ? "New to Standbye? Create an account"
-            : "Already have an account? Sign in"}
+          {mode === "signin" ? (
+            <>
+              New to Standbye?{" "}
+              <span className="font-semibold text-foreground underline underline-offset-4">
+                Create an account
+              </span>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <span className="font-semibold text-foreground underline underline-offset-4">
+                Sign in
+              </span>
+            </>
+          )}
         </button>
       </div>
     </main>

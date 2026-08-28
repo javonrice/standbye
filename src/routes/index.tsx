@@ -56,21 +56,27 @@ function FirstLaunch() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-7 pb-16 pt-16 text-center">
-      <img src={wordmark.url} alt="Standbye" className="mx-auto h-16 w-auto object-contain" />
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-7 pb-8 pt-24 text-center">
+      <div className="flex flex-1 flex-col justify-center">
+        <img
+          src={wordmark.url}
+          alt="Standbye"
+          className="mx-auto h-24 w-auto max-w-[280px] object-contain"
+        />
 
-      <h1 className="sr-only">Standbye — standby without all the constant checking</h1>
+        <h1 className="sr-only">Standbye — standby without all the constant checking</h1>
 
-      <p className="mt-7 font-display text-xl font-semibold leading-snug">
-        Standby without all the constant checking.
-      </p>
+        <p className="mt-10 font-display text-[26px] font-bold leading-[1.15] tracking-tight">
+          Standby without all the constant checking.
+        </p>
 
-      <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-        Find the flights worth trying, understand what could change, and know your backup
-        options.
-      </p>
+        <p className="mt-4 text-[16px] leading-relaxed text-muted-foreground">
+          Find the flights worth trying, understand what could change, and know your backup
+          options.
+        </p>
+      </div>
 
-      <Button asChild size="lg" className="mt-10 h-12 rounded-2xl text-base font-semibold">
+      <Button asChild size="lg" className="h-14 rounded-full text-base font-semibold">
         <Link to="/onboarding">Get started</Link>
       </Button>
 
