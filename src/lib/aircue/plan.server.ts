@@ -5,7 +5,9 @@ import { rankStandbyOptions, type RankedOption, type RankReason } from "@/lib/ai
 import { confidenceWithLoad, judgeWithLoad, loadPillar } from "@/lib/aircue/load-adjust";
 import type {
   Confidence,
+  GatewayOption,
   Judgment,
+  RoutingMode,
   Pillar,
   Reason,
   ReportedLoad,
@@ -165,6 +167,7 @@ export async function buildPlan(
     carriers: string[] | null;
     maxStops?: number | undefined;
     nearby?: boolean | undefined;
+    routingMode?: string | undefined;
   },
 ): Promise<{ planId: string; optionCount: number; reason: RankReason | null }> {
   const { data: planRow, error } = await db(client)
@@ -180,6 +183,7 @@ export async function buildPlan(
         carriers: input.carriers,
         maxStops: input.maxStops ?? 1,
         nearby: input.nearby ?? false,
+        routingMode: input.routingMode ?? "best",
       },
     })
     .select("id")
@@ -197,6 +201,7 @@ export async function buildPlan(
     userId,
     maxStops: input.maxStops ?? 1,
     nearby: input.nearby ?? false,
+    routingMode: (input.routingMode ?? "best") as RoutingMode,
   });
 
   await db(client)
@@ -206,8 +211,10 @@ export async function buildPlan(
         carriers: input.carriers,
         maxStops: input.maxStops ?? 1,
         nearby: input.nearby ?? false,
+        routingMode: input.routingMode ?? "best",
         emptyReason: ranked.reason,
         scanned: ranked.scanned,
+        gateways: ranked.gateways,
       },
     })
     .eq("id", planId);
@@ -303,6 +310,8 @@ export async function loadPlan(
       origins: scanned["origins"] ?? [String(plan["origin_iata"])],
       dests: scanned["dests"] ?? [String(plan["dest_iata"])],
     },
+    gateways: (prefs["gateways"] as GatewayOption[]) ?? [],
+    routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
   };
 }
 
