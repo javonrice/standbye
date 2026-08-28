@@ -847,16 +847,21 @@ async function scoreConnection(
   const normalized = Math.max(0, scoreOf(pillars) - 12);
   const judgment = judgeScore(normalized, availabilityState, recovery.state);
 
-  const segments: OptionSegment[] = [first, second].map((l) => ({
-    carrier: l.airlineCode ?? "",
-    flightNumber: l.flightNumber ?? "",
-    flightLabel: legLabel(l),
-    origin: l.origin,
-    dest: l.dest,
-    depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
-    arrLocal: "",
-    schedDepUtc: l.schedDepUtc,
-  }));
+  const segments: OptionSegment[] = await Promise.all(
+    [first, second].map(async (l) => {
+      const legBoard = boards.get(`${l.origin}-${l.dest}`) ?? EMPTY_BOARD;
+      return {
+        carrier: l.airlineCode ?? "",
+        flightNumber: l.flightNumber ?? "",
+        flightLabel: legLabel(l),
+        origin: l.origin,
+        dest: l.dest,
+        depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
+        arrLocal: await arrivalClock(l, legBoard.map.get(legLabel(l))?.arrLocal ?? null),
+        schedDepUtc: l.schedDepUtc,
+      };
+    }),
+  );
 
   return {
     rank: 0,
