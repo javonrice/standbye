@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import mark from "@/assets/aircue-mark.png.asset.json";
+
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -35,6 +36,27 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const moved = useRef(false);
+
+  // A session can arrive from the Google popup/redirect without this component
+  // knowing about it — move on as soon as one exists.
+  useEffect(() => {
+    const go = () => {
+      if (moved.current) return;
+      moved.current = true;
+      void navigate({ to: readDraft() ? "/welcome" : "/plan", replace: true });
+    };
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) go();
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) go();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [navigate]);
+
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
