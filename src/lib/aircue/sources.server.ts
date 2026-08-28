@@ -10,12 +10,25 @@ export interface SourceResult<T> {
   fetchedAt: string;
 }
 
+/**
+ * Short-lived in-process memo. Success entries stop repeat DB round-trips
+ * inside one request; failure entries stop a broken upstream from being
+ * re-hit once per leg (12 legs x 2 AWC calls used to retry serially).
+ */
+const memo = new Map<string, { until: number; value: SourceResult<unknown> }>();
+const NEGATIVE_TTL_MS = 60_000;
+const FETCH_TIMEOUT_MS = 6000;
+
 async function cached<T>(
   cacheKey: string,
   ttlSeconds: number,
   fetcher: () => Promise<T>,
 ): Promise<SourceResult<T>> {
   const now = Date.now();
+
+  const hit = memo.get(cacheKey);
+  if (hit && hit.until > now) return hit.value as SourceResult<T>;
+
   const { data: row } = await supabaseAdmin
     .from("source_cache")
     .select("payload, fetched_at, expires_at")
@@ -23,7 +36,14 @@ async function cached<T>(
     .maybeSingle();
 
   if (row && new Date(row.expires_at).getTime() > now) {
-    return { ok: true, stale: false, data: row.payload as T, fetchedAt: row.fetched_at };
+    const result: SourceResult<T> = {
+      ok: true,
+      stale: false,
+      data: row.payload as T,
+      fetchedAt: row.fetched_at,
+    };
+    memo.set(cacheKey, { until: now + 30_000, value: result });
+    return result;
   }
 
   try {
@@ -35,27 +55,37 @@ async function cached<T>(
       fetched_at: fetchedAt,
       expires_at: new Date(now + ttlSeconds * 1000).toISOString(),
     });
-    return { ok: true, stale: false, data: fresh, fetchedAt };
+    const result: SourceResult<T> = { ok: true, stale: false, data: fresh, fetchedAt };
+    memo.set(cacheKey, { until: now + 30_000, value: result });
+    return result;
   } catch (error) {
     console.error(`source fetch failed: ${cacheKey}`, error);
-    if (row) {
-      return { ok: true, stale: true, data: row.payload as T, fetchedAt: row.fetched_at };
-    }
-    return { ok: false, stale: false, data: null, fetchedAt: new Date(now).toISOString() };
+    const result: SourceResult<T> = row
+      ? { ok: true, stale: true, data: row.payload as T, fetchedAt: row.fetched_at }
+      : { ok: false, stale: false, data: null, fetchedAt: new Date(now).toISOString() };
+    memo.set(cacheKey, { until: now + NEGATIVE_TTL_MS, value: result });
+    return result;
   }
 }
 
 async function getText(url: string): Promise<string> {
-  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "*/*" } });
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA, Accept: "*/*" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`${url} responded ${res.status}`);
   return res.text();
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" } });
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA, Accept: "application/json" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`${url} responded ${res.status}`);
   return (await res.json()) as T;
 }
+
 
 /* ----------------------------- FAA NAS status ----------------------------- */
 
