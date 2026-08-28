@@ -47,37 +47,81 @@ interface Geo {
   city: string | null;
 }
 
-const geoCache = new Map<string, Geo | null>();
+/**
+ * Everything any caller needs about an airport, read in one batched query and
+ * shared for the life of the process. Geo, timezone and the holiday lookup all
+ * used to hit `airports` separately; they now share these rows.
+ */
+export interface AirportMeta {
+  iata: string;
+  icao: string | null;
+  lat: number;
+  lon: number;
+  city: string | null;
+  state: string | null;
+  tz: string | null;
+}
+
+/** A code with no row is cached as null and never re-queried, as before. */
+const metaCache = new Map<string, AirportMeta | null>();
+
+/** Lightweight instrumentation: batched reads issued against `airports`. */
+export const airportLookupStats = { metadataReads: 0, metadataRowsFetched: 0 };
+
+interface AirportRow {
+  iata: string;
+  icao: string | null;
+  lat: number;
+  lon: number;
+  city: string | null;
+  state: string | null;
+  tz: string | null;
+}
+
+/** Fill the cache for every code not already known. One query, not one per code. */
+async function loadAirportMeta(codes: string[]): Promise<void> {
+  const missing = [...new Set(codes.map((c) => c.toUpperCase()))].filter(
+    (c) => !metaCache.has(c),
+  );
+  if (missing.length === 0) return;
+
+  airportLookupStats.metadataReads += 1;
+  const { data } = await supabaseAdmin
+    .from("airports")
+    .select("iata,icao,lat,lon,city,state,tz")
+    .in("iata", missing);
+
+  for (const row of (data ?? []) as AirportRow[]) {
+    airportLookupStats.metadataRowsFetched += 1;
+    metaCache.set(row.iata.toUpperCase(), {
+      iata: row.iata.toUpperCase(),
+      icao: row.icao ?? null,
+      lat: Number(row.lat),
+      lon: Number(row.lon),
+      city: row.city,
+      state: row.state ?? null,
+      tz: row.tz ?? null,
+    });
+  }
+  for (const code of missing) if (!metaCache.has(code)) metaCache.set(code, null);
+}
+
+/** Full metadata for one airport, or null when we have no row for it. */
+export async function airportMeta(iata: string): Promise<AirportMeta | null> {
+  const code = iata.toUpperCase();
+  await loadAirportMeta([code]);
+  return metaCache.get(code) ?? null;
+}
 
 /** Coordinates and city name for a set of IATA codes, from our airports table. */
 export async function airportGeo(codes: string[]): Promise<Map<string, Geo>> {
   const wanted = [...new Set(codes.map((c) => c.toUpperCase()))];
-  const missing = wanted.filter((c) => !geoCache.has(c));
-
-  if (missing.length > 0) {
-    const { data } = await supabaseAdmin
-      .from("airports")
-      .select("iata,lat,lon,city")
-      .in("iata", missing);
-    for (const row of (data ?? []) as Array<{
-      iata: string;
-      lat: number;
-      lon: number;
-      city: string | null;
-    }>) {
-      geoCache.set(row.iata.toUpperCase(), {
-        lat: Number(row.lat),
-        lon: Number(row.lon),
-        city: row.city,
-      });
-    }
-    for (const code of missing) if (!geoCache.has(code)) geoCache.set(code, null);
-  }
+  await loadAirportMeta(wanted);
 
   const out = new Map<string, Geo>();
   for (const code of wanted) {
-    const hit = geoCache.get(code);
-    if (hit) out.set(code, hit);
+    const hit = metaCache.get(code);
+    if (hit) out.set(code, { lat: hit.lat, lon: hit.lon, city: hit.city });
   }
   return out;
 }
@@ -96,20 +140,9 @@ export function milesBetween(
   return 3958.8 * 2 * Math.asin(Math.sqrt(s));
 }
 
-const tzCache = new Map<string, string | null>();
-
 /** IANA timezone for an airport, from our airports table. */
 export async function airportTimezone(iata: string): Promise<string | null> {
-  const code = iata.toUpperCase();
-  if (tzCache.has(code)) return tzCache.get(code) ?? null;
-  const { data } = await supabaseAdmin
-    .from("airports")
-    .select("tz")
-    .eq("iata", code)
-    .maybeSingle();
-  const tz = (data as { tz?: string | null } | null)?.tz ?? null;
-  tzCache.set(code, tz);
-  return tz;
+  return (await airportMeta(iata))?.tz ?? null;
 }
 
 /**

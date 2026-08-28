@@ -93,10 +93,25 @@ function ym(year: number, month: number) {
   return year * 12 + month;
 }
 
+/** Lightweight instrumentation for the history layer. */
+export const historyStats = {
+  publishedMonthsReads: 0,
+  publishedMonthsCacheHits: 0,
+  routeHistoryQueries: 0,
+};
+
+/**
+ * Published months change only when BTS releases a new dataset, so one read per
+ * dataset per day serves every leg of every search. Keyed by the same `today`
+ * the query filters on, so the set is recomputed when the date rolls over
+ * rather than expiring on a rolling clock.
+ */
+const publishedMonthsCache = new Map<string, Promise<{ year: number; month: number }[]>>();
+
 /**
  * Months of a dataset that are published (available_after has passed), newest first.
  */
-async function publishedMonths(
+async function publishedMonthsUncached(
   supabaseAdmin: {
     from: (t: string) => {
       select: (c: string) => {
@@ -110,12 +125,39 @@ async function publishedMonths(
   dataset: "ontime" | "t100",
 ): Promise<{ year: number; month: number }[]> {
   const today = new Date().toISOString().slice(0, 10);
+  historyStats.publishedMonthsReads += 1;
   const { data } = (await supabaseAdmin
     .from("hist_dataset_months")
     .select("year,month,available_after")
     .eq("dataset", dataset)
     .lte("available_after", today)) as { data: { year: number; month: number }[] | null };
   return (data ?? []).sort((a, b) => ym(b.year, b.month) - ym(a.year, a.month));
+}
+
+/** Cached wrapper. The cache key carries the date the query filters on. */
+function publishedMonths(
+  supabaseAdmin: Parameters<typeof publishedMonthsUncached>[0],
+  dataset: "ontime" | "t100",
+): Promise<{ year: number; month: number }[]> {
+  const key = `${dataset}:${new Date().toISOString().slice(0, 10)}`;
+  const hit = publishedMonthsCache.get(key);
+  if (hit) {
+    historyStats.publishedMonthsCacheHits += 1;
+    return hit;
+  }
+  // Cache the promise so concurrent legs share one in-flight read. A failed
+  // read is evicted so the next caller retries instead of caching an error.
+  const pending = publishedMonthsUncached(supabaseAdmin, dataset).catch((error: unknown) => {
+    publishedMonthsCache.delete(key);
+    throw error;
+  });
+  publishedMonthsCache.set(key, pending);
+  return pending;
+}
+
+/** Test-only: drop the published-month cache. */
+export function __resetHistoryCaches(): void {
+  publishedMonthsCache.clear();
 }
 
 export async function getRouteHistory(input: {
@@ -126,6 +168,7 @@ export async function getRouteHistory(input: {
   carrier?: string | null;
 }): Promise<RouteHistory | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  historyStats.routeHistoryQueries += 1;
   const carrier = input.carrier && input.carrier !== "NA" ? input.carrier : "ALL";
 
   const date = new Date(`${input.travelDate}T12:00:00Z`);

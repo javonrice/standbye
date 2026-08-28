@@ -8,7 +8,7 @@
 import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
 import { findRouteLegs, findOriginDepartures, type RouteLeg } from "@/lib/aircue/route-search.server";
 import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
-import { airportGeo, localClockAt, milesBetween } from "@/lib/aircue/airport-lookup.server";
+import { airportGeo, airportMeta, localClockAt, milesBetween } from "@/lib/aircue/airport-lookup.server";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import { getRouteHistory } from "@/lib/aircue/history.server";
 import { getFaaPrograms, getMetar, getTaf, icaoFor } from "@/lib/aircue/sources.server";
@@ -380,24 +380,77 @@ const COUNTRY_FLAG: Record<string, string> = {
   AU: "🇦🇺", US: "🇺🇸",
 };
 
-async function holidayFor(destIata: string, travelDate: string): Promise<HolidayEvidence | null> {
+/** A hung holiday API must never hold the whole search before scoring starts. */
+const HOLIDAY_TIMEOUT_MS = 2500;
+
+interface NagerHoliday {
+  date: string;
+  name: string;
+  localName: string;
+}
+
+/** Public holidays are static per country-year, so one fetch serves every search. */
+const holidayCache = new Map<string, NagerHoliday[]>();
+
+/** Lightweight instrumentation for the holiday lookup. */
+export const holidayStats = { requests: 0, cacheHits: 0, timeouts: 0, failures: 0 };
+
+/** Test-only: drop the holiday list cache. */
+export function __resetHolidayCache(): void {
+  holidayCache.clear();
+}
+
+/**
+ * The published holiday list for a country-year. Returns null on any failure —
+ * timeout, non-2xx, or unparseable body — so the caller degrades to no holiday
+ * context rather than failing the search. Only successes are cached, so a
+ * transient outage does not blank holidays for the life of the process.
+ */
+async function holidayList(country: string, year: string): Promise<NagerHoliday[] | null> {
+  const key = `${country}:${year}`;
+  const cached = holidayCache.get(key);
+  if (cached) {
+    holidayStats.cacheHits += 1;
+    return cached;
+  }
+
+  holidayStats.requests += 1;
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row } = await supabaseAdmin
-      .from("airports")
-      .select("tz,city,state")
-      .eq("iata", destIata)
-      .maybeSingle();
-    const tz = (row as { tz?: string } | null)?.tz ?? "";
+    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${country}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(HOLIDAY_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      holidayStats.failures += 1;
+      return null;
+    }
+    const body = (await res.json()) as NagerHoliday[];
+    if (!Array.isArray(body)) {
+      holidayStats.failures += 1;
+      return null;
+    }
+    holidayCache.set(key, body);
+    return body;
+  } catch (error) {
+    if ((error as { name?: string } | null)?.name === "TimeoutError") holidayStats.timeouts += 1;
+    else holidayStats.failures += 1;
+    return null;
+  }
+}
+
+export async function holidayFor(
+  destIata: string,
+  travelDate: string,
+): Promise<HolidayEvidence | null> {
+  try {
+    // Timezone comes from the shared airport metadata cache, not its own query.
+    const tz = (await airportMeta(destIata))?.tz ?? "";
     const country = TZ_COUNTRY[tz] ?? (tz.startsWith("America/") ? "US" : null);
     if (!country) return null;
 
     const year = travelDate.slice(0, 4);
-    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${country}`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) return null;
-    const holidays = (await res.json()) as Array<{ date: string; name: string; localName: string }>;
+    const holidays = await holidayList(country, year);
+    if (!holidays) return null;
     const target = new Date(`${travelDate}T00:00:00Z`).getTime();
     const near = holidays.find((h) => {
       const diff = Math.abs(new Date(`${h.date}T00:00:00Z`).getTime() - target) / 86400000;
