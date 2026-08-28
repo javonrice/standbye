@@ -6,11 +6,7 @@
  */
 
 import { TIME_BLOCKS, timeBlockShort } from "@/lib/aircue/history";
-import type {
-  HistoryLoadRow,
-  HistoryPatternRow,
-  RouteHistory,
-} from "@/lib/aircue/history";
+import type { HistoryLoadRow, HistoryPatternRow, RouteHistory } from "@/lib/aircue/history";
 
 export type { HistoryLoadRow, HistoryPatternRow, RouteHistory };
 
@@ -115,10 +111,7 @@ async function publishedMonthsUncached(
   supabaseAdmin: {
     from: (t: string) => {
       select: (c: string) => {
-        eq: (
-          c: string,
-          v: string,
-        ) => { lte: (c: string, v: string) => Promise<{ data: unknown }> };
+        eq: (c: string, v: string) => { lte: (c: string, v: string) => Promise<{ data: unknown }> };
       };
     };
   },

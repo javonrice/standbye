@@ -6,12 +6,50 @@
 import { afterEach, describe, expect, it, mock, setSystemTime } from "bun:test";
 
 const PATTERN_ROWS = [
-  { month: 3, year: null, dow: 3, time_block: null, flights_sampled: 120, cancel_rate: 0.02, dep15_rate: 0.81, median_later_backups: 2, source_period: "2024" },
-  { month: 3, year: null, dow: null, time_block: "morning", flights_sampled: 60, cancel_rate: 0.01, dep15_rate: 0.9, median_later_backups: 3, source_period: "2024" },
-  { month: 3, year: 2024, dow: null, time_block: null, flights_sampled: 90, cancel_rate: 0.03, dep15_rate: 0.78, median_later_backups: 1, source_period: "2024-03" },
+  {
+    month: 3,
+    year: null,
+    dow: 3,
+    time_block: null,
+    flights_sampled: 120,
+    cancel_rate: 0.02,
+    dep15_rate: 0.81,
+    median_later_backups: 2,
+    source_period: "2024",
+  },
+  {
+    month: 3,
+    year: null,
+    dow: null,
+    time_block: "morning",
+    flights_sampled: 60,
+    cancel_rate: 0.01,
+    dep15_rate: 0.9,
+    median_later_backups: 3,
+    source_period: "2024",
+  },
+  {
+    month: 3,
+    year: 2024,
+    dow: null,
+    time_block: null,
+    flights_sampled: 90,
+    cancel_rate: 0.03,
+    dep15_rate: 0.78,
+    median_later_backups: 1,
+    source_period: "2024-03",
+  },
 ];
 const T100_ROWS = [
-  { year: 2024, month: 3, departures: 300, load_factor: 0.86, avg_empty_seats: 18, vs_network_pp: 1.2, source_period: "2024-03" },
+  {
+    year: 2024,
+    month: 3,
+    departures: 300,
+    load_factor: 0.86,
+    avg_empty_seats: 18,
+    vs_network_pp: 1.2,
+    source_period: "2024-03",
+  },
 ];
 const MONTH_ROWS = [{ year: 2024, month: 3, available_after: "2024-09-01" }];
 
@@ -35,15 +73,17 @@ mock.module("@/integrations/supabase/client.server", () => ({
     from: (table: string) => {
       if (table === "hist_ontime_pattern") return builder(PATTERN_ROWS);
       if (table === "hist_t100_route_month") return builder(T100_ROWS);
-      if (table === "hist_dataset_months") return builder(MONTH_ROWS, () => { monthReads += 1; });
+      if (table === "hist_dataset_months")
+        return builder(MONTH_ROWS, () => {
+          monthReads += 1;
+        });
       return builder([]);
     },
   },
 }));
 
-const { getRouteHistory, historyStats, __resetHistoryCaches } = await import(
-  "@/lib/aircue/history.server"
-);
+const { getRouteHistory, historyStats, __resetHistoryCaches } =
+  await import("@/lib/aircue/history.server");
 
 const INPUT = { origin: "DEN", dest: "ORD", travelDate: "2026-03-10", localHour: 9, carrier: "UA" };
 
