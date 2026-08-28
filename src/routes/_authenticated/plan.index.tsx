@@ -267,6 +267,20 @@ function PlanHome() {
         )}
       </form>
 
+      <div className="mt-5 rounded-2xl border border-border bg-surface p-4">
+        <p className="text-[14px] font-semibold">😬 Stuck or trying to get home?</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+          Standbye can look for unconventional ways to keep you moving — including stations the
+          usual itinerary would never touch.
+        </p>
+        <Link
+          to="/escape"
+          className="mt-2 inline-flex items-center gap-1 text-[14px] font-semibold text-primary"
+        >
+          Find an escape route <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+
       <Link
         to="/known-flight"
         className="mt-4 flex items-center justify-between gap-3 rounded-xl px-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
