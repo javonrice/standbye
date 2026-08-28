@@ -59,36 +59,98 @@ function ComparePage() {
       )}
 
       {options.length > 0 && (
-        <div className="mt-5 overflow-x-auto">
-          <div className="grid min-w-[520px] grid-cols-[7rem_repeat(auto-fit,minmax(9rem,1fr))] gap-x-3 gap-y-3">
-            <div />
-            {options.map((o) => (
-              <Link
+        <div className="mt-5 space-y-5 md:space-y-0 md:overflow-x-auto">
+          {/* Mobile: one card per option, pillars stacked inside */}
+          <div className="space-y-4 md:hidden">
+            {options.map((o, i) => (
+              <section
                 key={o.id}
-                to="/options/$optionId"
-                params={{ optionId: o.id }}
-                className="rounded-2xl border border-border bg-card p-3"
+                className="rounded-2xl border border-border bg-card p-4 shadow-card"
               >
-                <p className="font-display text-sm font-semibold">{o.flightLabel}</p>
-                <p className="text-xs text-muted-foreground">{o.depLocal} local</p>
-                <div className="mt-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Option {i + 1}
+                    </p>
+                    <p className="font-display text-base font-bold tracking-tight">
+                      {o.flightLabel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{o.depLocal} local</p>
+                  </div>
                   <JudgmentPill judgment={o.judgment} size="sm" />
                 </div>
-              </Link>
-            ))}
 
-            {pillarOrder.map((key) => (
-              <PillarRow key={key} pillarKey={key} options={options} />
-            ))}
+                <p className="mt-3 text-sm text-foreground/85">{o.headline}</p>
 
-            <div className="self-start pt-1 text-xs font-semibold text-muted-foreground">
-              Read on it
+                <dl className="mt-3 space-y-2">
+                  {pillarOrder.map((key) => {
+                    const pillar = o.pillars.find((p) => p.key === key);
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-xl border border-border bg-surface px-3 py-2.5"
+                      >
+                        <dt className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${pillarDot[pillar?.state ?? "unknown"]}`}
+                            aria-hidden
+                          />
+                          {pillarTitle[key]}
+                        </dt>
+                        <dd className="mt-0.5 text-sm font-semibold text-foreground">
+                          {pillar?.label ?? "Unknown"}
+                        </dd>
+                        <dd className="mt-0.5 text-xs text-muted-foreground">
+                          {pillar?.detail ?? "No read."}
+                        </dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+
+                <Link
+                  to="/options/$optionId"
+                  params={{ optionId: o.id }}
+                  className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary"
+                >
+                  See the cue <ArrowLeft className="h-4 w-4 rotate-180" />
+                </Link>
+              </section>
+            ))}
+          </div>
+
+          {/* Desktop: side-by-side grid */}
+          <div className="hidden md:block">
+            <div className="grid min-w-[520px] grid-cols-[7rem_repeat(auto-fit,minmax(9rem,1fr))] gap-x-3 gap-y-3">
+              <div />
+              {options.map((o) => (
+                <Link
+                  key={o.id}
+                  to="/options/$optionId"
+                  params={{ optionId: o.id }}
+                  className="rounded-2xl border border-border bg-card p-3"
+                >
+                  <p className="font-display text-sm font-semibold">{o.flightLabel}</p>
+                  <p className="text-xs text-muted-foreground">{o.depLocal} local</p>
+                  <div className="mt-2">
+                    <JudgmentPill judgment={o.judgment} size="sm" />
+                  </div>
+                </Link>
+              ))}
+
+              {pillarOrder.map((key) => (
+                <PillarRow key={key} pillarKey={key} options={options} />
+              ))}
+
+              <div className="self-start pt-1 text-xs font-semibold text-muted-foreground">
+                Read on it
+              </div>
+              {options.map((o) => (
+                <p key={o.id} className="text-xs text-muted-foreground">
+                  {o.headline}
+                </p>
+              ))}
             </div>
-            {options.map((o) => (
-              <p key={o.id} className="text-xs text-muted-foreground">
-                {o.headline}
-              </p>
-            ))}
           </div>
         </div>
       )}
