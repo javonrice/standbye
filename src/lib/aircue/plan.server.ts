@@ -47,6 +47,11 @@ export async function loadStandbyProfile(
     homeAirports: (row["home_airports"] as string[]) ?? [],
     notifyMode: String(row["notify_mode"] ?? "meaningful"),
     onboarded: Boolean(row["onboarded_at"]),
+    painPoint: (row["pain_point"] as string | null) ?? null,
+    accessMode: (row["access_mode"] as string | null) ?? null,
+    freeDayUsed: Boolean(row["free_day_used"]),
+    notifyOptin: Boolean(row["notify_optin"]),
+    coachSeen: Boolean(row["coach_seen"]),
   };
 }
 
@@ -64,11 +69,17 @@ export async function persistStandbyProfile(
       airline_access: values.airlineAccess,
       home_airports: values.homeAirports,
       notify_mode: values.notifyMode,
+      pain_point: values.painPoint ?? null,
+      access_mode: values.accessMode ?? null,
+      free_day_used: values.freeDayUsed ?? false,
+      notify_optin: values.notifyOptin ?? false,
+      coach_seen: values.coachSeen ?? false,
       onboarded_at: values.onboarded ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     });
   return values;
 }
+
 
 /* --------------------------------- plans --------------------------------- */
 

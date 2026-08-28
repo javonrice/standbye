@@ -751,31 +751,46 @@ export type Database = {
       }
       standby_profiles: {
         Row: {
+          access_mode: string
           airline_access: string[]
+          coach_seen: string[]
+          free_day_used: boolean
           home_airline: string
           home_airports: string[]
           notify_mode: string
+          notify_optin: boolean
           onboarded_at: string | null
+          pain_point: string | null
           traveler_type: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          access_mode?: string
           airline_access?: string[]
+          coach_seen?: string[]
+          free_day_used?: boolean
           home_airline?: string
           home_airports?: string[]
           notify_mode?: string
+          notify_optin?: boolean
           onboarded_at?: string | null
+          pain_point?: string | null
           traveler_type?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          access_mode?: string
           airline_access?: string[]
+          coach_seen?: string[]
+          free_day_used?: boolean
           home_airline?: string
           home_airports?: string[]
           notify_mode?: string
+          notify_optin?: boolean
           onboarded_at?: string | null
+          pain_point?: string | null
           traveler_type?: string
           updated_at?: string
           user_id?: string

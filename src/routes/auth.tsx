@@ -2,6 +2,8 @@ import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { readDraft } from "@/lib/aircue/onboarding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +46,7 @@ function AuthPage() {
         : supabase.auth.signUp({
             email,
             password,
-            options: { emailRedirectTo: `${window.location.origin}/plan` },
+            options: { emailRedirectTo: `${window.location.origin}/welcome` },
           });
     const { error: authError } = await fn;
     setBusy(false);
@@ -52,7 +54,7 @@ function AuthPage() {
       setError(authError.message);
       return;
     }
-    navigate({ to: "/plan" });
+    navigate({ to: readDraft() ? "/welcome" : "/plan" });
   }
 
   return (
@@ -65,6 +67,33 @@ function AuthPage() {
         <p className="mt-1.5 text-sm text-muted-foreground">
           Your standby profile, plans, and watches follow you across devices.
         </p>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="mb-4 h-12 w-full"
+          onClick={() => {
+            setError(null);
+            void lovable.auth
+              .signInWithOAuth("google", { redirect_uri: window.location.origin })
+              .then((result) => {
+                if (result.error) {
+                  setError("We could not finish Google sign-in. Try again.");
+                  return;
+                }
+                if (result.redirected) return;
+                navigate({ to: readDraft() ? "/welcome" : "/plan" });
+              });
+          }}
+        >
+          Continue with Google
+        </Button>
+
+        <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          or
+          <span className="h-px flex-1 bg-border" />
+        </div>
 
         <form onSubmit={submit} className="space-y-3">
           <div>

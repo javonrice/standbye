@@ -69,7 +69,7 @@ function FirstLaunch() {
       </p>
 
       <Button asChild size="lg" className="mt-10 h-12 rounded-2xl text-base font-semibold">
-        <Link to="/plan">Start planning</Link>
+        <Link to="/onboarding">Get started</Link>
       </Button>
 
       <p className="mt-6 text-sm text-muted-foreground">
