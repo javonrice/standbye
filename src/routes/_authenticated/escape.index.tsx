@@ -20,7 +20,7 @@ const today = () => {
 };
 
 export const Route = createFileRoute("/_authenticated/escape/")({
-  validateSearch: (search: Record<string, unknown>): { from: string; to: string; date: string } => ({
+  validateSearch: (search: Record<string, unknown>): { from?: string; to?: string; date?: string } => ({
     from: typeof search["from"] === "string" ? search["from"] : "",
     to: typeof search["to"] === "string" ? search["to"] : "",
     date: typeof search["date"] === "string" ? search["date"] : "",
