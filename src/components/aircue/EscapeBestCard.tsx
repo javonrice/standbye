@@ -90,3 +90,32 @@ function Line({ term, value }: { term: string; value: string }) {
     </div>
   );
 }
+
+function TimeBlock({
+  term,
+  items,
+  empty,
+}: {
+  term: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div>
+      <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        {term}
+      </p>
+      {items.length > 0 ? (
+        <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+          {items.map((item) => (
+            <li key={item} className="font-medium tabular-nums">
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-muted-foreground">{empty}</p>
+      )}
+    </div>
+  );
+}
