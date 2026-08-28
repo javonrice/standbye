@@ -1,7 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Compass, Bell, User } from "lucide-react";
 
-import mark from "@/assets/standbye-mark.png.asset.json";
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 
 const items = [
@@ -38,9 +37,8 @@ export function MainNav() {
 
       {/* Desktop: side rail */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-card px-4 py-6 md:block">
-        <Link to="/plan" className="mb-9 flex items-center gap-2 px-2">
-          <img src={mark.url} alt="" aria-hidden className="h-8 w-8" />
-          <img src={wordmark.url} alt="Standbye" className="h-6 w-auto" />
+        <Link to="/plan" className="mb-9 block px-1">
+          <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain" />
         </Link>
         <ul className="space-y-1">
           {items.map(({ to, label, icon: Icon }) => (

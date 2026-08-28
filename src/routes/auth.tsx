@@ -7,19 +7,19 @@ import { readDraft } from "@/lib/aircue/onboarding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import mark from "@/assets/aircue-mark.png.asset.json";
+import mark from "@/assets/standbye-mark.png.asset.json";
 
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — AirCue standby planning" },
+      { title: "Sign in — Standbye standby planning" },
       {
         name: "description",
         content:
-          "Sign in to AirCue to plan standby attempts, compare setups, and get told when a plan meaningfully changes.",
+          "Sign in to Standbye to plan standby attempts, compare setups, and get told when a plan meaningfully changes.",
       },
-      { property: "og:title", content: "Sign in — AirCue" },
+      { property: "og:title", content: "Sign in — Standbye" },
       {
         property: "og:description",
         content: "Standby planning for airline employees and benefit travelers.",
@@ -82,9 +82,9 @@ function AuthPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-5 py-12">
       <div className="w-full max-w-sm">
-        <img src={mark.url} alt="" aria-hidden className="h-10 w-10 invert" />
+        <img src={mark.url} alt="" aria-hidden className="h-10 w-10" />
         <h1 className="mt-5 font-display text-2xl font-bold tracking-tight">
-          {mode === "signin" ? "Welcome back" : "Create your AirCue account"}
+          {mode === "signin" ? "Welcome back" : "Create your Standbye account"}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Your standby profile, plans, and watches follow you across devices.
@@ -155,7 +155,7 @@ function AuthPage() {
           className="mt-4 w-full text-sm text-muted-foreground hover:text-foreground"
         >
           {mode === "signin"
-            ? "New to AirCue? Create an account"
+            ? "New to Standbye? Create an account"
             : "Already have an account? Sign in"}
         </button>
       </div>

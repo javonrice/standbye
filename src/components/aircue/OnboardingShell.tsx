@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 
-import wordmark from "@/assets/aircue-wordmark.png.asset.json";
+import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 
 export function OnboardingShell({
   step,
@@ -31,7 +31,7 @@ export function OnboardingShell({
         ) : (
           <span className="h-9 w-9" />
         )}
-        <img src={wordmark.url} alt="AirCue" className="h-4 w-auto invert" />
+        <img src={wordmark.url} alt="Standbye" className="h-4 w-auto" />
         <span className="h-9 w-9" />
       </header>
 
