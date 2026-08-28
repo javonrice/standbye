@@ -176,7 +176,11 @@ export async function buildPlan(
       travel_date: input.travelDate,
       travelers: input.travelers,
       cabin: input.cabin,
-      prefs: { carriers: input.carriers, maxStops: input.maxStops ?? 1, nearby: input.nearby ?? false },
+      prefs: {
+        carriers: input.carriers,
+        maxStops: input.maxStops ?? 1,
+        nearby: input.nearby ?? false,
+      },
     })
     .select("id")
     .single();
@@ -194,6 +198,19 @@ export async function buildPlan(
     maxStops: input.maxStops ?? 1,
     nearby: input.nearby ?? false,
   });
+
+  await db(client)
+    .from("plans")
+    .update({
+      prefs: {
+        carriers: input.carriers,
+        maxStops: input.maxStops ?? 1,
+        nearby: input.nearby ?? false,
+        emptyReason: ranked.reason,
+        scanned: ranked.scanned,
+      },
+    })
+    .eq("id", planId);
 
   if (ranked.options.length > 0) {
     await db(client)
@@ -266,6 +283,9 @@ export async function loadPlan(
   const options = rows.map((r) => optionFromRow(r, loads.get(String(r["flight_label"])) ?? null));
   options.sort((a, b) => a.rank - b.rank);
 
+  const prefs = (plan["prefs"] ?? {}) as Record<string, unknown>;
+  const scanned = (prefs["scanned"] ?? {}) as { origins?: string[]; dests?: string[] };
+
   return {
     id: planId,
     origin: String(plan["origin_iata"]),
@@ -275,6 +295,14 @@ export async function loadPlan(
     cabin: String(plan["cabin"] ?? "any"),
     options,
     noStrongSetup: options.length > 0 && options.every((o) => o.judgment !== "favorable"),
+    emptyReason:
+      options.length === 0
+        ? ((prefs["emptyReason"] as StandbyPlan["emptyReason"]) ?? null)
+        : null,
+    scannedAirports: {
+      origins: scanned["origins"] ?? [String(plan["origin_iata"])],
+      dests: scanned["dests"] ?? [String(plan["dest_iata"])],
+    },
   };
 }
 
