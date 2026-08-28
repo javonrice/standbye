@@ -49,22 +49,27 @@ Still considering nonstop?
 - Other ways: next 3 as quiet one-line rows, with "Show all X" for the rest. No accordions — the earlier expandable gateway card is replaced by the detail screen below.
 - Nonstops live in a small secondary section at the bottom only.
 
-## 3. Route-detail screen
+## 3. Route-detail screen — vertical itinerary timeline
 
-Tapping any escape route opens its own screen:
+Tapping any escape route opens its own screen, laid out like a Trip.com multi-leg itinerary rather than a card stack:
 
 - Judgment face + "STRONG ESCAPE ROUTE"
-- Big path `IAH → DFW → ORD` with the connecting code dominant and city beneath
-- Extra travel vs nonstop
-- **GET OUT OF HOUSTON** — the realistic first-leg shots (time, flight, chevron)
-- **ONCE YOU'RE IN DALLAS** — the useful onward departures
+- Big path `IAH → DFW → ORD` with the connecting code dominant and city beneath; extra travel vs nonstop
+- A single vertical timeline rail down the screen, with times on the left and content on the right:
+  - **GET OUT OF HOUSTON** — each realistic first-leg shot as a timeline node (time, flight, judgment, chevron)
+  - a connection node between the halves: "Connect in Dallas — you clear standby again here"
+  - **ONCE YOU'RE IN DALLAS** — the useful onward departures as timeline nodes
 - **RECOVERY ROOM** — colored state plus plain-English rationale, including that a connection means clearing standby twice
 - Actions: "Use this escape" and "Check another route" (the existing specific-airport check)
 
-## 4. Copy rules
+## Reference feel
 
+Trip.com transfer results (transfer-in-X chips, clear two-leg summary), Transit and Apple Maps route alternatives (one obvious pick, quiet compact alternates), Trip.com multi-leg itinerary (the vertical timeline rail), Flighty alternate flights (calm, scannable flight rows). Standbye's own tokens, type, radii, and bottom nav stay unchanged.
+
+## 4. Copy and hierarchy rules
+
+- Presentation hierarchy everywhere in Escape: recommendation → route → shots → recovery → explanation → raw flights.
 - "Recovery Room: Good/Great/Poor" replaces "If it doesn't work: Good".
-- Judgment first, explanation second, raw flight data on the detail screen.
 - No availability/operations/recovery label grid on the results hero — natural sentences instead; the colored signal grid stays on the detail screen.
 
 ## Technical notes
@@ -73,5 +78,5 @@ Tapping any escape route opens its own screen:
 - Plan persistence keeps storing both; the results screen reads `plan.options` (connections) and filters nonstops into the footer section. No migration.
 - `src/routes/_authenticated/escape.$planId.tsx` rewritten for the new hierarchy.
 - New route `src/routes/_authenticated/escape.$planId.via.$hub.tsx` renders the detail screen from the persisted `plan.gateways` via the existing `getPlan`. No new server functions.
-- New presentational components in `src/components/aircue/`: `RoutePath`, `EscapeBestCard`, `EscapeRouteRow`.
+- New presentational components in `src/components/aircue/`: `RoutePath`, `EscapeBestCard`, `EscapeRouteRow`, `EscapeTimeline`.
 - Existing tokens, fonts, radii, mobile-first layout, and bottom navigation preserved; more whitespace, fewer nested cards.
