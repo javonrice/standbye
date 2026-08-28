@@ -387,6 +387,238 @@ export type Database = {
           },
         ]
       }
+      plan_change_events: {
+        Row: {
+          detail: string | null
+          headline: string
+          id: string
+          kind: string
+          occurred_at: string
+          payload: Json
+          seen: boolean
+          severity: string
+          user_id: string
+          watch_id: string
+        }
+        Insert: {
+          detail?: string | null
+          headline: string
+          id?: string
+          kind: string
+          occurred_at?: string
+          payload?: Json
+          seen?: boolean
+          severity?: string
+          user_id: string
+          watch_id: string
+        }
+        Update: {
+          detail?: string | null
+          headline?: string
+          id?: string
+          kind?: string
+          occurred_at?: string
+          payload?: Json
+          seen?: boolean
+          severity?: string
+          user_id?: string
+          watch_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_change_events_watch_id_fkey"
+            columns: ["watch_id"]
+            isOneToOne: false
+            referencedRelation: "watch_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_options: {
+        Row: {
+          arr_local: string | null
+          carrier: string | null
+          confidence: string
+          created_at: string
+          dep_local: string | null
+          dest_iata: string
+          evidence: Json
+          flight_label: string
+          flight_number: string | null
+          headline: string
+          id: string
+          kind: string
+          label: string
+          origin_iata: string
+          pillars: Json
+          plan_id: string
+          rank: number
+          reasons: Json
+          recovery: Json
+          refreshed_at: string
+          sched_arr_utc: string | null
+          sched_dep_utc: string | null
+          score: number
+          segments: Json
+          user_id: string
+        }
+        Insert: {
+          arr_local?: string | null
+          carrier?: string | null
+          confidence?: string
+          created_at?: string
+          dep_local?: string | null
+          dest_iata: string
+          evidence?: Json
+          flight_label: string
+          flight_number?: string | null
+          headline?: string
+          id?: string
+          kind?: string
+          label?: string
+          origin_iata: string
+          pillars?: Json
+          plan_id: string
+          rank?: number
+          reasons?: Json
+          recovery?: Json
+          refreshed_at?: string
+          sched_arr_utc?: string | null
+          sched_dep_utc?: string | null
+          score?: number
+          segments?: Json
+          user_id: string
+        }
+        Update: {
+          arr_local?: string | null
+          carrier?: string | null
+          confidence?: string
+          created_at?: string
+          dep_local?: string | null
+          dest_iata?: string
+          evidence?: Json
+          flight_label?: string
+          flight_number?: string | null
+          headline?: string
+          id?: string
+          kind?: string
+          label?: string
+          origin_iata?: string
+          pillars?: Json
+          plan_id?: string
+          rank?: number
+          reasons?: Json
+          recovery?: Json
+          refreshed_at?: string
+          sched_arr_utc?: string | null
+          sched_dep_utc?: string | null
+          score?: number
+          segments?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_options_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          cabin: string
+          created_at: string
+          dest_iata: string
+          id: string
+          origin_iata: string
+          prefs: Json
+          travel_date: string
+          travelers: number
+          user_id: string
+        }
+        Insert: {
+          cabin?: string
+          created_at?: string
+          dest_iata: string
+          id?: string
+          origin_iata: string
+          prefs?: Json
+          travel_date: string
+          travelers?: number
+          user_id: string
+        }
+        Update: {
+          cabin?: string
+          created_at?: string
+          dest_iata?: string
+          id?: string
+          origin_iata?: string
+          prefs?: Json
+          travel_date?: string
+          travelers?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      reported_loads: {
+        Row: {
+          cabin: string
+          checked_at: string
+          created_at: string
+          flight_label: string
+          id: string
+          open_seats: number | null
+          source: string
+          standbys: number | null
+          travel_date: string
+          user_id: string
+        }
+        Insert: {
+          cabin?: string
+          checked_at?: string
+          created_at?: string
+          flight_label: string
+          id?: string
+          open_seats?: number | null
+          source?: string
+          standbys?: number | null
+          travel_date: string
+          user_id: string
+        }
+        Update: {
+          cabin?: string
+          checked_at?: string
+          created_at?: string
+          flight_label?: string
+          id?: string
+          open_seats?: number | null
+          source?: string
+          standbys?: number | null
+          travel_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       serpapi_usage_log: {
         Row: {
           adults: number | null
@@ -517,6 +749,39 @@ export type Database = {
         }
         Relationships: []
       }
+      standby_profiles: {
+        Row: {
+          airline_access: string[]
+          home_airline: string
+          home_airports: string[]
+          notify_mode: string
+          onboarded_at: string | null
+          traveler_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          airline_access?: string[]
+          home_airline?: string
+          home_airports?: string[]
+          notify_mode?: string
+          onboarded_at?: string | null
+          traveler_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          airline_access?: string[]
+          home_airline?: string
+          home_airports?: string[]
+          notify_mode?: string
+          onboarded_at?: string | null
+          traveler_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trips: {
         Row: {
           arr_window_end: string
@@ -592,6 +857,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "airports"
             referencedColumns: ["iata"]
+          },
+        ]
+      }
+      watch_plans: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          last_checked_at: string
+          mode: string
+          next_check_at: string | null
+          plan_id: string | null
+          plan_option_id: string
+          snapshot: Json
+          state: string
+          unseen_changes: number
+          user_id: string
+          verdict: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          last_checked_at?: string
+          mode?: string
+          next_check_at?: string | null
+          plan_id?: string | null
+          plan_option_id: string
+          snapshot?: Json
+          state?: string
+          unseen_changes?: number
+          user_id: string
+          verdict?: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          last_checked_at?: string
+          mode?: string
+          next_check_at?: string | null
+          plan_id?: string | null
+          plan_option_id?: string
+          snapshot?: Json
+          state?: string
+          unseen_changes?: number
+          user_id?: string
+          verdict?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_plans_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "watch_plans_plan_option_id_fkey"
+            columns: ["plan_option_id"]
+            isOneToOne: false
+            referencedRelation: "plan_options"
+            referencedColumns: ["id"]
           },
         ]
       }
