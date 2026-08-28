@@ -96,6 +96,28 @@ export interface RankedOption {
 
 const PARTY_LEVELS = [1, 2, 4, 6, 9];
 
+/** A standby search answers with what it has rather than hanging the traveller. */
+const SEARCH_BUDGET_MS = 20_000;
+const LEG_CONCURRENCY = 4;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      const item = items[index] as T;
+      out[index] = await fn(item);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
 function hhmm(iso: string, fallback?: string): string {
   if (fallback) return to12h(fallback);
   const d = new Date(iso);
