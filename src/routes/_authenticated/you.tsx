@@ -1,0 +1,134 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ChevronRight, LogOut } from "lucide-react";
+
+import { supabase } from "@/integrations/supabase/client";
+import { getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
+import { travelerTypes } from "@/lib/aircue/standby";
+
+export const Route = createFileRoute("/_authenticated/you")({
+  head: () => ({
+    meta: [
+      { title: "You — AirCue" },
+      {
+        name: "description",
+        content:
+          "Your travel setup: airline access, traveler type, home airports, and how AirCue judges your standby options.",
+      },
+      { property: "og:title", content: "You — AirCue" },
+      { property: "og:description", content: "Your AirCue travel setup and account." },
+    ],
+  }),
+  component: YouPage,
+});
+
+function YouPage() {
+  const navigate = useNavigate();
+  const profileFn = useServerFn(getStandbyProfile);
+  const plansFn = useServerFn(listPlans);
+
+  const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => profileFn() });
+  const { data: plans } = useQuery({ queryKey: ["plans"], queryFn: () => plansFn() });
+
+  const travelerLabel =
+    travelerTypes.find((t) => t.value === profile?.travelerType)?.label ?? "Not set";
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    navigate({ to: "/auth" });
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
+      <h1 className="font-display text-2xl font-bold tracking-tight">You</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        AirCue reads your options through your travel setup, so keep this current.
+      </p>
+
+      <section className="mt-5 rounded-2xl border border-border bg-card p-4">
+        <h2 className="font-display text-base font-semibold">Your travel setup</h2>
+        <dl className="mt-3 space-y-2.5 text-sm">
+          <Row label="Home airline" value={profile?.homeAirline ?? "Not set"} />
+          <Row label="Traveler type" value={travelerLabel} />
+          <Row
+            label="Airline access"
+            value={
+              profile?.airlineAccess.length ? profile.airlineAccess.join(", ") : "Just your airline"
+            }
+          />
+          <Row
+            label="Home airports"
+            value={profile?.homeAirports.length ? profile.homeAirports.join(", ") : "Not set"}
+          />
+        </dl>
+        <Link
+          to="/onboarding"
+          className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium"
+        >
+          Update my travel setup
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-border bg-card p-4">
+        <h2 className="font-display text-base font-semibold">Your plans</h2>
+        {!plans || plans.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            No plans yet. Start one from the Plan tab.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {plans.slice(0, 6).map((p) => (
+              <li key={p.id}>
+                <Link
+                  to="/plans/$planId"
+                  params={{ planId: p.id }}
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3"
+                >
+                  <span>
+                    <span className="block text-sm font-medium">
+                      {p.origin} → {p.dest}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {p.travelDate} · {p.optionCount}{" "}
+                      {p.optionCount === 1 ? "setup" : "setups"}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-border bg-surface p-4">
+        <h2 className="font-display text-base font-semibold">How AirCue thinks</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          AirCue reads four things: what is still publicly bookable, how the operation looks today,
+          how the route usually behaves, and what backup you would have left. It never claims to
+          know your list position or whether you will clear. A load you enter yourself always beats
+          what AirCue can infer.
+        </p>
+      </section>
+
+      <button
+        type="button"
+        onClick={signOut}
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground"
+      >
+        <LogOut className="h-4 w-4" /> Sign out
+      </button>
+    </main>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-right font-medium">{value}</dd>
+    </div>
+  );
+}
