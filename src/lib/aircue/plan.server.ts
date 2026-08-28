@@ -1,7 +1,7 @@
 /** Server-only persistence and orchestration for the standby decision engine. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { rankStandbyOptions, type RankedOption } from "@/lib/aircue/ranking.server";
+import { rankStandbyOptions, type RankedOption, type RankReason } from "@/lib/aircue/ranking.server";
 import { confidenceWithLoad, judgeWithLoad, loadPillar } from "@/lib/aircue/load-adjust";
 import type {
   Confidence,
@@ -163,8 +163,10 @@ export async function buildPlan(
     travelers: number;
     cabin: string;
     carriers: string[] | null;
+    maxStops?: number | undefined;
+    nearby?: boolean | undefined;
   },
-): Promise<{ planId: string; optionCount: number }> {
+): Promise<{ planId: string; optionCount: number; reason: RankReason | null }> {
   const { data: planRow, error } = await db(client)
     .from("plans")
     .insert({
@@ -174,7 +176,11 @@ export async function buildPlan(
       travel_date: input.travelDate,
       travelers: input.travelers,
       cabin: input.cabin,
-      prefs: { carriers: input.carriers },
+      prefs: {
+        carriers: input.carriers,
+        maxStops: input.maxStops ?? 1,
+        nearby: input.nearby ?? false,
+      },
     })
     .select("id")
     .single();
@@ -189,15 +195,30 @@ export async function buildPlan(
     travelers: input.travelers,
     cabin: input.cabin,
     userId,
+    maxStops: input.maxStops ?? 1,
+    nearby: input.nearby ?? false,
   });
 
-  if (ranked.length > 0) {
+  await db(client)
+    .from("plans")
+    .update({
+      prefs: {
+        carriers: input.carriers,
+        maxStops: input.maxStops ?? 1,
+        nearby: input.nearby ?? false,
+        emptyReason: ranked.reason,
+        scanned: ranked.scanned,
+      },
+    })
+    .eq("id", planId);
+
+  if (ranked.options.length > 0) {
     await db(client)
       .from("plan_options")
-      .insert(ranked.map((o) => optionInsert(planId, userId, o)));
+      .insert(ranked.options.map((o) => optionInsert(planId, userId, o)));
   }
 
-  return { planId, optionCount: ranked.length };
+  return { planId, optionCount: ranked.options.length, reason: ranked.reason };
 }
 
 async function loadsFor(
@@ -262,6 +283,9 @@ export async function loadPlan(
   const options = rows.map((r) => optionFromRow(r, loads.get(String(r["flight_label"])) ?? null));
   options.sort((a, b) => a.rank - b.rank);
 
+  const prefs = (plan["prefs"] ?? {}) as Record<string, unknown>;
+  const scanned = (prefs["scanned"] ?? {}) as { origins?: string[]; dests?: string[] };
+
   return {
     id: planId,
     origin: String(plan["origin_iata"]),
@@ -271,6 +295,14 @@ export async function loadPlan(
     cabin: String(plan["cabin"] ?? "any"),
     options,
     noStrongSetup: options.length > 0 && options.every((o) => o.judgment !== "favorable"),
+    emptyReason:
+      options.length === 0
+        ? ((prefs["emptyReason"] as StandbyPlan["emptyReason"]) ?? null)
+        : null,
+    scannedAirports: {
+      origins: scanned["origins"] ?? [String(plan["origin_iata"])],
+      dests: scanned["dests"] ?? [String(plan["dest_iata"])],
+    },
   };
 }
 
@@ -588,7 +620,7 @@ export async function recheckWatch(
     userId,
   });
 
-  const fresh = ranked.find((o) => o.flightLabel === before.flightLabel);
+  const fresh = ranked.options.find((o) => o.flightLabel === before.flightLabel);
   if (!fresh) return { changed: false };
 
   await db(client)

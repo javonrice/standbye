@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { searchAirports } from "@/lib/aircue/brief.functions";
+import { searchAirports } from "@/lib/aircue/airports.functions";
 
 export function AirportField({
   id,

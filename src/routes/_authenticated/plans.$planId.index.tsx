@@ -53,17 +53,22 @@ function OptionsScreen() {
 
           {plan.options.length === 0 && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-              <p className="font-display text-lg font-semibold">No workable options today</p>
+              <p className="font-display text-lg font-semibold">{emptyTitle(plan.emptyReason)}</p>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Nothing is left on this route for that date that AirCue can evaluate. That usually
-                means the day is done, the route is thin, or your airline filter is too narrow.
+                {emptyBody(plan.emptyReason, plan.origin, plan.dest)}
               </p>
+              {plan.scannedAirports.origins.length + plan.scannedAirports.dests.length > 2 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  We looked at {plan.scannedAirports.origins.join(", ")} out and{" "}
+                  {plan.scannedAirports.dests.join(", ")} in.
+                </p>
+              )}
               <div className="mt-4 flex flex-col gap-2">
                 <Button asChild className="h-11">
                   <Link to="/plan">Try a nearby date</Link>
                 </Button>
                 <Button asChild variant="outline" className="h-11">
-                  <Link to="/plan">Widen the airlines</Link>
+                  <Link to="/plan">Change airports or airlines</Link>
                 </Button>
               </div>
             </div>
@@ -112,4 +117,23 @@ function OptionsScreen() {
       )}
     </main>
   );
+}
+
+type EmptyReason = "no_service" | "day_over" | "carrier_filter" | "data_unavailable" | null;
+
+function emptyTitle(reason: EmptyReason): string {
+  if (reason === "day_over") return "The useful part of this day is behind you";
+  if (reason === "carrier_filter") return "Your airline filter is too narrow";
+  if (reason === "data_unavailable") return "We could not check flights right now";
+  return "No one flies this nonstop today";
+}
+
+function emptyBody(reason: EmptyReason, origin: string, dest: string): string {
+  if (reason === "day_over")
+    return `The remaining ${origin} → ${dest} departures have already gone or are too close to be worth planning around. Tomorrow usually looks very different.`;
+  if (reason === "carrier_filter")
+    return `There are flights on this route, but none from the airlines you selected. Widen the airlines and we can look again.`;
+  if (reason === "data_unavailable")
+    return `Live flight data did not come back for this search, so we would rather show you nothing than guess. Try again in a few minutes.`;
+  return `We could not find a workable ${origin} → ${dest} routing for this date — not even through a connection. Smaller cities often need a nearby airport instead.`;
 }

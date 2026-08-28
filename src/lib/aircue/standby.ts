@@ -137,6 +137,10 @@ export interface StandbyPlan {
   options: StandbyOption[];
   /** True when every option carries a meaningful tradeoff. */
   noStrongSetup: boolean;
+  /** Set when the search found nothing, explaining why in plain terms. */
+  emptyReason: "no_service" | "day_over" | "carrier_filter" | "data_unavailable" | null;
+  /** Airports the search actually covered, primary first. */
+  scannedAirports: { origins: string[]; dests: string[] };
 }
 
 export const judgmentFace: Record<Judgment, string> = {

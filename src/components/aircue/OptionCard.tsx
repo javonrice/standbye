@@ -18,10 +18,13 @@ export function OptionCard({ option, rank }: { option: StandbyOption; rank: numb
             Option {rank}
           </p>
           <p className="font-display text-lg font-bold tracking-tight">
-            {option.flightLabel} · {option.origin} → {option.dest}
+            {option.kind === "connection"
+              ? option.flightLabel
+              : `${option.flightLabel} · ${option.origin} → ${option.dest}`}
           </p>
           <p className="text-sm text-muted-foreground">
             {option.depLocal} – {option.arrLocal} local
+            {option.kind === "connection" ? " · one stop" : ""}
           </p>
         </div>
         <JudgmentPill judgment={option.judgment} size="sm" />

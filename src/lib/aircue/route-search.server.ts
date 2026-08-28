@@ -67,15 +67,14 @@ async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<Route
   };
 }
 
-export async function findRouteLegs(
+/** Every upcoming departure from one airport that day, whatever the destination. */
+export async function findOriginDepartures(
   origin: string,
-  dest: string,
   travelDate: string,
   airline: string,
   depTime?: string,
 ): Promise<{ legs: RouteLeg[]; budgetBlocked: boolean }> {
   const from = origin.toUpperCase();
-  const to = dest.toUpperCase();
 
   // A stated departure time narrows the day to one board call.
   const windows: Array<[string, string]> = depTime
@@ -104,8 +103,6 @@ export async function findRouteLegs(
       if (airline !== ALL_AIRLINES && flight.airline?.iata?.toUpperCase() !== airline) continue;
       const leg = await toRouteLeg(flight, from);
       if (!leg) continue;
-      // Schedule-only legs carry no arrival IATA, so filter after resolution.
-      if (leg.dest.toUpperCase() !== to) continue;
       if (new Date(leg.schedDepUtc).getTime() < cutoff) continue;
       const key = `${leg.flightNumber ?? ""}-${leg.schedDepUtc}`;
       if (seen.has(key)) continue;
@@ -116,4 +113,17 @@ export async function findRouteLegs(
 
   legs.sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
   return { legs, budgetBlocked };
+}
+
+export async function findRouteLegs(
+  origin: string,
+  dest: string,
+  travelDate: string,
+  airline: string,
+  depTime?: string,
+): Promise<{ legs: RouteLeg[]; budgetBlocked: boolean }> {
+  const to = dest.toUpperCase();
+  const all = await findOriginDepartures(origin, travelDate, airline, depTime);
+  // Schedule-only legs carry no arrival IATA until resolved, so filter here.
+  return { legs: all.legs.filter((l) => l.dest.toUpperCase() === to), budgetBlocked: all.budgetBlocked };
 }
