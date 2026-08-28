@@ -121,7 +121,7 @@ function FlightWayRow({ option }: { option: StandbyOption }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <CueBadge judgment={option.judgment} size="sm" short />
-          <p className="truncate font-display text-[16px] font-bold tracking-tight">
+          <p className="break-words font-display text-[16px] font-bold leading-snug tracking-tight">
             {via ?? option.flightLabel}
           </p>
         </div>

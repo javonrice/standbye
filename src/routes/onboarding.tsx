@@ -476,10 +476,12 @@ function ExampleCard({ flight }: { flight: ExampleFlight }) {
     <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-display text-base font-bold">{flight.flightLabel}</p>
-          <p className="text-xs text-muted-foreground">{flight.depLocal}</p>
+          <p className="break-words font-display text-base font-bold leading-snug">
+            {flight.flightLabel}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{flight.depLocal}</p>
         </div>
-        <JudgmentPill judgment={flight.judgment} size="sm" />
+        <JudgmentPill judgment={flight.judgment} size="sm" className="shrink-0" />
       </div>
       <dl className="mt-3 space-y-1.5">
         {flight.rows.map((r) => (

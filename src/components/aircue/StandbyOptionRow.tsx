@@ -58,10 +58,10 @@ export function StandbyOptionRow({ option, rank }: { option: StandbyOption; rank
 
       <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <div className="min-w-0">
-          <p className="truncate font-display text-[17px] font-bold tracking-tight">
+          <p className="break-words font-display text-[17px] font-bold leading-snug tracking-tight">
             {option.flightLabel}
           </p>
-          <p className="mt-1 truncate font-display text-[20px] font-semibold tracking-tight">
+          <p className="mt-1 break-words font-display text-[20px] font-semibold tracking-tight">
             {option.depLocal}
             {option.arrLocal ? ` → ${option.arrLocal}` : ""}
           </p>
