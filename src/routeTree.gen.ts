@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedHowItWorksRouteImport } from './routes/_authenticated/how-it-works'
 import { Route as AuthenticatedKnownFlightRouteImport } from './routes/_authenticated/known-flight'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedYouRouteImport } from './routes/_authenticated/you'
@@ -42,6 +43,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedHowItWorksRoute = AuthenticatedHowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedKnownFlightRoute =
   AuthenticatedKnownFlightRouteImport.update({
@@ -139,6 +145,7 @@ const AuthenticatedOptionsOptionIdContextWeatherRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/how-it-works': typeof AuthenticatedHowItWorksRoute
   '/known-flight': typeof AuthenticatedKnownFlightRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/you': typeof AuthenticatedYouRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/how-it-works': typeof AuthenticatedHowItWorksRoute
   '/known-flight': typeof AuthenticatedKnownFlightRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/you': typeof AuthenticatedYouRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/how-it-works': typeof AuthenticatedHowItWorksRoute
   '/_authenticated/known-flight': typeof AuthenticatedKnownFlightRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/you': typeof AuthenticatedYouRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/how-it-works'
     | '/known-flight'
     | '/onboarding'
     | '/you'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/how-it-works'
     | '/known-flight'
     | '/onboarding'
     | '/you'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/how-it-works'
     | '/_authenticated/known-flight'
     | '/_authenticated/onboarding'
     | '/_authenticated/you'
@@ -291,6 +303,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/how-it-works': {
+      id: '/_authenticated/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof AuthenticatedHowItWorksRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/known-flight': {
       id: '/_authenticated/known-flight'
@@ -408,6 +427,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedHowItWorksRoute: typeof AuthenticatedHowItWorksRoute
   AuthenticatedKnownFlightRoute: typeof AuthenticatedKnownFlightRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedYouRoute: typeof AuthenticatedYouRoute
@@ -426,6 +446,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedHowItWorksRoute: AuthenticatedHowItWorksRoute,
   AuthenticatedKnownFlightRoute: AuthenticatedKnownFlightRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedYouRoute: AuthenticatedYouRoute,
