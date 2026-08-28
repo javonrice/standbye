@@ -371,7 +371,9 @@ function OnboardingFlow() {
             : "Continue";
 
   const hideCta = step === 0 || step === 2 || step === 3 || step === 11;
-  const disabled = step === 5 && draft.homeAirport.trim().length !== 3;
+  const disabled =
+    (step === 4 && !draft.accessMode) ||
+    (step === 5 && draft.homeAirport.trim().length !== 3);
 
 
   return (

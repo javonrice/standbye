@@ -6,7 +6,7 @@ export interface OnboardingDraft {
   painPoint: string;
   travelerType: string;
   homeAirline: string;
-  accessMode: AccessMode;
+  accessMode: AccessMode | "";
   airlineAccess: string[];
   homeAirport: string;
 }
@@ -52,9 +52,9 @@ export const accessModeLabel: Record<AccessMode, string> = {
 
 export const emptyDraft: OnboardingDraft = {
   painPoint: "",
-  travelerType: "employee",
-  homeAirline: "UA",
-  accessMode: "partners",
+  travelerType: "",
+  homeAirline: "",
+  accessMode: "",
   airlineAccess: [],
   homeAirport: "",
 };
