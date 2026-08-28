@@ -85,7 +85,14 @@ export interface RecoveryEvidence {
   summary: string;
   hoursRemaining: number | null;
   laterNonstops: Array<{ flightLabel: string; depLocal: string; judgment: Judgment }>;
-  alternates: Array<{ routing: string; depLocal: string; judgment: Judgment; note: string }>;
+  alternates: Array<{
+    routing: string;
+    depLocal: string;
+    judgment: Judgment;
+    note: string;
+    /** Set when the alternate is a gateway we can open. */
+    hub?: string;
+  }>;
 }
 
 export interface ReportedLoad {
@@ -96,6 +103,56 @@ export interface ReportedLoad {
   source: string;
   checkedAt: string;
 }
+
+/** How wide the traveller wants AirCue to cast the net. */
+export type RoutingMode = "best" | "nonstop" | "wide";
+
+export const routingModeLabel: Record<RoutingMode, string> = {
+  best: "Best options",
+  nonstop: "Nonstop only",
+  wide: "Any reasonable route",
+};
+
+export const routingModeHint: Record<RoutingMode, string> = {
+  best: "Nonstop + sensible connections",
+  nonstop: "Only direct flights",
+  wide: "Show me more ways to get there",
+};
+
+/**
+ * A shot is a flight the traveller could realistically still attempt while
+ * making progress toward the destination.
+ */
+export interface Shot {
+  flightLabel: string;
+  depLocal: string;
+  judgment: Judgment;
+}
+
+/** A connecting city, judged on the ways in and the ways onward. */
+export interface GatewayOption {
+  hub: string;
+  city: string | null;
+  state: PillarState;
+  /** "Strong alternate", "Possible", "Weak today". */
+  label: string;
+  summary: string;
+  inboundShots: Shot[];
+  onwardDepartures: string[];
+  onwardCount: number;
+  recoveryState: PillarState;
+  recoveryLabel: string;
+  /** Honest downside, e.g. a backtrack or unstable operations today. */
+  caveat: string | null;
+  addedMinutes: number | null;
+}
+
+export const gatewayDot: Record<PillarState, string> = {
+  good: "🟢",
+  fair: "🟡",
+  poor: "🔴",
+  unknown: "⚪️",
+};
 
 export interface StandbyOption {
   id: string;
@@ -141,6 +198,9 @@ export interface StandbyPlan {
   emptyReason: "no_service" | "day_over" | "carrier_filter" | "data_unavailable" | null;
   /** Airports the search actually covered, primary first. */
   scannedAirports: { origins: string[]; dests: string[] };
+  /** Connecting cities worth committing to, strongest first. */
+  gateways: GatewayOption[];
+  routingMode: RoutingMode;
 }
 
 export const judgmentFace: Record<Judgment, string> = {

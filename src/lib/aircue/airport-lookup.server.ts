@@ -40,3 +40,58 @@ export async function iataFromAirportName(
   cache.set(key, found);
   return found;
 }
+
+interface Geo {
+  lat: number;
+  lon: number;
+  city: string | null;
+}
+
+const geoCache = new Map<string, Geo | null>();
+
+/** Coordinates and city name for a set of IATA codes, from our airports table. */
+export async function airportGeo(codes: string[]): Promise<Map<string, Geo>> {
+  const wanted = [...new Set(codes.map((c) => c.toUpperCase()))];
+  const missing = wanted.filter((c) => !geoCache.has(c));
+
+  if (missing.length > 0) {
+    const { data } = await supabaseAdmin
+      .from("airports")
+      .select("iata,lat,lon,city")
+      .in("iata", missing);
+    for (const row of (data ?? []) as Array<{
+      iata: string;
+      lat: number;
+      lon: number;
+      city: string | null;
+    }>) {
+      geoCache.set(row.iata.toUpperCase(), {
+        lat: Number(row.lat),
+        lon: Number(row.lon),
+        city: row.city,
+      });
+    }
+    for (const code of missing) if (!geoCache.has(code)) geoCache.set(code, null);
+  }
+
+  const out = new Map<string, Geo>();
+  for (const code of wanted) {
+    const hit = geoCache.get(code);
+    if (hit) out.set(code, hit);
+  }
+  return out;
+}
+
+/** Great-circle distance in miles. */
+export function milesBetween(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+): number {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 3958.8 * 2 * Math.asin(Math.sqrt(s));
+}
