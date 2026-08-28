@@ -69,6 +69,14 @@ function OptionsScreen() {
               )}
               <div className="mt-4 flex flex-col gap-2">
                 <Button asChild className="h-11">
+                  <Link
+                    to="/escape"
+                    search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+                  >
+                    Find an escape route
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-11">
                   <Link to="/plan">Try a nearby date</Link>
                 </Button>
                 <Button asChild variant="outline" className="h-11">
@@ -136,6 +144,26 @@ function OptionsScreen() {
                 </Link>
               </Button>
             </div>
+          )}
+
+          {plan.options.length > 0 && plan.options.length <= 2 && (
+            <Link
+              to="/escape"
+              search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+              className="mt-5 flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-3.5 shadow-card"
+            >
+              <span className="text-left">
+                <span className="block text-[14px] font-semibold">
+                  {plan.options.length === 1
+                    ? "Only one useful shot — find an escape route"
+                    : "Thin day — find an escape route"}
+                </span>
+                <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                  Unconventional but realistic ways to still get there.
+                </span>
+              </span>
+              <ArrowLeft className="h-4 w-4 shrink-0 rotate-180 text-muted-foreground" />
+            </Link>
           )}
 
           <p className="mt-6 text-xs text-muted-foreground">
