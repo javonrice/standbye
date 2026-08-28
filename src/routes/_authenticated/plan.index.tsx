@@ -1,3 +1,4 @@
+import { profileCarriers } from "@/lib/aircue/onboarding";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
