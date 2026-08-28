@@ -8,10 +8,15 @@
 import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
 import { findRouteLegs, findOriginDepartures, type RouteLeg } from "@/lib/aircue/route-search.server";
 import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
-import { airportGeo, localClockAt, milesBetween } from "@/lib/aircue/airport-lookup.server";
+import {
+  airportGeo,
+  icaoForAirport,
+  localClockAt,
+  milesBetween,
+} from "@/lib/aircue/airport-lookup.server";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import { getRouteHistory } from "@/lib/aircue/history.server";
-import { getFaaPrograms, getMetar, getTaf, icaoFor } from "@/lib/aircue/sources.server";
+import { getFaaPrograms, getMetar, getTaf } from "@/lib/aircue/sources.server";
 import { ALL_AIRLINES, airlineName } from "@/lib/aircue/airlines";
 import type {
   AvailabilityEvidence,
@@ -240,24 +245,25 @@ async function operationsFor(
   travelDate: string,
   depLocal: string,
 ): Promise<{ state: PillarState; label: string; detail: string; evidence: ConditionsEvidence }> {
+  const icao = await icaoForAirport(origin);
   const [faa, metar, taf] = await Promise.all([
     getFaaPrograms(),
-    getMetar(icaoFor(origin, null)),
-    getTaf(icaoFor(origin, null)),
+    icao ? getMetar(icao) : Promise.resolve(null),
+    icao ? getTaf(icao) : Promise.resolve(null),
   ]);
 
   const programs = (faa.data ?? []).filter((p) => p.airport === origin || p.airport === dest);
   const stop = programs.find((p) => p.type === "ground_stop" || p.type === "closure");
   const delayProgram = programs.find((p) => p.type === "ground_delay" || p.type === "delay");
 
-  const metarText = metar.data?.[0]
-    ? ((metar.data[0] as { rawOb?: string; raw?: string }).rawOb ??
-      (metar.data[0] as { raw?: string }).raw ??
+  const metarText = metar?.data?.[0]
+    ? ((metar.data![0] as { rawOb?: string; raw?: string }).rawOb ??
+      (metar.data![0] as { raw?: string }).raw ??
       "Reported")
     : null;
-  const tafText = taf.data?.[0]
-    ? ((taf.data[0] as { rawTAF?: string; raw?: string }).rawTAF ??
-      (taf.data[0] as { raw?: string }).raw ??
+  const tafText = taf?.data?.[0]
+    ? ((taf.data![0] as { rawTAF?: string; raw?: string }).rawTAF ??
+      (taf.data![0] as { raw?: string }).raw ??
       null)
     : null;
   const stormy = /TS|SQ|FZRA|\+RA|BLSN/.test(tafText ?? "");
