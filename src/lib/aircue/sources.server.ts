@@ -167,7 +167,7 @@ export interface MetarReport {
 export async function getTaf(icao: string): Promise<SourceResult<TafReport[]>> {
   return cached(`awc:taf:${icao}`, 1800, () =>
     getJson<TafReport[]>(
-      `https://aviationweather.gov/api/data/taf?ids=${icao}&format=json&hours=24`,
+      `https://aviationweather.gov/api/data/taf?ids=${icao}&format=json`,
     ),
   );
 }
