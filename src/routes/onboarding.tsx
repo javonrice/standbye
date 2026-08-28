@@ -160,8 +160,8 @@ function OnboardingFlow() {
             <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               What can Standbye consider when finding a way there?
             </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">You can change this anytime.</p>
-            <div className="mt-5 space-y-2">
+            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">You can change this anytime.</p>
+            <div className="mt-8 space-y-3">
               {(["home", "partners", "selected"] as AccessMode[]).map((mode) => (
                 <ChoiceButton
                   key={mode}
@@ -207,7 +207,7 @@ function OnboardingFlow() {
             <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Where do you usually start?
             </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
+            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">
               Standbye uses this as your default origin. One airport is enough for now.
             </p>
             <div className="mt-5">
@@ -231,7 +231,7 @@ function OnboardingFlow() {
             <h1 className="mt-3 font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Let's say you're trying to get to LAX.
             </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">{origin} → LAX · Saturday</p>
+            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">{origin} → LAX · Saturday</p>
             <div className="mt-4 space-y-3">
               {recoveryExample(origin).map((f) => (
                 <ExampleCard key={f.flightLabel} flight={f} />
@@ -289,7 +289,7 @@ function OnboardingFlow() {
             <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Can't see that airline's load?
             </h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">That's normal.</p>
+            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">That's normal.</p>
             <div className="mt-4">
               <ExampleCard flight={noLoadExample(origin)} />
             </div>
@@ -408,8 +408,8 @@ function Question({
   return (
     <section>
       <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">{title}</h1>
-      {sub && <p className="mt-1.5 text-sm text-muted-foreground">{sub}</p>}
-      <div className="mt-5 space-y-2">{children}</div>
+      {sub && <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">{sub}</p>}
+      <div className="mt-8 space-y-3">{children}</div>
     </section>
   );
 }
@@ -432,7 +432,7 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
       <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
         What's your home airline?
       </h1>
-      <p className="mt-1.5 text-sm text-muted-foreground">
+      <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">
         This helps Standbye understand the ways you can usually travel.
       </p>
       <Input
@@ -503,7 +503,7 @@ function RevealStep({ draft }: { draft: OnboardingDraft }) {
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-fine-soft">
         <Check className="h-6 w-6 text-fine-foreground" />
       </span>
-      <h1 className="mt-4 font-display text-2xl font-bold tracking-tight">
+      <h1 className="mt-5 font-display text-[28px] font-bold leading-[1.15] tracking-tight">
         Standbye is ready for you
       </h1>
       <p className="mt-1.5 text-sm text-muted-foreground">Your standby profile</p>
