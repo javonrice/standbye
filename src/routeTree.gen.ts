@@ -21,6 +21,7 @@ import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authentica
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
 import { Route as AuthenticatedOptionsOptionIdIndexRouteImport } from './routes/_authenticated/options.$optionId.index'
+import { Route as AuthenticatedOptionsOptionIdAvailabilityRouteImport } from './routes/_authenticated/options.$optionId.availability'
 import { Route as AuthenticatedPlansPlanIdIndexRouteImport } from './routes/_authenticated/plans.$planId.index'
 import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
 
@@ -84,6 +85,12 @@ const AuthenticatedOptionsOptionIdIndexRoute =
     path: '/options/$optionId/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOptionsOptionIdAvailabilityRoute =
+  AuthenticatedOptionsOptionIdAvailabilityRouteImport.update({
+    id: '/options/$optionId/availability',
+    path: '/options/$optionId/availability',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPlansPlanIdIndexRoute =
   AuthenticatedPlansPlanIdIndexRouteImport.update({
     id: '/plans/$planId/',
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/plan/': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
+  '/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
   '/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
@@ -123,6 +131,7 @@ export interface FileRoutesByTo {
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/plan': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId': typeof BriefBriefIdIndexRoute
+  '/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
   '/options/$optionId': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/plans/$planId': typeof AuthenticatedPlansPlanIdIndexRoute
@@ -140,6 +149,7 @@ export interface FileRoutesById {
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
+  '/_authenticated/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
   '/_authenticated/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/_authenticated/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/api/public/run-watches'
     | '/plan/'
     | '/brief/$briefId/'
+    | '/options/$optionId/availability'
     | '/brief/$briefId/signal/$signalId'
     | '/options/$optionId/'
     | '/plans/$planId/'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/api/public/run-watches'
     | '/plan'
     | '/brief/$briefId'
+    | '/options/$optionId/availability'
     | '/brief/$briefId/signal/$signalId'
     | '/options/$optionId'
     | '/plans/$planId'
@@ -188,6 +200,7 @@ export interface FileRouteTypes {
     | '/api/public/run-watches'
     | '/_authenticated/plan/'
     | '/brief/$briefId/'
+    | '/_authenticated/options/$optionId/availability'
     | '/brief/$briefId/signal/$signalId'
     | '/_authenticated/options/$optionId/'
     | '/_authenticated/plans/$planId/'
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOptionsOptionIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/options/$optionId/availability': {
+      id: '/_authenticated/options/$optionId/availability'
+      path: '/options/$optionId/availability'
+      fullPath: '/options/$optionId/availability'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdAvailabilityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/plans/$planId/': {
       id: '/_authenticated/plans/$planId/'
       path: '/plans/$planId'
@@ -312,6 +332,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
+  AuthenticatedOptionsOptionIdAvailabilityRoute: typeof AuthenticatedOptionsOptionIdAvailabilityRoute
   AuthenticatedOptionsOptionIdIndexRoute: typeof AuthenticatedOptionsOptionIdIndexRoute
   AuthenticatedPlansPlanIdIndexRoute: typeof AuthenticatedPlansPlanIdIndexRoute
 }
@@ -319,6 +340,8 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
+  AuthenticatedOptionsOptionIdAvailabilityRoute:
+    AuthenticatedOptionsOptionIdAvailabilityRoute,
   AuthenticatedOptionsOptionIdIndexRoute:
     AuthenticatedOptionsOptionIdIndexRoute,
   AuthenticatedPlansPlanIdIndexRoute: AuthenticatedPlansPlanIdIndexRoute,
