@@ -98,7 +98,7 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
   };
 }
 
-function toOption(row: Row, load: ReportedLoad | null): StandbyOption {
+export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOption {
   const pillars = ((row["pillars"] as Pillar[]) ?? []).slice();
   let judgment = (row["label"] as Judgment) ?? "mixed";
   let confidence = (row["confidence"] as Confidence) ?? "medium";
@@ -259,7 +259,7 @@ export async function loadPlan(
     String(plan["travel_date"]),
   );
 
-  const options = rows.map((r) => toOption(r, loads.get(String(r["flight_label"])) ?? null));
+  const options = rows.map((r) => optionFromRow(r, loads.get(String(r["flight_label"])) ?? null));
   options.sort((a, b) => a.rank - b.rank);
 
   return {
@@ -400,7 +400,7 @@ export async function attachLoad(
     checkedAt: String(raw["checked_at"] ?? new Date().toISOString()),
   };
 
-  const option = toOption(row, load);
+  const option = optionFromRow(row, load);
   return { optionId: option.id, judgment: option.judgment };
 }
 
@@ -427,7 +427,7 @@ export async function beginWatch(
     .eq("user_id", userId)
     .maybeSingle();
   if (!optionRow) throw new Error("That option is no longer available.");
-  const option = toOption(optionRow as Row, null);
+  const option = optionFromRow(optionRow as Row, null);
 
   const { data: existing } = await db(client)
     .from("watch_plans")
@@ -533,7 +533,7 @@ export async function loadWatchTimeline(
       .maybeSingle();
     if (optionRow) {
       const loads = await loadsFor(client, userId, [watch.flightLabel], watch.travelDate);
-      option = toOption(optionRow as Row, loads.get(watch.flightLabel) ?? null);
+      option = optionFromRow(optionRow as Row, loads.get(watch.flightLabel) ?? null);
     }
   }
 
@@ -575,7 +575,7 @@ export async function recheckWatch(
   const row = watchRow as Row;
   const optionRow = (row["plan_options"] as Row) ?? {};
   const planRow = (row["plans"] as Row) ?? {};
-  const before = toOption(optionRow, null);
+  const before = optionFromRow(optionRow, null);
   const prev = (row["snapshot"] as ReturnType<typeof snapshotOf>) ?? snapshotOf(before);
 
   const ranked = await rankStandbyOptions({
@@ -684,4 +684,15 @@ export async function recheckWatch(
     .eq("id", watchId);
 
   return { changed: meaningful > 0 };
+}
+
+/** Most recent reported load for one flight on one date, if any. */
+export async function latestLoadFor(
+  client: unknown,
+  userId: string,
+  flightLabel: string,
+  travelDate: string,
+): Promise<ReportedLoad | null> {
+  const loads = await loadsFor(client, userId, [flightLabel], travelDate);
+  return loads.get(flightLabel) ?? null;
 }
