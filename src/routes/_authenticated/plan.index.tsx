@@ -52,6 +52,8 @@ function PlanHome() {
   const [cabin, setCabin] = useState("any");
   const [carrierMode, setCarrierMode] = useState("profile");
   const [showPrefs, setShowPrefs] = useState(false);
+  const [allowConnections, setAllowConnections] = useState(true);
+  const [nearby, setNearby] = useState(false);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => loadProfile() });
   const { data: plans } = useQuery({ queryKey: ["plans"], queryFn: () => recent() });
@@ -78,6 +80,8 @@ function PlanHome() {
           travelers,
           cabin,
           carriers,
+          maxStops: allowConnections ? 1 : 0,
+          nearby,
         },
       }),
     onSuccess: ({ planId }) => navigate({ to: "/plans/$planId", params: { planId } }),
@@ -156,6 +160,41 @@ function PlanHome() {
                   <SelectItem value="any">Any cabin</SelectItem>
                   <SelectItem value="economy">Economy only</SelectItem>
                   <SelectItem value="premium">Premium or better</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground">Routing</Label>
+              <Select
+                value={allowConnections ? "connections" : "nonstop"}
+                onValueChange={(v) => setAllowConnections(v === "connections")}
+              >
+                <SelectTrigger className="mt-1.5 h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="connections">
+                    Nonstops first, connections if needed
+                  </SelectItem>
+                  <SelectItem value="nonstop">Nonstops only</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                A connection means clearing standby twice, so AirCue only suggests one when
+                nonstops are thin.
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground">Nearby airports</Label>
+              <Select value={nearby ? "yes" : "no"} onValueChange={(v) => setNearby(v === "yes")}>
+                <SelectTrigger className="mt-1.5 h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">Only the airports I chose</SelectItem>
+                  <SelectItem value="yes">Include driveable nearby airports</SelectItem>
                 </SelectContent>
               </Select>
             </div>
