@@ -117,6 +117,8 @@ const stateScore: Record<PillarState, number> = { good: 30, fair: 16, poor: 0, u
 interface BoardEntry {
   bucket: string | null;
   largestN: number | null;
+  /** Destination-local arrival time from the public booking board, when known. */
+  arrLocal: string | null;
 }
 
 async function availabilityBoard(
@@ -137,6 +139,7 @@ async function availabilityBoard(
     map.set(f.flightLabel.replace(/\s+/g, ""), {
       bucket: (f as { bucket?: string | null }).bucket ?? null,
       largestN: (f as { largestN?: number | null }).largestN ?? null,
+      arrLocal: (f as { arrLocal?: string | null }).arrLocal || null,
     });
   }
   const result: { map: Map<string, BoardEntry>; ok: boolean; checkedAt: string | null; reason?: string } = {
@@ -435,11 +438,14 @@ async function scoreLeg(
   const digits = leg.flightNumber ?? null;
   const flightLabel = carrier && digits ? `${carrier}${digits}` : `${leg.origin}→${leg.dest}`;
   const depLocal = hhmm(leg.schedDepUtc, leg.depLocalTime);
-  const arrLocal = hhmm(leg.schedArrUtc);
+  const boardEntry = board.map.get(flightLabel);
+  // Schedule boards give us no arrival time, so only publish one when the
+  // booking board actually reported it. A guessed arrival is worse than none.
+  const arrLocal = boardEntry?.arrLocal ?? "";
   const localHour = leg.depLocalTime ? Number(leg.depLocalTime.slice(0, 2)) : null;
 
   const availability = availabilityFor(
-    board.map.get(flightLabel),
+    boardEntry,
     board.ok,
     board.checkedAt,
     board.reason,
@@ -836,7 +842,7 @@ async function scoreConnection(
     origin: l.origin,
     dest: l.dest,
     depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
-    arrLocal: hhmm(l.schedArrUtc),
+    arrLocal: "",
     schedDepUtc: l.schedDepUtc,
   }));
 
@@ -857,7 +863,7 @@ async function scoreConnection(
     origin: first.origin,
     dest: second.dest,
     depLocal,
-    arrLocal: hhmm(second.schedArrUtc),
+    arrLocal: "",
     schedDepUtc: first.schedDepUtc,
     schedArrUtc: second.schedArrUtc,
     segments,
