@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, CalendarRange, GitCompareArrows } from "lucide-react";
 
+import { GatewayCard } from "@/components/aircue/GatewayCard";
 import { OptionCard } from "@/components/aircue/OptionCard";
 import { Button } from "@/components/ui/button";
 import { getPlan } from "@/lib/aircue/plan.functions";
