@@ -12,9 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthenticatedHowItWorksRouteImport } from './routes/_authenticated/how-it-works'
 import { Route as AuthenticatedKnownFlightRouteImport } from './routes/_authenticated/known-flight'
-import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedWelcomeRouteImport } from './routes/_authenticated/welcome'
 import { Route as AuthenticatedYouRouteImport } from './routes/_authenticated/you'
 import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan.index'
 import { Route as AuthenticatedWatchingIndexRouteImport } from './routes/_authenticated/watching.index'
@@ -45,6 +46,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedHowItWorksRoute = AuthenticatedHowItWorksRouteImport.update({
   id: '/how-it-works',
   path: '/how-it-works',
@@ -56,9 +62,9 @@ const AuthenticatedKnownFlightRoute =
     path: '/known-flight',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const AuthenticatedWelcomeRoute = AuthenticatedWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedYouRoute = AuthenticatedYouRouteImport.update({
@@ -152,9 +158,10 @@ const AuthenticatedOptionsOptionIdContextWeatherRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
   '/how-it-works': typeof AuthenticatedHowItWorksRoute
   '/known-flight': typeof AuthenticatedKnownFlightRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/welcome': typeof AuthenticatedWelcomeRoute
   '/you': typeof AuthenticatedYouRoute
   '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
@@ -174,9 +181,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
   '/how-it-works': typeof AuthenticatedHowItWorksRoute
   '/known-flight': typeof AuthenticatedKnownFlightRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/welcome': typeof AuthenticatedWelcomeRoute
   '/you': typeof AuthenticatedYouRoute
   '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
@@ -198,9 +206,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/onboarding': typeof OnboardingRoute
   '/_authenticated/how-it-works': typeof AuthenticatedHowItWorksRoute
   '/_authenticated/known-flight': typeof AuthenticatedKnownFlightRoute
-  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/welcome': typeof AuthenticatedWelcomeRoute
   '/_authenticated/you': typeof AuthenticatedYouRoute
   '/_authenticated/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
@@ -222,9 +231,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/onboarding'
     | '/how-it-works'
     | '/known-flight'
-    | '/onboarding'
+    | '/welcome'
     | '/you'
     | '/watching/$watchId'
     | '/api/public/run-watches'
@@ -244,9 +254,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/onboarding'
     | '/how-it-works'
     | '/known-flight'
-    | '/onboarding'
+    | '/welcome'
     | '/you'
     | '/watching/$watchId'
     | '/api/public/run-watches'
@@ -267,9 +278,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/onboarding'
     | '/_authenticated/how-it-works'
     | '/_authenticated/known-flight'
-    | '/_authenticated/onboarding'
+    | '/_authenticated/welcome'
     | '/_authenticated/you'
     | '/_authenticated/watching/$watchId'
     | '/api/public/run-watches'
@@ -291,6 +303,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  OnboardingRoute: typeof OnboardingRoute
   ApiPublicRunWatchesRoute: typeof ApiPublicRunWatchesRoute
 }
 
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/how-it-works': {
       id: '/_authenticated/how-it-works'
       path: '/how-it-works'
@@ -331,11 +351,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKnownFlightRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/onboarding': {
-      id: '/_authenticated/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+    '/_authenticated/welcome': {
+      id: '/_authenticated/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof AuthenticatedWelcomeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/you': {
@@ -449,7 +469,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHowItWorksRoute: typeof AuthenticatedHowItWorksRoute
   AuthenticatedKnownFlightRoute: typeof AuthenticatedKnownFlightRoute
-  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedWelcomeRoute: typeof AuthenticatedWelcomeRoute
   AuthenticatedYouRoute: typeof AuthenticatedYouRoute
   AuthenticatedWatchingWatchIdRoute: typeof AuthenticatedWatchingWatchIdRoute
   AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
@@ -469,7 +489,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHowItWorksRoute: AuthenticatedHowItWorksRoute,
   AuthenticatedKnownFlightRoute: AuthenticatedKnownFlightRoute,
-  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedWelcomeRoute: AuthenticatedWelcomeRoute,
   AuthenticatedYouRoute: AuthenticatedYouRoute,
   AuthenticatedWatchingWatchIdRoute: AuthenticatedWatchingWatchIdRoute,
   AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
@@ -499,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  OnboardingRoute: OnboardingRoute,
   ApiPublicRunWatchesRoute: ApiPublicRunWatchesRoute,
 }
 export const routeTree = rootRouteImport
