@@ -1379,6 +1379,23 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
   return { options: results, gateways, nonstopCount, reason };
 }
 
+/**
+ * Escape's ranking objective is different from normal planning: what matters
+ * most is whether the traveller can actually leave the airport they are stuck
+ * at, and whether several ways home remain once they do. Detour and elapsed
+ * time still count, but only after those two.
+ */
+function escapeScoreOf(option: RankedOption, gateway: GatewayOption): number {
+  const waysOut = Math.min(gateway.inboundShots.length, 4) * 7;
+  const waysHome = Math.min(gateway.onwardCount, 4) * 6;
+  const recovery =
+    gateway.recoveryState === "good" ? 8 : gateway.recoveryState === "fair" ? 3 : 0;
+  const operations = gateway.state === "good" ? 5 : gateway.state === "fair" ? 2 : -4;
+  return option.score + waysOut + waysHome + recovery + operations;
+}
+
+
+
 export interface EscapeViaResult {
   gateway: GatewayOption | null;
   option: RankedOption | null;
