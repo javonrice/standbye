@@ -53,17 +53,22 @@ function OptionsScreen() {
 
           {plan.options.length === 0 && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-              <p className="font-display text-lg font-semibold">No workable options today</p>
+              <p className="font-display text-lg font-semibold">{emptyTitle(plan.emptyReason)}</p>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                Nothing is left on this route for that date that AirCue can evaluate. That usually
-                means the day is done, the route is thin, or your airline filter is too narrow.
+                {emptyBody(plan.emptyReason, plan.origin, plan.dest)}
               </p>
+              {plan.scannedAirports.origins.length + plan.scannedAirports.dests.length > 2 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  We looked at {plan.scannedAirports.origins.join(", ")} out and{" "}
+                  {plan.scannedAirports.dests.join(", ")} in.
+                </p>
+              )}
               <div className="mt-4 flex flex-col gap-2">
                 <Button asChild className="h-11">
                   <Link to="/plan">Try a nearby date</Link>
                 </Button>
                 <Button asChild variant="outline" className="h-11">
-                  <Link to="/plan">Widen the airlines</Link>
+                  <Link to="/plan">Change airports or airlines</Link>
                 </Button>
               </div>
             </div>
