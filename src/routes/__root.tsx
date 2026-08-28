@@ -77,13 +77,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Aircue — Standby pressure monitor" },
+      { title: "Standbye — Know your standby odds before you go" },
       {
         name: "description",
         content:
-          "Aircue watches weather, airport disruptions, and destination demand that could make a standby trip harder.",
+          "Standbye reads seat availability, operations and recovery room so you know which standby flight is worth trying.",
       },
-      { name: "author", content: "Aircue" },
+      { name: "author", content: "Standbye" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -107,7 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>

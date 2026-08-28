@@ -38,6 +38,8 @@
   --color-rough-foreground: var(--rough-foreground);
   --color-rough-soft: var(--rough-soft);
   --color-surface: var(--surface);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-sky: var(--brand-sky);
   --shadow-card: var(--shadow-card);
 
   --color-background: var(--background);
