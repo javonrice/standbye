@@ -44,6 +44,14 @@ export function PlanChangedTakeover({ watches, onDismiss }: PlanChangedTakeoverP
         >
           See what changed <ArrowRight className="h-4 w-4" />
         </Link>
+        <Link
+          to="/escape"
+          search={{ from: first.origin, to: first.dest, date: first.travelDate }}
+          onClick={onDismiss}
+          className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold"
+        >
+          Find an escape route
+        </Link>
         <button
           type="button"
           onClick={onDismiss}

@@ -54,6 +54,8 @@ export interface RankInput {
   nearby?: boolean;
   /** How wide the traveller wants the net cast. */
   routingMode?: RoutingMode;
+  /** Earliest local departure time "HH:MM" — Escape's "choose another time". */
+  depTime?: string;
 }
 
 /** Why a search came back with nothing, so the UI can say something honest. */
@@ -755,13 +757,18 @@ async function findGateways(
   dests: string[],
   carrierFilter: string,
   allowed: Set<string> | null,
-  maxHubs: number,
-  wide: boolean,
+  opts: { maxHubs: number; wide: boolean; maxDetour?: number },
 ): Promise<GatewayBuild[]> {
+  const { maxHubs, wide } = opts;
   const origin = origins[0];
   if (!origin || maxHubs <= 0) return [];
 
-  const { legs: fromOrigin } = await findOriginDepartures(origin, input.travelDate, carrierFilter);
+  const { legs: fromOrigin } = await findOriginDepartures(
+    origin,
+    input.travelDate,
+    carrierFilter,
+    input.depTime,
+  );
   const destSet = new Set(dests.map((d) => d.toUpperCase()));
 
   const byHub = new Map<string, RouteLeg[]>();
@@ -779,7 +786,7 @@ async function findGateways(
   const from = geo.get(origin.toUpperCase());
   const to = geo.get(input.dest.toUpperCase());
   const direct = from && to ? milesBetween(from, to) : null;
-  const maxDetour = wide ? MAX_DETOUR_WIDE : MAX_DETOUR_BEST;
+  const maxDetour = opts.maxDetour ?? (wide ? MAX_DETOUR_WIDE : MAX_DETOUR_BEST);
 
   const ratioOf = (hub: string): number | null => {
     const h = geo.get(hub);
@@ -1111,7 +1118,10 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
 
   if (maxStops >= 1 && !(outOfTime() && results.length > 0)) {
     const maxHubs = wide ? 5 : nonstopCount === 0 ? 4 : 3;
-    const builds = await findGateways(input, origins, dests, carrierFilter, allowed, maxHubs, wide);
+    const builds = await findGateways(input, origins, dests, carrierFilter, allowed, {
+      maxHubs,
+      wide,
+    });
     const scoreCount = wide ? 4 : nonstopCount === 0 ? 3 : 2;
 
     for (const build of builds.slice(0, scoreCount)) {
@@ -1247,4 +1257,265 @@ function buildRecovery(
     laterNonstops,
     alternates: [],
   };
+}
+
+/* --------------------------------- escape --------------------------------- */
+
+/**
+ * Escape is the "I'm stuck, find me another way" search. It considers ANY
+ * reachable intermediate airport with a connectable same-day onward flight —
+ * not just hubs — with a much wider candidate net and detour tolerance than
+ * normal planning. One connection maximum.
+ */
+const ESCAPE_BUDGET_MS = 30_000;
+const ESCAPE_MAX_HUBS = 10;
+const ESCAPE_DETOUR = 2.0;
+const ESCAPE_SCORE_COUNT = 6;
+
+export interface EscapeResult {
+  options: RankedOption[];
+  gateways: GatewayOption[];
+  nonstopCount: number;
+  reason: RankReason | null;
+}
+
+export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> {
+  const carrierFilter =
+    input.carriers && input.carriers.length === 1
+      ? (input.carriers[0] ?? ALL_AIRLINES)
+      : ALL_AIRLINES;
+  const allowed = input.carriers && input.carriers.length > 0 ? new Set(input.carriers) : null;
+
+  // City groups still count as the same place; driveable alternates do not —
+  // someone who is stuck wants ways out of where they are.
+  const origins = expandAirports(input.origin, false);
+  const dests = expandAirports(input.dest, false);
+
+  const holiday = await holidayFor(input.dest, input.travelDate);
+  const deadline = Date.now() + ESCAPE_BUDGET_MS;
+  const outOfTime = () => Date.now() > deadline;
+
+  const results: RankedOption[] = [];
+  const boards = new Map<string, Board>();
+  let anyLegs = 0;
+  let anyBlocked = false;
+
+  // A good escape never hides an obvious answer: usable nonstops come first.
+  for (const origin of origins) {
+    for (const dest of dests) {
+      if (origin === dest || outOfTime()) continue;
+      const [{ legs, budgetBlocked }, board] = await Promise.all([
+        findRouteLegs(origin, dest, input.travelDate, carrierFilter, input.depTime),
+        availabilityBoard({ ...input, origin, dest }, "quick"),
+      ]);
+      boards.set(`${origin}-${dest}`, board);
+      if (budgetBlocked) anyBlocked = true;
+      const usable = legs
+        .filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode))
+        .slice(0, 6);
+      anyLegs += usable.length;
+      const scored = await mapWithConcurrency(usable, LEG_CONCURRENCY, (leg) =>
+        scoreLeg(input, leg, usable, board, holiday),
+      );
+      results.push(...scored);
+    }
+  }
+  const nonstopCount = results.length;
+
+  const builds = await findGateways(input, origins, dests, carrierFilter, allowed, {
+    maxHubs: ESCAPE_MAX_HUBS,
+    wide: true,
+    maxDetour: ESCAPE_DETOUR,
+  });
+
+  for (const build of builds.slice(0, ESCAPE_SCORE_COUNT)) {
+    if (outOfTime()) break;
+    const legsNeeded = [build.best.first, build.best.second].filter(
+      (leg) => !boards.has(`${leg.origin}-${leg.dest}`),
+    );
+    const fetched = await Promise.all(
+      legsNeeded.map((leg) =>
+        availabilityBoard({ ...input, origin: leg.origin, dest: leg.dest }, "quick"),
+      ),
+    );
+    legsNeeded.forEach((leg, i) => {
+      const board = fetched[i];
+      if (board) boards.set(`${leg.origin}-${leg.dest}`, board);
+    });
+    results.push(await scoreConnection(input, build, boards, holiday));
+  }
+
+  const gateways = builds.map((b) => gatewayOptionOf(b, boards));
+
+  results.sort(
+    (a, b) =>
+      b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""),
+  );
+  results.forEach((r, i) => {
+    r.rank = i + 1;
+  });
+
+  let reason: RankReason | null = null;
+  if (results.length === 0 && gateways.length === 0) {
+    if (anyBlocked) reason = "data_unavailable";
+    else if (anyLegs > 0 && allowed) reason = "carrier_filter";
+    else if (isLateInDay(input.travelDate)) reason = "day_over";
+    else reason = "no_service";
+  }
+
+  return { options: results, gateways, nonstopCount, reason };
+}
+
+export interface EscapeViaResult {
+  gateway: GatewayOption | null;
+  option: RankedOption | null;
+  /** Plain-language reason when the routing does not work. */
+  reason: string | null;
+}
+
+/**
+ * The expert check: "I know OKC works — evaluate it." Runs the same Escape
+ * engine for one traveller-named station, skipping the detour veto (they
+ * asked for it) but keeping the connection and carrier rules.
+ */
+export async function evaluateEscapeVia(input: RankInput, hubCode: string): Promise<EscapeViaResult> {
+  const hub = hubCode.toUpperCase();
+  const origin = input.origin.toUpperCase();
+  const dest = input.dest.toUpperCase();
+  if (sameCity(hub, origin) || sameCity(hub, dest)) {
+    return { gateway: null, option: null, reason: `${hub} is one of the cities you already gave us.` };
+  }
+
+  const carrierFilter =
+    input.carriers && input.carriers.length === 1
+      ? (input.carriers[0] ?? ALL_AIRLINES)
+      : ALL_AIRLINES;
+  const allowed = input.carriers && input.carriers.length > 0 ? new Set(input.carriers) : null;
+
+  const { legs: fromOrigin } = await findOriginDepartures(
+    origin,
+    input.travelDate,
+    carrierFilter,
+    input.depTime,
+  );
+  const inboundAll = fromOrigin
+    .filter((l) => l.dest.toUpperCase() === hub)
+    .filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode))
+    .sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
+  if (inboundAll.length === 0) {
+    return {
+      gateway: null,
+      option: null,
+      reason: `No flights leave ${origin} for ${hub} today on the airlines you can use.`,
+    };
+  }
+
+  const { legs: onwardAll } = await findRouteLegs(hub, dest, input.travelDate, carrierFilter);
+  const onward = onwardAll
+    .filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode))
+    .sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
+  if (onward.length === 0) {
+    return {
+      gateway: null,
+      option: null,
+      reason: `You can reach ${hub}, but nothing useful leaves ${hub} for ${dest} today.`,
+    };
+  }
+
+  const pairs: ConnectionCandidate[] = [];
+  const inbound: RouteLeg[] = [];
+  for (const first of inboundAll) {
+    const arr = new Date(first.schedArrUtc).getTime();
+    const second = onward.find((l) => {
+      const gap = (new Date(l.schedDepUtc).getTime() - arr) / 60000;
+      return gap >= MIN_LAYOVER && gap <= MAX_LAYOVER;
+    });
+    if (!second) continue;
+    inbound.push(first);
+    pairs.push({
+      first,
+      second,
+      hub,
+      layoverMinutes: Math.round((new Date(second.schedDepUtc).getTime() - arr) / 60000),
+    });
+  }
+  if (pairs.length === 0) {
+    return {
+      gateway: null,
+      option: null,
+      reason: `${origin} → ${hub} → ${dest} exists on paper, but no connection works today — the onward flights leave too soon or too late.`,
+    };
+  }
+
+  const best = pairs[0]!;
+  const earliestArr = new Date(best.first.schedArrUtc).getTime();
+  const usableOnward = onward.filter(
+    (l) => (new Date(l.schedDepUtc).getTime() - earliestArr) / 60000 >= MIN_LAYOVER,
+  );
+
+  const geo = await airportGeo([origin, dest, hub]);
+  const from = geo.get(origin);
+  const to = geo.get(dest);
+  const h = geo.get(hub);
+  const direct = from && to ? milesBetween(from, to) : null;
+  const ratio =
+    h && from && to && direct && direct >= 50
+      ? (milesBetween(from, h) + milesBetween(h, to)) / direct
+      : null;
+
+  const faa = await getFaaPrograms();
+  const programs = (faa.data ?? []).filter((p) => p.airport === hub);
+  const stopped = programs.some((p) => p.type === "ground_stop" || p.type === "closure");
+  const delayed = programs.some((p) => p.type === "ground_delay" || p.type === "delay");
+
+  let state: PillarState = "fair";
+  let label = "Possible";
+  if (stopped) {
+    state = "poor";
+    label = "Weak today";
+  } else if (inbound.length >= 3 && usableOnward.length >= 4 && !delayed) {
+    state = "good";
+    label = "Strong alternate";
+  } else if (inbound.length >= 2 && usableOnward.length >= 2) {
+    label = "Good alternative";
+  }
+
+  let caveat: string | null = null;
+  if (stopped) caveat = `Today's ${hub} operation is unstable.`;
+  else if (delayed) caveat = `${hub} is running a delay program today.`;
+  else if (ratio !== null && ratio >= BACKTRACK_HINT)
+    caveat = "It works, but it means backtracking geographically.";
+
+  const build: GatewayBuild = {
+    hub,
+    city: h?.city ?? null,
+    inbound: inbound.slice(0, 6),
+    onward: usableOnward,
+    best,
+    addedMinutes:
+      direct !== null && ratio !== null ? Math.round((ratio - 1) * (direct / 480) * 60) : null,
+    caveat,
+    state,
+    label,
+    summary: `${inbound.length} realistic shot${inbound.length === 1 ? "" : "s"} into ${h?.city ?? hub}, ${usableOnward.length} useful flight${usableOnward.length === 1 ? "" : "s"} onward to ${dest}.`,
+    recoveryState: usableOnward.length >= 4 ? "good" : usableOnward.length >= 2 ? "fair" : "poor",
+    recoveryLabel:
+      usableOnward.length >= 4 ? "Excellent" : usableOnward.length >= 2 ? "Good" : "Thin",
+  };
+
+  const holiday = await holidayFor(dest, input.travelDate);
+  const boards = new Map<string, Board>();
+  const legsNeeded = [best.first, best.second];
+  const fetched = await Promise.all(
+    legsNeeded.map((leg) =>
+      availabilityBoard({ ...input, origin: leg.origin, dest: leg.dest }, "quick"),
+    ),
+  );
+  legsNeeded.forEach((leg, i) => {
+    const board = fetched[i];
+    if (board) boards.set(`${leg.origin}-${leg.dest}`, board);
+  });
+
+  const option = await scoreConnection(input, build, boards, holiday);
+  return { gateway: gatewayOptionOf(build, boards), option, reason: null };
 }

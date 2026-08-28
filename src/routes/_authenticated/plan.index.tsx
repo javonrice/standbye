@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createPlan, getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
+import type { PlanSummary } from "@/lib/aircue/plan.functions";
 import { AIRLINES } from "@/lib/aircue/airlines";
 import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } from "@/lib/aircue/standby";
 
@@ -267,6 +268,20 @@ function PlanHome() {
         )}
       </form>
 
+      <div className="mt-5 rounded-2xl border border-border bg-surface p-4">
+        <p className="text-[14px] font-semibold">😬 Stuck or trying to get home?</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+          Standbye can look for unconventional ways to keep you moving — including stations the
+          usual itinerary would never touch.
+        </p>
+        <Link
+          to="/escape"
+          className="mt-2 inline-flex items-center gap-1 text-[14px] font-semibold text-primary"
+        >
+          Find an escape route <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+
       <Link
         to="/known-flight"
         className="mt-4 flex items-center justify-between gap-3 rounded-xl px-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
@@ -285,27 +300,40 @@ function PlanHome() {
           <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
             {(plans ?? []).map((p) => (
               <li key={p.id}>
-                <Link
-                  to="/plans/$planId"
-                  params={{ planId: p.id }}
-                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-semibold tracking-tight">
-                      {p.origin} → {p.dest}
-                    </span>
-                    <span className="block text-[12px] text-muted-foreground">
-                      {p.travelDate} · {p.optionCount} option{p.optionCount === 1 ? "" : "s"}
-                    </span>
-                  </span>
-                  {p.bestJudgment && <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />}
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </Link>
+                <RecentPlanRow plan={p} />
               </li>
             ))}
           </ul>
         </section>
       )}
     </main>
+  );
+}
+
+function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
+  const body = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-semibold tracking-tight">
+          {p.origin} → {p.dest}
+        </span>
+        <span className="block text-[12px] text-muted-foreground">
+          {p.mode === "escape" ? "Escape · " : ""}
+          {p.travelDate} · {p.optionCount} option{p.optionCount === 1 ? "" : "s"}
+        </span>
+      </span>
+      {p.bestJudgment && <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />}
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </>
+  );
+  const className = "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50";
+  return p.mode === "escape" ? (
+    <Link to="/escape/$planId" params={{ planId: p.id }} className={className}>
+      {body}
+    </Link>
+  ) : (
+    <Link to="/plans/$planId" params={{ planId: p.id }} className={className}>
+      {body}
+    </Link>
   );
 }

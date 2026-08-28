@@ -239,6 +239,176 @@ export async function buildPlan(
   return { planId, optionCount: ranked.options.length, reason: ranked.reason };
 }
 
+/* --------------------------------- escape --------------------------------- */
+
+/**
+ * Escape: "I'm stuck, find me another way." Runs the wide network search and
+ * stores it as a plan in escape mode.
+ *
+ * Standby Day accounting: an escape for a route/date the traveller already has
+ * a plan for rides on that same Standby Day. It never opens a second one just
+ * because Standbye recommends a different routing. Pricing is not live, so this
+ * is recorded for later rules rather than charged or gated.
+ */
+export async function buildEscapePlan(
+  client: unknown,
+  userId: string,
+  input: {
+    origin: string;
+    dest: string;
+    travelDate: string;
+    travelers: number;
+    cabin: string;
+    carriers: string[] | null;
+    depTime?: string | undefined;
+  },
+): Promise<{ planId: string; optionCount: number; reason: RankReason | null }> {
+  const origin = input.origin.toUpperCase();
+  const dest = input.dest.toUpperCase();
+
+  // An existing plan for the same problem means the Standby Day is already open.
+  const { data: existing } = await db(client)
+    .from("plans")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("origin_iata", origin)
+    .eq("dest_iata", dest)
+    .eq("travel_date", input.travelDate)
+    .limit(1);
+  const standbyDayShared = ((existing ?? []) as Row[]).length > 0;
+
+  const basePrefs = {
+    carriers: input.carriers,
+    maxStops: 1,
+    nearby: false,
+    routingMode: "wide" as const,
+    mode: "escape" as const,
+    depTime: input.depTime ?? null,
+    standbyDayShared,
+  };
+
+  const { data: planRow, error } = await db(client)
+    .from("plans")
+    .insert({
+      user_id: userId,
+      origin_iata: origin,
+      dest_iata: dest,
+      travel_date: input.travelDate,
+      travelers: input.travelers,
+      cabin: input.cabin,
+      prefs: basePrefs,
+    })
+    .select("id")
+    .single();
+  if (error || !planRow) throw new Error(error?.message ?? "Could not start that escape.");
+
+  const planId = String((planRow as Row)["id"]);
+  const { rankEscapeRoutes } = await import("@/lib/aircue/ranking.server");
+  const ranked = await rankEscapeRoutes({
+    origin,
+    dest,
+    travelDate: input.travelDate,
+    carriers: input.carriers,
+    travelers: input.travelers,
+    cabin: input.cabin,
+    userId,
+    maxStops: 1,
+    nearby: false,
+    routingMode: "wide",
+    ...(input.depTime ? { depTime: input.depTime } : {}),
+  });
+
+  await db(client)
+    .from("plans")
+    .update({
+      prefs: {
+        ...basePrefs,
+        emptyReason: ranked.reason,
+        scanned: { origins: [origin], dests: [dest] },
+        gateways: ranked.gateways,
+      },
+    })
+    .eq("id", planId);
+
+  if (ranked.options.length > 0) {
+    await db(client)
+      .from("plan_options")
+      .insert(ranked.options.map((o) => optionInsert(planId, userId, o)));
+  }
+
+  return { planId, optionCount: ranked.options.length, reason: ranked.reason };
+}
+
+/** The expert check: evaluate one traveller-named connecting airport. */
+export async function checkEscapeViaAirport(
+  client: unknown,
+  userId: string,
+  input: { planId: string; hub: string },
+): Promise<{ optionId: string | null; gateway: GatewayOption | null; reason: string | null }> {
+  const { data: planRow } = await db(client)
+    .from("plans")
+    .select("*")
+    .eq("id", input.planId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!planRow) return { optionId: null, gateway: null, reason: "We could not find that plan." };
+  const plan = planRow as Row;
+  const prefs = (plan["prefs"] ?? {}) as Record<string, unknown>;
+
+  const { evaluateEscapeVia } = await import("@/lib/aircue/ranking.server");
+  const result = await evaluateEscapeVia(
+    {
+      origin: String(plan["origin_iata"]),
+      dest: String(plan["dest_iata"]),
+      travelDate: String(plan["travel_date"]),
+      carriers: (prefs["carriers"] as string[] | null) ?? null,
+      travelers: Number(plan["travelers"] ?? 1),
+      cabin: String(plan["cabin"] ?? "any"),
+      userId,
+      maxStops: 1,
+      routingMode: "wide",
+      ...(prefs["depTime"] ? { depTime: String(prefs["depTime"]) } : {}),
+    },
+    input.hub,
+  );
+
+  if (!result.option || !result.gateway) {
+    return { optionId: null, gateway: null, reason: result.reason };
+  }
+
+  // Persist it alongside the escape's own options so it behaves like any other.
+  const { data: existing } = await db(client)
+    .from("plan_options")
+    .select("rank")
+    .eq("plan_id", input.planId)
+    .order("rank", { ascending: false })
+    .limit(1);
+  const nextRank = ((existing ?? []) as Row[]).length
+    ? Number(((existing ?? []) as Row[])[0]!["rank"]) + 1
+    : 1;
+
+  const { data: inserted } = await db(client)
+    .from("plan_options")
+    .insert({ ...optionInsert(input.planId, userId, { ...result.option, rank: nextRank }) })
+    .select("id")
+    .single();
+
+  const gateways = ((prefs["gateways"] as GatewayOption[]) ?? []).filter(
+    (g) => g.hub !== result.gateway!.hub,
+  );
+  await db(client)
+    .from("plans")
+    .update({ prefs: { ...prefs, gateways: [...gateways, result.gateway] } })
+    .eq("id", input.planId);
+
+  return {
+    optionId: inserted ? String((inserted as Row)["id"]) : null,
+    gateway: result.gateway,
+    reason: null,
+  };
+}
+
+
 async function loadsFor(
   client: unknown,
   userId: string,
@@ -323,13 +493,15 @@ export async function loadPlan(
     },
     gateways: (prefs["gateways"] as GatewayOption[]) ?? [],
     routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
+    mode: (prefs["mode"] as StandbyPlan["mode"]) ?? "standby",
+    standbyDayShared: prefs["standbyDayShared"] === true,
   };
 }
 
 export async function loadPlanSummaries(client: unknown, userId: string): Promise<PlanSummary[]> {
   const { data } = await db(client)
     .from("plans")
-    .select("id,origin_iata,dest_iata,travel_date,travelers,created_at,plan_options(label,rank)")
+    .select("id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,plan_options(label,rank)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -338,6 +510,7 @@ export async function loadPlanSummaries(client: unknown, userId: string): Promis
     const opts = ((row["plan_options"] as Row[]) ?? []).slice().sort(
       (a, b) => Number(a["rank"]) - Number(b["rank"]),
     );
+    const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
     return {
       id: String(row["id"]),
       origin: String(row["origin_iata"]),
@@ -347,6 +520,7 @@ export async function loadPlanSummaries(client: unknown, userId: string): Promis
       bestJudgment: opts[0] ? String(opts[0]["label"]) : null,
       optionCount: opts.length,
       createdAt: String(row["created_at"]),
+      mode: (prefs["mode"] === "escape" ? "escape" : "standby") as "standby" | "escape",
     };
   });
 }

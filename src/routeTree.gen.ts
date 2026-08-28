@@ -17,6 +17,8 @@ import { Route as AuthenticatedHowItWorksRouteImport } from './routes/_authentic
 import { Route as AuthenticatedKnownFlightRouteImport } from './routes/_authenticated/known-flight'
 import { Route as AuthenticatedWelcomeRouteImport } from './routes/_authenticated/welcome'
 import { Route as AuthenticatedYouRouteImport } from './routes/_authenticated/you'
+import { Route as AuthenticatedEscapeIndexRouteImport } from './routes/_authenticated/escape.index'
+import { Route as AuthenticatedEscapePlanIdRouteImport } from './routes/_authenticated/escape.$planId'
 import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan.index'
 import { Route as AuthenticatedWatchingIndexRouteImport } from './routes/_authenticated/watching.index'
 import { Route as AuthenticatedWatchingWatchIdRouteImport } from './routes/_authenticated/watching.$watchId'
@@ -72,6 +74,18 @@ const AuthenticatedYouRoute = AuthenticatedYouRouteImport.update({
   path: '/you',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedEscapeIndexRoute =
+  AuthenticatedEscapeIndexRouteImport.update({
+    id: '/escape/',
+    path: '/escape/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEscapePlanIdRoute =
+  AuthenticatedEscapePlanIdRouteImport.update({
+    id: '/escape/$planId',
+    path: '/escape/$planId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPlanIndexRoute = AuthenticatedPlanIndexRouteImport.update({
   id: '/plan/',
   path: '/plan/',
@@ -163,8 +177,10 @@ export interface FileRoutesByFullPath {
   '/known-flight': typeof AuthenticatedKnownFlightRoute
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/you': typeof AuthenticatedYouRoute
+  '/escape/$planId': typeof AuthenticatedEscapePlanIdRoute
   '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/escape/': typeof AuthenticatedEscapeIndexRoute
   '/plan/': typeof AuthenticatedPlanIndexRoute
   '/watching/': typeof AuthenticatedWatchingIndexRoute
   '/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
@@ -186,8 +202,10 @@ export interface FileRoutesByTo {
   '/known-flight': typeof AuthenticatedKnownFlightRoute
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/you': typeof AuthenticatedYouRoute
+  '/escape/$planId': typeof AuthenticatedEscapePlanIdRoute
   '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/escape': typeof AuthenticatedEscapeIndexRoute
   '/plan': typeof AuthenticatedPlanIndexRoute
   '/watching': typeof AuthenticatedWatchingIndexRoute
   '/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
@@ -211,8 +229,10 @@ export interface FileRoutesById {
   '/_authenticated/known-flight': typeof AuthenticatedKnownFlightRoute
   '/_authenticated/welcome': typeof AuthenticatedWelcomeRoute
   '/_authenticated/you': typeof AuthenticatedYouRoute
+  '/_authenticated/escape/$planId': typeof AuthenticatedEscapePlanIdRoute
   '/_authenticated/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/_authenticated/escape/': typeof AuthenticatedEscapeIndexRoute
   '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
   '/_authenticated/watching/': typeof AuthenticatedWatchingIndexRoute
   '/_authenticated/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
@@ -236,8 +256,10 @@ export interface FileRouteTypes {
     | '/known-flight'
     | '/welcome'
     | '/you'
+    | '/escape/$planId'
     | '/watching/$watchId'
     | '/api/public/run-watches'
+    | '/escape/'
     | '/plan/'
     | '/watching/'
     | '/options/$optionId/availability'
@@ -259,8 +281,10 @@ export interface FileRouteTypes {
     | '/known-flight'
     | '/welcome'
     | '/you'
+    | '/escape/$planId'
     | '/watching/$watchId'
     | '/api/public/run-watches'
+    | '/escape'
     | '/plan'
     | '/watching'
     | '/options/$optionId/availability'
@@ -283,8 +307,10 @@ export interface FileRouteTypes {
     | '/_authenticated/known-flight'
     | '/_authenticated/welcome'
     | '/_authenticated/you'
+    | '/_authenticated/escape/$planId'
     | '/_authenticated/watching/$watchId'
     | '/api/public/run-watches'
+    | '/_authenticated/escape/'
     | '/_authenticated/plan/'
     | '/_authenticated/watching/'
     | '/_authenticated/options/$optionId/availability'
@@ -363,6 +389,20 @@ declare module '@tanstack/react-router' {
       path: '/you'
       fullPath: '/you'
       preLoaderRoute: typeof AuthenticatedYouRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/escape/': {
+      id: '/_authenticated/escape/'
+      path: '/escape'
+      fullPath: '/escape/'
+      preLoaderRoute: typeof AuthenticatedEscapeIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/escape/$planId': {
+      id: '/_authenticated/escape/$planId'
+      path: '/escape/$planId'
+      fullPath: '/escape/$planId'
+      preLoaderRoute: typeof AuthenticatedEscapePlanIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/plan/': {
@@ -471,7 +511,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKnownFlightRoute: typeof AuthenticatedKnownFlightRoute
   AuthenticatedWelcomeRoute: typeof AuthenticatedWelcomeRoute
   AuthenticatedYouRoute: typeof AuthenticatedYouRoute
+  AuthenticatedEscapePlanIdRoute: typeof AuthenticatedEscapePlanIdRoute
   AuthenticatedWatchingWatchIdRoute: typeof AuthenticatedWatchingWatchIdRoute
+  AuthenticatedEscapeIndexRoute: typeof AuthenticatedEscapeIndexRoute
   AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
   AuthenticatedWatchingIndexRoute: typeof AuthenticatedWatchingIndexRoute
   AuthenticatedOptionsOptionIdAvailabilityRoute: typeof AuthenticatedOptionsOptionIdAvailabilityRoute
@@ -491,7 +533,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKnownFlightRoute: AuthenticatedKnownFlightRoute,
   AuthenticatedWelcomeRoute: AuthenticatedWelcomeRoute,
   AuthenticatedYouRoute: AuthenticatedYouRoute,
+  AuthenticatedEscapePlanIdRoute: AuthenticatedEscapePlanIdRoute,
   AuthenticatedWatchingWatchIdRoute: AuthenticatedWatchingWatchIdRoute,
+  AuthenticatedEscapeIndexRoute: AuthenticatedEscapeIndexRoute,
   AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
   AuthenticatedWatchingIndexRoute: AuthenticatedWatchingIndexRoute,
   AuthenticatedOptionsOptionIdAvailabilityRoute:

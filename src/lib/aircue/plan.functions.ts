@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type {
+  GatewayOption,
   Pillar,
   ReportedLoad,
   StandbyOption,
@@ -33,6 +34,7 @@ export interface PlanSummary {
   bestJudgment: string | null;
   optionCount: number;
   createdAt: string;
+  mode: "standby" | "escape";
 }
 
 export interface WatchSummary {
@@ -127,6 +129,49 @@ export const createPlan = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ planId: string; optionCount: number; reason: string | null }> => {
     const { buildPlan } = await import("@/lib/aircue/plan.server");
     return buildPlan(context.supabase, context.userId, data);
+  });
+
+/* --------------------------------- escape --------------------------------- */
+
+export const createEscapePlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      origin: z.string().length(3),
+      dest: z.string().length(3),
+      travelDate: z.string().min(10).max(10),
+      depTime: z
+        .string()
+        .regex(/^\d{2}:\d{2}$/)
+        .optional(),
+    }),
+  )
+  .handler(async ({ data, context }): Promise<{ planId: string; optionCount: number; reason: string | null }> => {
+    const { buildEscapePlan, loadStandbyProfile } = await import("@/lib/aircue/plan.server");
+    const profile = await loadStandbyProfile(context.supabase, context.userId);
+    const carriers = profile?.airlineAccess?.length ? profile.airlineAccess : null;
+    return buildEscapePlan(context.supabase, context.userId, {
+      origin: data.origin,
+      dest: data.dest,
+      travelDate: data.travelDate,
+      travelers: 1,
+      cabin: "any",
+      carriers,
+      ...(data.depTime ? { depTime: data.depTime } : {}),
+    });
+  });
+
+export const checkEscapeVia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({
+      planId: z.string().uuid(),
+      hub: z.string().length(3),
+    }),
+  )
+  .handler(async ({ data, context }): Promise<{ optionId: string | null; gateway: GatewayOption | null; reason: string | null }> => {
+    const { checkEscapeViaAirport } = await import("@/lib/aircue/plan.server");
+    return checkEscapeViaAirport(context.supabase, context.userId, data);
   });
 
 export const getPlan = createServerFn({ method: "GET" })
