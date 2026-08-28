@@ -20,6 +20,7 @@ import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan.index'
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
+import { Route as AuthenticatedPlansPlanIdIndexRouteImport } from './routes/_authenticated/plans.$planId.index'
 import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -76,6 +77,12 @@ const BriefBriefIdIndexRoute = BriefBriefIdIndexRouteImport.update({
   path: '/brief/$briefId/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPlansPlanIdIndexRoute =
+  AuthenticatedPlansPlanIdIndexRouteImport.update({
+    id: '/plans/$planId/',
+    path: '/plans/$planId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const BriefBriefIdSignalSignalIdRoute =
   BriefBriefIdSignalSignalIdRouteImport.update({
     id: '/brief/$briefId/signal/$signalId',
@@ -95,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/plan/': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
+  '/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -108,6 +116,7 @@ export interface FileRoutesByTo {
   '/plan': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
+  '/plans/$planId': typeof AuthenticatedPlansPlanIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -123,6 +132,7 @@ export interface FileRoutesById {
   '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
+  '/_authenticated/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/plan/'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
+    | '/plans/$planId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/plan'
     | '/brief/$briefId'
     | '/brief/$briefId/signal/$signalId'
+    | '/plans/$planId'
   id:
     | '__root__'
     | '/'
@@ -165,6 +177,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plan/'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
+    | '/_authenticated/plans/$planId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -259,6 +272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BriefBriefIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/plans/$planId/': {
+      id: '/_authenticated/plans/$planId/'
+      path: '/plans/$planId'
+      fullPath: '/plans/$planId/'
+      preLoaderRoute: typeof AuthenticatedPlansPlanIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/brief/$briefId/signal/$signalId': {
       id: '/brief/$briefId/signal/$signalId'
       path: '/brief/$briefId/signal/$signalId'
@@ -272,11 +292,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
+  AuthenticatedPlansPlanIdIndexRoute: typeof AuthenticatedPlansPlanIdIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
+  AuthenticatedPlansPlanIdIndexRoute: AuthenticatedPlansPlanIdIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
