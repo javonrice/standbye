@@ -325,8 +325,8 @@ export async function planFromFlightNumber(
   if (!leg) return { planId: null, optionId: null, legs: [], error: "no_legs" };
 
   const { planId } = await buildPlan(client, userId, {
-    origin: leg.origin,
-    dest: leg.dest,
+    origin: leg.originIata,
+    dest: leg.destIata,
     travelDate: input.travelDate,
     travelers: 1,
     cabin: "any",
@@ -344,8 +344,8 @@ export async function planFromFlightNumber(
     planId,
     optionId: data ? String((data as Row)["id"]) : null,
     legs: legs.map((l) => ({
-      origin: l.origin,
-      dest: l.dest,
+      origin: l.originIata,
+      dest: l.destIata,
       depLocal: l.depLocalTime ?? "",
     })),
     error: null,
