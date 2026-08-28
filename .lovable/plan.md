@@ -78,5 +78,5 @@ Trip.com transfer results (transfer-in-X chips, clear two-leg summary), Transit 
 - Plan persistence keeps storing both; the results screen reads `plan.options` (connections) and filters nonstops into the footer section. No migration.
 - `src/routes/_authenticated/escape.$planId.tsx` rewritten for the new hierarchy.
 - New route `src/routes/_authenticated/escape.$planId.via.$hub.tsx` renders the detail screen from the persisted `plan.gateways` via the existing `getPlan`. No new server functions.
-- New presentational components in `src/components/aircue/`: `RoutePath`, `EscapeBestCard`, `EscapeRouteRow`.
+- New presentational components in `src/components/aircue/`: `RoutePath`, `EscapeBestCard`, `EscapeRouteRow`, `EscapeTimeline`.
 - Existing tokens, fonts, radii, mobile-first layout, and bottom navigation preserved; more whitespace, fewer nested cards.
