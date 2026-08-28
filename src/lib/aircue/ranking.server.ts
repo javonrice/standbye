@@ -534,7 +534,7 @@ const worst = (a: PillarState, b: PillarState): PillarState => {
   return order.indexOf(a) <= order.indexOf(b) ? a : b;
 };
 
-/* ------------------------------- connections ------------------------------ */
+/* --------------------------- gateways / connections ------------------------ */
 
 interface ConnectionCandidate {
   first: RouteLeg;
@@ -543,80 +543,232 @@ interface ConnectionCandidate {
   layoverMinutes: number;
 }
 
+interface GatewayBuild {
+  hub: string;
+  city: string | null;
+  /** First legs that actually connect to something onward. */
+  inbound: RouteLeg[];
+  onward: RouteLeg[];
+  best: ConnectionCandidate;
+  addedMinutes: number | null;
+  caveat: string | null;
+  state: PillarState;
+  label: string;
+  summary: string;
+  recoveryState: PillarState;
+  recoveryLabel: string;
+}
+
 const MIN_LAYOVER = 60;
 const MAX_LAYOVER = 6 * 60;
+/** Beyond this the routing stops being a sensible way to get there. */
+const MAX_DETOUR_BEST = 1.45;
+const MAX_DETOUR_WIDE = 1.8;
+const BACKTRACK_HINT = 1.22;
 
-async function findConnections(
+const legLabel = (l: RouteLeg) =>
+  l.airlineCode && l.flightNumber ? `${l.airlineCode}${l.flightNumber}` : `${l.origin}→${l.dest}`;
+
+function shotJudgment(entry: BoardEntry | undefined): Judgment {
+  const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 9 : null);
+  if (largest === null) return "mixed";
+  if (largest >= 6) return "favorable";
+  if (largest >= 1) return "mixed";
+  return "riskier";
+}
+
+/**
+ * Build the realistic gateways between this origin and destination.
+ *
+ * A gateway survives only when it has a usable way in, a usable way onward,
+ * and does not force an absurd detour. Cost is capped by `maxHubs` because
+ * every hub costs an extra schedule call.
+ */
+async function findGateways(
   input: RankInput,
   origins: string[],
   dests: string[],
   carrierFilter: string,
-  limit: number,
-): Promise<ConnectionCandidate[]> {
+  allowed: Set<string> | null,
+  maxHubs: number,
+  wide: boolean,
+): Promise<GatewayBuild[]> {
   const origin = origins[0];
-  if (!origin) return [];
+  if (!origin || maxHubs <= 0) return [];
 
   const { legs: fromOrigin } = await findOriginDepartures(origin, input.travelDate, carrierFilter);
   const destSet = new Set(dests.map((d) => d.toUpperCase()));
 
-  // Candidate hubs: the busiest places this origin actually flies to today.
   const byHub = new Map<string, RouteLeg[]>();
   for (const leg of fromOrigin) {
+    if (allowed && leg.airlineCode && !allowed.has(leg.airlineCode)) continue;
     const hub = leg.dest.toUpperCase();
-    if (destSet.has(hub) || sameCity(hub, origin)) continue;
+    if (destSet.has(hub) || sameCity(hub, origin) || sameCity(hub, input.dest)) continue;
     const list = byHub.get(hub) ?? [];
     list.push(leg);
     byHub.set(hub, list);
   }
 
-  const hubs = [...byHub.entries()]
-    .sort((a, b) => b[1].length - a[1].length)
-    .slice(0, 3)
-    .map(([hub]) => hub);
+  // Geography decides which hubs are even worth a schedule call.
+  const geo = await airportGeo([origin, input.dest, ...byHub.keys()]);
+  const from = geo.get(origin.toUpperCase());
+  const to = geo.get(input.dest.toUpperCase());
+  const direct = from && to ? milesBetween(from, to) : null;
+  const maxDetour = wide ? MAX_DETOUR_WIDE : MAX_DETOUR_BEST;
 
-  const candidates: ConnectionCandidate[] = [];
-  for (const hub of hubs) {
+  const ratioOf = (hub: string): number | null => {
+    const h = geo.get(hub);
+    if (!h || !from || !to || !direct || direct < 50) return null;
+    return (milesBetween(from, h) + milesBetween(h, to)) / direct;
+  };
+
+  const ranked = [...byHub.entries()]
+    .map(([hub, legs]) => ({ hub, legs, ratio: ratioOf(hub) }))
+    .filter((h) => h.ratio === null || h.ratio <= maxDetour)
+    .sort((a, b) => {
+      const detour = (a.ratio ?? 1.2) - (b.ratio ?? 1.2);
+      if (Math.abs(detour) > 0.15) return detour;
+      return b.legs.length - a.legs.length;
+    })
+    .slice(0, maxHubs);
+
+  const faa = await getFaaPrograms();
+  const builds: GatewayBuild[] = [];
+
+  for (const { hub, legs, ratio } of ranked) {
+    let onward: RouteLeg[] = [];
     for (const dest of dests) {
-      const { legs: onward } = await findRouteLegs(hub, dest, input.travelDate, carrierFilter);
-      if (onward.length === 0) continue;
-      for (const first of byHub.get(hub) ?? []) {
-        const arr = new Date(first.schedArrUtc).getTime();
-        const second = onward.find((l) => {
-          const gap = (new Date(l.schedDepUtc).getTime() - arr) / 60000;
-          return gap >= MIN_LAYOVER && gap <= MAX_LAYOVER;
-        });
-        if (!second) continue;
-        candidates.push({
-          first,
-          second,
-          hub,
-          layoverMinutes: Math.round((new Date(second.schedDepUtc).getTime() - arr) / 60000),
-        });
-        break; // one connection per first leg is enough
-      }
+      const { legs: found } = await findRouteLegs(hub, dest, input.travelDate, carrierFilter);
+      onward = onward.concat(found.filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode)));
     }
+    if (onward.length === 0) continue;
+    onward.sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
+
+    const pairs: ConnectionCandidate[] = [];
+    const inbound: RouteLeg[] = [];
+    for (const first of legs) {
+      const arr = new Date(first.schedArrUtc).getTime();
+      const second = onward.find((l) => {
+        const gap = (new Date(l.schedDepUtc).getTime() - arr) / 60000;
+        return gap >= MIN_LAYOVER && gap <= MAX_LAYOVER;
+      });
+      if (!second) continue;
+      inbound.push(first);
+      pairs.push({
+        first,
+        second,
+        hub,
+        layoverMinutes: Math.round((new Date(second.schedDepUtc).getTime() - arr) / 60000),
+      });
+    }
+    if (pairs.length === 0) continue;
+
+    pairs.sort((a, b) => a.first.schedDepUtc.localeCompare(b.first.schedDepUtc));
+    inbound.sort((a, b) => a.first?.schedDepUtc?.localeCompare?.(b.schedDepUtc) ?? 0);
+    inbound.sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
+    const best = pairs[0]!;
+
+    // Onward shots that remain useful after the earliest realistic arrival.
+    const earliestArr = new Date(best.first.schedArrUtc).getTime();
+    const usableOnward = onward.filter(
+      (l) => (new Date(l.schedDepUtc).getTime() - earliestArr) / 60000 >= MIN_LAYOVER,
+    );
+
+    const programs = (faa.data ?? []).filter((p) => p.airport === hub);
+    const stopped = programs.some((p) => p.type === "ground_stop" || p.type === "closure");
+    const delayed = programs.some((p) => p.type === "ground_delay" || p.type === "delay");
+
+    let state: PillarState;
+    let label: string;
+    if (stopped) {
+      state = "poor";
+      label = "Weak today";
+    } else if (inbound.length >= 3 && usableOnward.length >= 4 && !delayed) {
+      state = "good";
+      label = "Strong alternate";
+    } else if (inbound.length >= 2 && usableOnward.length >= 2) {
+      state = "fair";
+      label = "Good alternative";
+    } else {
+      state = "fair";
+      label = "Possible";
+    }
+
+    let caveat: string | null = null;
+    if (stopped) caveat = `Today's ${hub} operation is unstable.`;
+    else if (delayed) caveat = `${hub} is running a delay program today.`;
+    else if (ratio !== null && ratio >= BACKTRACK_HINT)
+      caveat = "Plenty of onward options, but it means backtracking geographically.";
+
+    const addedMinutes =
+      direct !== null && ratio !== null ? Math.round((ratio - 1) * (direct / 480) * 60) : null;
+
+    const city = geo.get(hub)?.city ?? null;
+    builds.push({
+      hub,
+      city,
+      inbound: inbound.slice(0, 6),
+      onward: usableOnward,
+      best,
+      addedMinutes,
+      caveat,
+      state,
+      label,
+      summary: `${inbound.length} realistic shot${inbound.length === 1 ? "" : "s"} into ${city ?? hub}, ${usableOnward.length} useful flight${usableOnward.length === 1 ? "" : "s"} onward to ${input.dest}.`,
+      recoveryState: usableOnward.length >= 4 ? "good" : usableOnward.length >= 2 ? "fair" : "poor",
+      recoveryLabel:
+        usableOnward.length >= 4 ? "Excellent" : usableOnward.length >= 2 ? "Good" : "Thin",
+    });
   }
 
-  candidates.sort(
-    (a, b) => new Date(a.first.schedDepUtc).getTime() - new Date(b.first.schedDepUtc).getTime(),
+  const order: PillarState[] = ["good", "fair", "unknown", "poor"];
+  builds.sort(
+    (a, b) =>
+      order.indexOf(a.state) - order.indexOf(b.state) ||
+      b.onward.length - a.onward.length ||
+      b.inbound.length - a.inbound.length,
   );
-  return candidates.slice(0, limit);
+  return builds;
+}
+
+function gatewayOptionOf(build: GatewayBuild, boards: Map<string, Board>): GatewayOption {
+  const inboundShots: Shot[] = build.inbound.map((l) => {
+    const board = boards.get(`${l.origin}-${l.dest}`) ?? EMPTY_BOARD;
+    return {
+      flightLabel: legLabel(l),
+      depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
+      judgment: shotJudgment(board.map.get(legLabel(l))),
+    };
+  });
+
+  return {
+    hub: build.hub,
+    city: build.city,
+    state: build.state,
+    label: build.label,
+    summary: build.summary,
+    inboundShots,
+    onwardDepartures: build.onward.slice(0, 8).map((l) => hhmm(l.schedDepUtc, l.depLocalTime)),
+    onwardCount: build.onward.length,
+    recoveryState: build.recoveryState,
+    recoveryLabel: build.recoveryLabel,
+    caveat: build.caveat,
+    addedMinutes: build.addedMinutes,
+  };
 }
 
 async function scoreConnection(
   input: RankInput,
-  candidate: ConnectionCandidate,
+  build: GatewayBuild,
   boards: Map<string, Board>,
   holiday: HolidayEvidence | null,
 ): Promise<RankedOption> {
-  const { first, second, hub, layoverMinutes } = candidate;
-  const labelOf = (l: RouteLeg) =>
-    l.airlineCode && l.flightNumber ? `${l.airlineCode}${l.flightNumber}` : `${l.origin}→${l.dest}`;
+  const { first, second, hub, layoverMinutes } = build.best;
 
   const firstBoard = boards.get(`${first.origin}-${first.dest}`) ?? EMPTY_BOARD;
   const secondBoard = boards.get(`${second.origin}-${second.dest}`) ?? EMPTY_BOARD;
-  const a1 = availabilityFor(firstBoard.map.get(labelOf(first)), firstBoard.ok, firstBoard.checkedAt, firstBoard.reason);
-  const a2 = availabilityFor(secondBoard.map.get(labelOf(second)), secondBoard.ok, secondBoard.checkedAt, secondBoard.reason);
+  const a1 = availabilityFor(firstBoard.map.get(legLabel(first)), firstBoard.ok, firstBoard.checkedAt, firstBoard.reason);
+  const a2 = availabilityFor(secondBoard.map.get(legLabel(second)), secondBoard.ok, secondBoard.checkedAt, secondBoard.reason);
 
   const depLocal = hhmm(first.schedDepUtc, first.depLocalTime);
   const [operations, history] = await Promise.all([
@@ -631,15 +783,21 @@ async function scoreConnection(
   ]);
 
   const availabilityState = worst(a1.state, a2.state);
+  const place = build.city ?? hub;
   const recovery: RecoveryEvidence = {
-    state: "fair",
-    label: "Fair",
-    summary: `This routing needs two clears — one in ${first.origin} and one in ${hub}.`,
-    hoursRemaining: 0,
-    laterNonstops: [],
+    state: build.recoveryState,
+    label: build.recoveryLabel,
+    summary: `${build.inbound.length} way${build.inbound.length === 1 ? "" : "s"} into ${place} and ${build.onward.length} useful flight${build.onward.length === 1 ? "" : "s"} onward — but this routing needs two clears.`,
+    hoursRemaining: null,
+    laterNonstops: build.inbound.slice(1, 4).map((l) => ({
+      flightLabel: legLabel(l),
+      depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
+      judgment: shotJudgment(firstBoard.map.get(legLabel(l))),
+    })),
     alternates: [],
   };
 
+  const opsState = build.state === "poor" ? "poor" : operations.state;
   const pillars: Pillar[] = [
     {
       key: "availability",
@@ -647,19 +805,25 @@ async function scoreConnection(
       label: availabilityState === a1.state ? a1.label : a2.label,
       detail: `${a1.label} out of ${first.origin}, ${a2.label} out of ${hub}.`,
     },
-    { key: "operations", state: operations.state, label: operations.state === "good" ? "Normal" : operations.label, detail: operations.detail },
+    {
+      key: "operations",
+      state: opsState,
+      label: opsState === "good" ? "Normal" : build.caveat ? "Watch the hub" : operations.label,
+      detail: build.caveat ?? operations.detail,
+    },
     { key: "history", state: history.state, label: history.label, detail: history.detail },
     { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
   ];
 
-  // A connection is strictly harder than a nonstop: two chances to be left behind.
-  const normalized = Math.max(0, scoreOf(pillars) - 10);
+  // Failure domains: a connection needs two clears, so it starts behind an
+  // otherwise equal nonstop and only wins on materially better recovery.
+  const normalized = Math.max(0, scoreOf(pillars) - 12);
   const judgment = judgeScore(normalized, availabilityState, recovery.state);
 
   const segments: OptionSegment[] = [first, second].map((l) => ({
     carrier: l.airlineCode ?? "",
     flightNumber: l.flightNumber ?? "",
-    flightLabel: labelOf(l),
+    flightLabel: legLabel(l),
     origin: l.origin,
     dest: l.dest,
     depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
@@ -670,10 +834,14 @@ async function scoreConnection(
   return {
     rank: 0,
     kind: "connection",
+    hub,
     judgment,
     confidence: "low",
     score: normalized,
-    headline: `Gets you there, but it needs two clears with a ${Math.floor(layoverMinutes / 60)}h ${layoverMinutes % 60}m connection in ${hub}.`,
+    headline:
+      build.recoveryState === "good"
+        ? `${place} gives you more ways to recover, but it requires clearing two flights.`
+        : `Gets you there through ${place} with a ${Math.floor(layoverMinutes / 60)}h ${layoverMinutes % 60}m connection — two clears, not one.`,
     carrier: first.airlineCode ?? null,
     flightNumber: null,
     flightLabel: `${first.origin} → ${hub} → ${second.dest}`,
@@ -701,7 +869,9 @@ async function scoreConnection(
 export async function rankStandbyOptions(input: RankInput): Promise<RankResult> {
   const carrierFilter =
     input.carriers && input.carriers.length === 1 ? (input.carriers[0] ?? ALL_AIRLINES) : ALL_AIRLINES;
-  const maxStops = input.maxStops ?? 1;
+  const routingMode: RoutingMode = input.routingMode ?? "best";
+  const wide = routingMode === "wide";
+  const maxStops = routingMode === "nonstop" ? 0 : (input.maxStops ?? 1);
   const nearby = input.nearby ?? false;
 
   const origins = expandAirports(input.origin, nearby);
@@ -742,24 +912,43 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     }
   }
 
-  // Connections only when nonstops are thin — they cost extra flight-data calls.
-  if (maxStops >= 1 && results.length < 3) {
-    const candidates = await findConnections(input, origins, dests, carrierFilter, 3 - results.length);
-    for (const candidate of candidates) {
-      const key = `${candidate.second.origin}-${candidate.second.dest}`;
-      if (!boards.has(key)) {
-        boards.set(
-          key,
-          await availabilityBoard({
-            ...input,
-            origin: candidate.second.origin,
-            dest: candidate.second.dest,
-          }),
-        );
+  // Gateways are first-class now: we look for them whenever the traveller
+  // allows a connection, not only when the nonstops run out.
+  const nonstopCount = results.length;
+  let gateways: GatewayOption[] = [];
+
+  if (maxStops >= 1) {
+    const maxHubs = wide ? 5 : nonstopCount === 0 ? 4 : 3;
+    const builds = await findGateways(input, origins, dests, carrierFilter, allowed, maxHubs, wide);
+    const scoreCount = wide ? 4 : nonstopCount === 0 ? 3 : 2;
+
+    for (const build of builds.slice(0, scoreCount)) {
+      for (const leg of [build.best.first, build.best.second]) {
+        const key = `${leg.origin}-${leg.dest}`;
+        if (!boards.has(key)) {
+          boards.set(
+            key,
+            await availabilityBoard({ ...input, origin: leg.origin, dest: leg.dest }),
+          );
+        }
       }
-      const firstKey = `${candidate.first.origin}-${candidate.first.dest}`;
-      if (!boards.has(firstKey)) boards.set(firstKey, EMPTY_BOARD);
-      results.push(await scoreConnection(input, candidate, boards, holiday));
+      results.push(await scoreConnection(input, build, boards, holiday));
+    }
+
+    gateways = builds.map((b) => gatewayOptionOf(b, boards));
+
+    // Nonstop recovery is network-aware: the strongest gateways are real backups.
+    const alternates = builds.slice(0, 2).map((b) => ({
+      routing: `Via ${b.hub}`,
+      depLocal: hhmm(b.best.first.schedDepUtc, b.best.first.depLocalTime),
+      judgment: (b.state === "good" ? "favorable" : b.state === "poor" ? "riskier" : "mixed") as Judgment,
+      note: `${b.inbound.length} way${b.inbound.length === 1 ? "" : "s"} in, ${b.onward.length} onward — needs two clears.`,
+      hub: b.hub,
+    }));
+    if (alternates.length > 0) {
+      for (const option of results) {
+        if (option.kind === "nonstop") option.recovery.alternates = alternates;
+      }
     }
   }
 
@@ -776,7 +965,7 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     else reason = "no_service";
   }
 
-  return { options: results, reason, scanned: { origins, dests } };
+  return { options: results, reason, scanned: { origins, dests }, gateways, nonstopCount };
 }
 
 /** Rough "the useful part of the day is behind you" test, in the origin's rough local time. */
