@@ -5,7 +5,7 @@
  * operations, history, recovery — feed an internal score. The score never
  * leaves this module: callers get a judgment label, pillar states and reasons.
  */
-import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
+import { buildRouteBoard } from "@/lib/aircue/google-flights8.server";
 import {
   findRouteLegs,
   findOriginDepartures,
