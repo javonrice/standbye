@@ -48,9 +48,16 @@ function WatchingHome() {
 
   const active = (watches ?? []).filter((w) => w.state === "active");
   const ended = (watches ?? []).filter((w) => w.state !== "active");
+  const changed = active.filter((w) => w.unseenChanges > 0);
+
+  const [takeoverDismissed, setTakeoverDismissed] = useState(false);
+  const showTakeover = changed.length > 0 && !takeoverDismissed;
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-3xl md:px-10 md:pt-12">
+      {showTakeover && (
+        <PlanChangedTakeover watches={changed} onDismiss={() => setTakeoverDismissed(true)} /gt
+      )}
       <h1 className="font-display text-2xl font-bold tracking-tight">Watching</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         AirCue rechecks these setups and tells you when something changes enough to matter.
