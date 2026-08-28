@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
-import { JudgmentPill } from "@/components/aircue/JudgmentPill";
+import { CueBadge } from "@/components/aircue/CueBadge";
 import { useOption } from "@/lib/aircue/use-option";
+import { gatewayDot } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/options/$optionId/recovery")({
   head: () => ({
@@ -24,6 +25,7 @@ function RecoveryRoom() {
   const { optionId } = Route.useParams();
   const { data } = useOption(optionId);
   const recovery = data?.option?.evidence.recovery;
+  const ways = (recovery?.laterNonstops.length ?? 0) + (recovery?.alternates.length ?? 0);
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
@@ -36,66 +38,89 @@ function RecoveryRoom() {
       </Link>
 
       <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">Recovery room</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        The honest question is not just whether this works. It is what you do if it does not.
-      </p>
 
       {recovery && (
         <>
-          <div className="mt-5 rounded-2xl border border-border bg-card p-4">
-            <p className="font-display text-lg font-semibold">{recovery.label} recovery room</p>
-            <p className="mt-1 text-sm text-muted-foreground">{recovery.summary}</p>
-            {recovery.hoursRemaining !== null && (
-              <p className="mt-2 text-sm text-muted-foreground">
-                About {recovery.hoursRemaining} hour{recovery.hoursRemaining === 1 ? "" : "s"} of
-                usable runway left on this route today.
-              </p>
-            )}
-          </div>
-
-          <h2 className="mt-6 font-display text-base font-bold tracking-tight">
-            Later on this route
-          </h2>
-          {recovery.laterNonstops.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Nothing later today. If this one does not work, you are planning for tomorrow.
+          <section className="mt-4 rounded-2xl border border-border bg-card p-4">
+            <p className="flex items-center gap-2 font-display text-[19px] font-bold tracking-tight">
+              <span aria-hidden className="text-[15px] leading-none">
+                {gatewayDot[recovery.state]}
+              </span>
+              {recovery.label} recovery
             </p>
-          ) : (
-            <ul className="mt-2 space-y-2">
-              {recovery.laterNonstops.map((f) => (
-                <li
-                  key={f.flightLabel}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
-                >
-                  <span>
-                    <span className="block text-sm font-semibold">{f.flightLabel}</span>
-                    <span className="block text-xs text-muted-foreground">{f.depLocal} local</span>
-                  </span>
-                  <JudgmentPill judgment={f.judgment} size="sm" />
-                </li>
-              ))}
-            </ul>
-          )}
+            <p className="mt-1.5 text-[15px] leading-snug text-foreground/90">
+              {ways > 0
+                ? `If this flight doesn't work, you still have ${ways} realistic way${
+                    ways === 1 ? "" : "s"
+                  } to keep moving today.`
+                : "If this flight doesn't work, there is nothing realistic left today."}
+            </p>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              {recovery.summary}
+              {recovery.hoursRemaining !== null
+                ? ` · about ${recovery.hoursRemaining} hour${
+                    recovery.hoursRemaining === 1 ? "" : "s"
+                  } of usable runway left today.`
+                : ""}
+            </p>
+          </section>
 
-          {recovery.alternates.length > 0 && (
-            <>
-              <h2 className="mt-6 font-display text-base font-bold tracking-tight">
-                Alternate routings
-              </h2>
-              <ul className="mt-2 space-y-2">
-                {recovery.alternates.map((a) => (
-                  <li key={a.routing} className="rounded-xl border border-border bg-card px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold">{a.routing}</span>
-                      <JudgmentPill judgment={a.judgment} size="sm" />
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {a.depLocal} local · {a.note}
-                    </p>
+          <section className="mt-6">
+            <h2 className="text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              Later nonstops
+            </h2>
+            {recovery.laterNonstops.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Nothing later today. If this one does not work, you are planning for tomorrow.
+              </p>
+            ) : (
+              <ul className="mt-2 divide-y divide-border rounded-2xl border border-border bg-card px-4">
+                {recovery.laterNonstops.map((f) => (
+                  <li key={f.flightLabel} className="flex items-center gap-3 py-3">
+                    <span className="w-[4.5rem] shrink-0 font-display text-[16px] font-semibold tracking-tight">
+                      {f.depLocal}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium">
+                      {f.flightLabel}
+                    </span>
+                    <CueBadge judgment={f.judgment} size="sm" short />
                   </li>
                 ))}
               </ul>
-            </>
+            )}
+          </section>
+
+          {recovery.alternates.length > 0 && (
+            <section className="mt-6">
+              <h2 className="text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                Alternate routes
+              </h2>
+              <ul className="mt-2 divide-y divide-border rounded-2xl border border-border bg-card px-4">
+                {recovery.alternates.map((a) => (
+                  <li key={a.routing} className="flex items-center gap-3 py-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-display text-[16px] font-bold tracking-tight">
+                        {a.hub ?? a.routing}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">
+                        {a.depLocal} · {a.note}
+                      </span>
+                    </span>
+                    <CueBadge judgment={a.judgment} size="sm" short />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {data?.planId && (
+            <Link
+              to="/plans/$planId/ways"
+              params={{ planId: data.planId }}
+              className="mt-5 inline-flex text-sm font-semibold text-primary"
+            >
+              See all ways there
+            </Link>
           )}
         </>
       )}
