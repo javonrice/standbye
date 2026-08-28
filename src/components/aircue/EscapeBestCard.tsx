@@ -34,16 +34,25 @@ export function EscapeBestCard({
         Via {gateway.city ?? gateway.hub}
       </p>
 
-      <dl className="mt-4 space-y-2 text-[14px]">
-        <Line term="Ways out" value={`${shots} shot${shots === 1 ? "" : "s"} to ${gateway.hub}`} />
-        <Line
-          term="Once there"
-          value={`${gateway.onwardCount} useful ${dest} flight${gateway.onwardCount === 1 ? "" : "s"}`}
+      <div className="mt-4 space-y-3 text-[14px]">
+        <TimeBlock
+          term={`Out of ${origin}`}
+          items={gateway.inboundShots.map((shot) => `${shot.depLocal} · ${shot.flightLabel}`)}
+          empty="No named departures came back for this leg."
         />
+        <TimeBlock
+          term={`${gateway.hub} → ${dest}`}
+          items={gateway.onwardDepartures}
+          empty="Nothing useful onward right now."
+        />
+      </div>
+
+      <dl className="mt-4 space-y-2 border-t border-border pt-3 text-[14px]">
         <Line term="Recovery Room" value={gateway.recoveryLabel} />
         {gateway.addedMinutes !== null && gateway.addedMinutes > 0 && (
           <Line term="Extra travel" value={`about ${gateway.addedMinutes} min`} />
         )}
+        <Line term="Ways out" value={`${shots} shot${shots === 1 ? "" : "s"}`} />
       </dl>
 
       <p className="mt-4 text-[14px] leading-relaxed text-foreground">{gateway.summary}</p>
@@ -66,7 +75,7 @@ export function EscapeBestCard({
           params={{ planId, hub: gateway.hub }}
           className="flex items-center justify-center gap-1 py-1 text-[14px] font-semibold text-primary"
         >
-          See how this works <ChevronRight className="h-4 w-4" />
+          See the full routing <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
     </div>
@@ -78,6 +87,35 @@ function Line({ term, value }: { term: string; value: string }) {
     <div className="flex items-baseline justify-between gap-4">
       <dt className="text-muted-foreground">{term}</dt>
       <dd className="text-right font-medium">{value}</dd>
+    </div>
+  );
+}
+
+function TimeBlock({
+  term,
+  items,
+  empty,
+}: {
+  term: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div>
+      <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+        {term}
+      </p>
+      {items.length > 0 ? (
+        <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+          {items.map((item) => (
+            <li key={item} className="font-medium tabular-nums">
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-muted-foreground">{empty}</p>
+      )}
     </div>
   );
 }

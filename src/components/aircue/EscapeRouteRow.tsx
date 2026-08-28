@@ -26,8 +26,11 @@ export function EscapeRouteRow({
         <p className="truncate font-display text-[17px] font-bold tracking-tight">
           Via {gateway.hub}
         </p>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
-          {shots} shot{shots === 1 ? "" : "s"} in · {gateway.onwardCount} onward
+        <p className="mt-0.5 truncate text-[13px] tabular-nums text-muted-foreground">
+          {gateway.inboundShots[0]
+            ? `${gateway.inboundShots[0].depLocal} ${gateway.inboundShots[0].flightLabel}`
+            : `${shots} shot${shots === 1 ? "" : "s"} in`}
+          {gateway.onwardDepartures[0] ? ` → onward ${gateway.onwardDepartures[0]}` : ""}
         </p>
       </div>
       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
