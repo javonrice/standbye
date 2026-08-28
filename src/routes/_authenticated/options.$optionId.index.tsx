@@ -6,14 +6,13 @@ import {
   Bell,
   BellOff,
   ChevronRight,
-  ClipboardList,
   LifeBuoy,
 } from "lucide-react";
 
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { FlightHero } from "@/components/aircue/FlightHero";
 import { StandbyeTake } from "@/components/aircue/StandbyeTake";
-import { SignalGroup, SignalRow } from "@/components/aircue/SignalRow";
+import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/SignalRow";
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
 import { startWatchPlan, stopWatchPlan } from "@/lib/aircue/plan.functions";
