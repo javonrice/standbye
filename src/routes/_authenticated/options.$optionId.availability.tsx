@@ -60,17 +60,28 @@ function AvailabilityDetail() {
         <>
           <DetailLead state={signal.state} label={signal.label} />
 
-          <PartyScale tested={availability.tested} />
+          {/* The count is the point of the screen — make it the hero. */}
+          <div className="mt-4 rounded-2xl border border-border bg-card p-5 text-center">
+            <p className="font-display text-5xl font-bold tracking-tight">
+              {largest === null ? "?" : largest >= 9 ? "9+" : largest}
+            </p>
+            <p className="mt-1.5 text-sm font-medium">
+              {largest === null
+                ? "Largest party still bookable is unclear"
+                : `Still bookable for a party of ${largest >= 9 ? "9 or more" : largest}`}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Checked {agoLabel(availability.checkedAt)}
+            </p>
 
-          <p className="mt-4 text-sm">
-            <span className="text-muted-foreground">Largest party still bookable: </span>
-            <span className="font-display text-base font-semibold">
-              {largest === null ? "unknown" : largest >= 9 ? "9+" : largest}
-            </span>
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Checked {agoLabel(availability.checkedAt)}
-          </p>
+            <div className="mt-5 border-t border-border/70 pt-4">
+              <PartyScale tested={availability.tested} />
+              <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+                Each dot is a party size we tried. Filled means the airline still shows a bookable
+                seat at that party size.
+              </p>
+            </div>
+          </div>
 
           <DetailHeading>What this means</DetailHeading>
           <DetailModule className="mt-2">
