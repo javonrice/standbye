@@ -42,11 +42,13 @@ async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<Route
   const dep = depMovement?.scheduledTime?.utc;
   if (!dep) return null;
 
-  const origin = flight.departure
-    ? (flight.departure.airport?.iata ??
+  // A board result for the queried airport usually omits `departure.airport`
+  // because the origin is implicit; only a full flight-status record carries it.
+  const origin = flight.departure?.airport
+    ? (flight.departure.airport.iata ??
       (await iataFromAirportName(
-        flight.departure.airport?.name,
-        flight.departure.airport?.icao,
+        flight.departure.airport.name,
+        flight.departure.airport.icao,
       )))
     : boardOrigin;
   const dest =
