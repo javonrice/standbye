@@ -510,6 +510,7 @@ export async function loadPlanSummaries(client: unknown, userId: string): Promis
     const opts = ((row["plan_options"] as Row[]) ?? []).slice().sort(
       (a, b) => Number(a["rank"]) - Number(b["rank"]),
     );
+    const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
     return {
       id: String(row["id"]),
       origin: String(row["origin_iata"]),
@@ -519,6 +520,7 @@ export async function loadPlanSummaries(client: unknown, userId: string): Promis
       bestJudgment: opts[0] ? String(opts[0]["label"]) : null,
       optionCount: opts.length,
       createdAt: String(row["created_at"]),
+      mode: (prefs["mode"] === "escape" ? "escape" : "standby") as "standby" | "escape",
     };
   });
 }
