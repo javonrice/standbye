@@ -44,7 +44,7 @@ export function CueBadge({
       <span aria-hidden className="text-[1.05em] leading-none">
         {judgmentFace[judgment]}
       </span>
-      {judgmentTitle[judgment]}
+      {short ? judgmentShort[judgment] : judgmentTitle[judgment]}
     </span>
   );
 }
