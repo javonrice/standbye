@@ -16,6 +16,8 @@ export interface RouteLeg {
   depLocalTime?: string;
   /** Scheduled arrival in the destination airport's local time, "HH:MM". */
   arrLocalTime?: string;
+  /** True only when a carrier-reported arrival time backs schedArrUtc. */
+  arrUtcKnown?: boolean;
   airlineName?: string;
   airlineCode?: string;
   flightNumber?: string;
