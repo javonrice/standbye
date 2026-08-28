@@ -394,137 +394,382 @@ function confidenceFor(pillars: Pillar[], hasLoad: boolean): Confidence {
 
 /* ------------------------------- entry point ------------------------------ */
 
-export async function rankStandbyOptions(input: RankInput): Promise<RankedOption[]> {
-  const carrierFilter =
-    input.carriers && input.carriers.length === 1 ? (input.carriers[0] ?? ALL_AIRLINES) : ALL_AIRLINES;
+type Board = Awaited<ReturnType<typeof availabilityBoard>>;
 
-  const [{ legs }, board, holiday] = await Promise.all([
-    findRouteLegs(input.origin, input.dest, input.travelDate, carrierFilter),
-    availabilityBoard(input),
-    holidayFor(input.dest, input.travelDate),
+const EMPTY_BOARD: Board = { map: new Map(), ok: false, checkedAt: null };
+
+/** Score one nonstop leg into a ranked option. */
+async function scoreLeg(
+  input: RankInput,
+  leg: RouteLeg,
+  siblings: RouteLeg[],
+  board: Board,
+  holiday: HolidayEvidence | null,
+): Promise<RankedOption> {
+  const provider = getFlightProvider();
+  const carrier = leg.airlineCode ?? null;
+  const digits = leg.flightNumber ?? null;
+  const flightLabel = carrier && digits ? `${carrier}${digits}` : `${leg.origin}→${leg.dest}`;
+  const depLocal = hhmm(leg.schedDepUtc, leg.depLocalTime);
+  const arrLocal = hhmm(leg.schedArrUtc);
+  const localHour = leg.depLocalTime ? Number(leg.depLocalTime.slice(0, 2)) : null;
+
+  const availability = availabilityFor(
+    board.map.get(flightLabel),
+    board.ok,
+    board.checkedAt,
+    board.reason,
+  );
+  const [operations, history, cancels] = await Promise.all([
+    operationsFor(leg.origin, leg.dest, input.travelDate, depLocal),
+    historyFor(leg.origin, leg.dest, input.travelDate, localHour, carrier),
+    carrier && leg.depLocalTime
+      ? provider.getEarlierRouteCancellations(
+          leg.origin,
+          leg.dest,
+          input.travelDate,
+          carrier,
+          leg.depLocalTime,
+        )
+      : Promise.resolve(null),
   ]);
 
-  const allowed = input.carriers && input.carriers.length > 0 ? new Set(input.carriers) : null;
-  const usable = legs
-    .filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode))
-    .sort((a, b) => new Date(a.schedDepUtc).getTime() - new Date(b.schedDepUtc).getTime())
-    .slice(0, 8);
+  const later = siblings.filter(
+    (l) => new Date(l.schedDepUtc).getTime() > new Date(leg.schedDepUtc).getTime(),
+  );
+  const recovery = buildRecovery(later, board);
 
-  const provider = getFlightProvider();
-  const results: RankedOption[] = [];
+  let opsState = operations.state;
+  let opsDetail = operations.detail;
+  if ((cancels?.cancelledFlights ?? 0) > 0) {
+    opsState = "poor";
+    opsDetail = `${cancels?.cancelledFlights} earlier ${leg.origin} → ${leg.dest} departure${(cancels?.cancelledFlights ?? 0) > 1 ? "s were" : " was"} cancelled today, which pushes displaced travellers onto later flights.`;
+  } else if ((cancels?.delayedFlights ?? 0) >= 2) {
+    opsState = opsState === "good" ? "fair" : opsState;
+    opsDetail = `${cancels?.delayedFlights} earlier departures on this route are running late.`;
+  }
 
-  for (const leg of usable) {
-    const carrier = leg.airlineCode ?? null;
-    const digits = leg.flightNumber ?? null;
-    const flightLabel = carrier && digits ? `${carrier}${digits}` : `${leg.origin}→${leg.dest}`;
-    const depLocal = hhmm(leg.schedDepUtc, leg.depLocalTime);
-    const arrLocal = hhmm(leg.schedArrUtc);
-    const localHour = leg.depLocalTime ? Number(leg.depLocalTime.slice(0, 2)) : null;
+  const pillars: Pillar[] = [
+    { key: "availability", state: availability.state, label: availability.label, detail: availability.detail },
+    { key: "operations", state: opsState, label: opsState === "good" ? "Normal" : operations.label, detail: opsDetail },
+    { key: "history", state: history.state, label: history.label, detail: history.detail },
+    { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
+  ];
 
-    const availability = availabilityFor(
-      board.map.get(flightLabel),
-      board.ok,
-      board.checkedAt,
-      board.reason,
-    );
-    const [operations, history, cancels] = await Promise.all([
-      operationsFor(leg.origin, leg.dest, input.travelDate, depLocal),
-      historyFor(leg.origin, leg.dest, input.travelDate, localHour, carrier),
-      carrier && leg.depLocalTime
-        ? provider.getEarlierRouteCancellations(
-            leg.origin,
-            leg.dest,
-            input.travelDate,
-            carrier,
-            leg.depLocalTime,
-          )
-        : Promise.resolve(null),
-    ]);
+  const normalized = scoreOf(pillars);
+  const judgment = judgeScore(normalized, availability.state, recovery.state);
 
-    const later = usable.filter(
-      (l) => new Date(l.schedDepUtc).getTime() > new Date(leg.schedDepUtc).getTime(),
-    );
-    const recovery = buildRecovery(later, board);
-
-    let opsState = operations.state;
-    let opsDetail = operations.detail;
-    if ((cancels?.cancelledFlights ?? 0) > 0) {
-      opsState = "poor";
-      opsDetail = `${cancels?.cancelledFlights} earlier ${input.origin} → ${input.dest} departure${(cancels?.cancelledFlights ?? 0) > 1 ? "s were" : " was"} cancelled today, which pushes displaced travellers onto later flights.`;
-    } else if ((cancels?.delayedFlights ?? 0) >= 2) {
-      opsState = opsState === "good" ? "fair" : opsState;
-      opsDetail = `${cancels?.delayedFlights} earlier departures on this route are running late.`;
-    }
-
-    const pillars: Pillar[] = [
-      { key: "availability", state: availability.state, label: availability.label, detail: availability.detail },
-      { key: "operations", state: opsState, label: opsState === "good" ? "Normal" : operations.label, detail: opsDetail },
-      { key: "history", state: history.state, label: history.label, detail: history.detail },
-      { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
-    ];
-
-    const score =
-      stateScore[availability.state] * 1.2 +
-      stateScore[opsState] * 1.0 +
-      stateScore[recovery.state] * 0.8 +
-      stateScore[history.state] * 0.4;
-    const normalized = Math.round((score / (30 * 3.4)) * 100);
-    const judgment = judgeScore(normalized, availability.state, recovery.state);
-
-    const reasons: Reason[] = pillars.map((p) => ({
-      key: p.key,
-      state: p.state,
-      title: reasonTitle(p),
-      detail: p.detail,
-    }));
-
-    const segments: OptionSegment[] = [
-      {
-        carrier: carrier ?? "",
-        flightNumber: digits ?? "",
-        flightLabel,
-        origin: leg.origin,
-        dest: leg.dest,
-        depLocal,
-        arrLocal,
-        schedDepUtc: leg.schedDepUtc,
-      },
-    ];
-
-    results.push({
-      rank: 0,
-      kind: "nonstop",
-      judgment,
-      confidence: confidenceFor(pillars, false),
-      score: normalized,
-      headline: headlineFor(judgment, pillars),
-      carrier,
-      flightNumber: digits,
+  const segments: OptionSegment[] = [
+    {
+      carrier: carrier ?? "",
+      flightNumber: digits ?? "",
       flightLabel,
       origin: leg.origin,
       dest: leg.dest,
       depLocal,
       arrLocal,
       schedDepUtc: leg.schedDepUtc,
-      schedArrUtc: leg.schedArrUtc,
-      segments,
-      pillars,
-      reasons,
-      recovery,
-      evidence: {
-        availability: availability.evidence,
-        conditions: operations.evidence,
-        history: history.evidence,
-        holiday,
-      },
-    });
+    },
+  ];
+
+  return {
+    rank: 0,
+    kind: "nonstop",
+    judgment,
+    confidence: confidenceFor(pillars, false),
+    score: normalized,
+    headline: headlineFor(judgment, pillars),
+    carrier,
+    flightNumber: digits,
+    flightLabel,
+    origin: leg.origin,
+    dest: leg.dest,
+    depLocal,
+    arrLocal,
+    schedDepUtc: leg.schedDepUtc,
+    schedArrUtc: leg.schedArrUtc,
+    segments,
+    pillars,
+    reasons: reasonsOf(pillars),
+    recovery,
+    evidence: {
+      availability: availability.evidence,
+      conditions: operations.evidence,
+      history: history.evidence,
+      holiday,
+    },
+  };
+}
+
+function scoreOf(pillars: Pillar[]): number {
+  const at = (key: string) => pillars.find((p) => p.key === key)?.state ?? "unknown";
+  const raw =
+    stateScore[at("availability")] * 1.2 +
+    stateScore[at("operations")] * 1.0 +
+    stateScore[at("recovery")] * 0.8 +
+    stateScore[at("history")] * 0.4;
+  return Math.round((raw / (30 * 3.4)) * 100);
+}
+
+function reasonsOf(pillars: Pillar[]): Reason[] {
+  return pillars.map((p) => ({ key: p.key, state: p.state, title: reasonTitle(p), detail: p.detail }));
+}
+
+const worst = (a: PillarState, b: PillarState): PillarState => {
+  const order: PillarState[] = ["poor", "fair", "unknown", "good"];
+  return order.indexOf(a) <= order.indexOf(b) ? a : b;
+};
+
+/* ------------------------------- connections ------------------------------ */
+
+interface ConnectionCandidate {
+  first: RouteLeg;
+  second: RouteLeg;
+  hub: string;
+  layoverMinutes: number;
+}
+
+const MIN_LAYOVER = 60;
+const MAX_LAYOVER = 6 * 60;
+
+async function findConnections(
+  input: RankInput,
+  origins: string[],
+  dests: string[],
+  carrierFilter: string,
+  limit: number,
+): Promise<ConnectionCandidate[]> {
+  const origin = origins[0];
+  if (!origin) return [];
+
+  const { legs: fromOrigin } = await findOriginDepartures(origin, input.travelDate, carrierFilter);
+  const destSet = new Set(dests.map((d) => d.toUpperCase()));
+
+  // Candidate hubs: the busiest places this origin actually flies to today.
+  const byHub = new Map<string, RouteLeg[]>();
+  for (const leg of fromOrigin) {
+    const hub = leg.dest.toUpperCase();
+    if (destSet.has(hub) || sameCity(hub, origin)) continue;
+    const list = byHub.get(hub) ?? [];
+    list.push(leg);
+    byHub.set(hub, list);
+  }
+
+  const hubs = [...byHub.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 3)
+    .map(([hub]) => hub);
+
+  const candidates: ConnectionCandidate[] = [];
+  for (const hub of hubs) {
+    for (const dest of dests) {
+      const { legs: onward } = await findRouteLegs(hub, dest, input.travelDate, carrierFilter);
+      if (onward.length === 0) continue;
+      for (const first of byHub.get(hub) ?? []) {
+        const arr = new Date(first.schedArrUtc).getTime();
+        const second = onward.find((l) => {
+          const gap = (new Date(l.schedDepUtc).getTime() - arr) / 60000;
+          return gap >= MIN_LAYOVER && gap <= MAX_LAYOVER;
+        });
+        if (!second) continue;
+        candidates.push({
+          first,
+          second,
+          hub,
+          layoverMinutes: Math.round((new Date(second.schedDepUtc).getTime() - arr) / 60000),
+        });
+        break; // one connection per first leg is enough
+      }
+    }
+  }
+
+  candidates.sort(
+    (a, b) => new Date(a.first.schedDepUtc).getTime() - new Date(b.first.schedDepUtc).getTime(),
+  );
+  return candidates.slice(0, limit);
+}
+
+async function scoreConnection(
+  input: RankInput,
+  candidate: ConnectionCandidate,
+  boards: Map<string, Board>,
+  holiday: HolidayEvidence | null,
+): Promise<RankedOption> {
+  const { first, second, hub, layoverMinutes } = candidate;
+  const labelOf = (l: RouteLeg) =>
+    l.airlineCode && l.flightNumber ? `${l.airlineCode}${l.flightNumber}` : `${l.origin}→${l.dest}`;
+
+  const firstBoard = boards.get(`${first.origin}-${first.dest}`) ?? EMPTY_BOARD;
+  const secondBoard = boards.get(`${second.origin}-${second.dest}`) ?? EMPTY_BOARD;
+  const a1 = availabilityFor(firstBoard.map.get(labelOf(first)), firstBoard.ok, firstBoard.checkedAt, firstBoard.reason);
+  const a2 = availabilityFor(secondBoard.map.get(labelOf(second)), secondBoard.ok, secondBoard.checkedAt, secondBoard.reason);
+
+  const depLocal = hhmm(first.schedDepUtc, first.depLocalTime);
+  const [operations, history] = await Promise.all([
+    operationsFor(first.origin, first.dest, input.travelDate, depLocal),
+    historyFor(
+      first.origin,
+      second.dest,
+      input.travelDate,
+      first.depLocalTime ? Number(first.depLocalTime.slice(0, 2)) : null,
+      first.airlineCode ?? null,
+    ),
+  ]);
+
+  const availabilityState = worst(a1.state, a2.state);
+  const recovery: RecoveryEvidence = {
+    state: "fair",
+    label: "Fair",
+    summary: `This routing needs two clears — one in ${first.origin} and one in ${hub}.`,
+    hoursRemaining: 0,
+    laterNonstops: [],
+    alternates: [],
+  };
+
+  const pillars: Pillar[] = [
+    {
+      key: "availability",
+      state: availabilityState,
+      label: availabilityState === a1.state ? a1.label : a2.label,
+      detail: `${a1.label} out of ${first.origin}, ${a2.label} out of ${hub}.`,
+    },
+    { key: "operations", state: operations.state, label: operations.state === "good" ? "Normal" : operations.label, detail: operations.detail },
+    { key: "history", state: history.state, label: history.label, detail: history.detail },
+    { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
+  ];
+
+  // A connection is strictly harder than a nonstop: two chances to be left behind.
+  const normalized = Math.max(0, scoreOf(pillars) - 10);
+  const judgment = judgeScore(normalized, availabilityState, recovery.state);
+
+  const segments: OptionSegment[] = [first, second].map((l) => ({
+    carrier: l.airlineCode ?? "",
+    flightNumber: l.flightNumber ?? "",
+    flightLabel: labelOf(l),
+    origin: l.origin,
+    dest: l.dest,
+    depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
+    arrLocal: hhmm(l.schedArrUtc),
+    schedDepUtc: l.schedDepUtc,
+  }));
+
+  return {
+    rank: 0,
+    kind: "connection",
+    judgment,
+    confidence: "low",
+    score: normalized,
+    headline: `Gets you there, but it needs two clears with a ${Math.floor(layoverMinutes / 60)}h ${layoverMinutes % 60}m connection in ${hub}.`,
+    carrier: first.airlineCode ?? null,
+    flightNumber: null,
+    flightLabel: `${first.origin} → ${hub} → ${second.dest}`,
+    origin: first.origin,
+    dest: second.dest,
+    depLocal,
+    arrLocal: hhmm(second.schedArrUtc),
+    schedDepUtc: first.schedDepUtc,
+    schedArrUtc: second.schedArrUtc,
+    segments,
+    pillars,
+    reasons: reasonsOf(pillars),
+    recovery,
+    evidence: {
+      availability: a1.evidence,
+      conditions: operations.evidence,
+      history: history.evidence,
+      holiday,
+    },
+  };
+}
+
+/* ------------------------------- entry point ------------------------------ */
+
+export async function rankStandbyOptions(input: RankInput): Promise<RankResult> {
+  const carrierFilter =
+    input.carriers && input.carriers.length === 1 ? (input.carriers[0] ?? ALL_AIRLINES) : ALL_AIRLINES;
+  const maxStops = input.maxStops ?? 1;
+  const nearby = input.nearby ?? false;
+
+  const origins = expandAirports(input.origin, nearby);
+  const dests = expandAirports(input.dest, nearby);
+
+  // Airport pairs to scan, primary pair first, capped to protect the flight-data budget.
+  const pairs: Array<[string, string]> = [];
+  for (const o of origins) for (const d of dests) if (o !== d) pairs.push([o, d]);
+  const scanned = pairs.slice(0, 3);
+
+  const holiday = await holidayFor(input.dest, input.travelDate);
+
+  let anyBoardBlocked = false;
+  let anyLegsBeforeCarrierFilter = 0;
+  let anyLegsAtAll = 0;
+  const allowed = input.carriers && input.carriers.length > 0 ? new Set(input.carriers) : null;
+
+  const results: RankedOption[] = [];
+  const boards = new Map<string, Board>();
+
+  for (const [origin, dest] of scanned) {
+    const [{ legs, budgetBlocked }, board] = await Promise.all([
+      findRouteLegs(origin, dest, input.travelDate, carrierFilter),
+      availabilityBoard({ ...input, origin, dest }),
+    ]);
+    boards.set(`${origin}-${dest}`, board);
+    if (budgetBlocked) anyBoardBlocked = true;
+    anyLegsBeforeCarrierFilter += legs.length;
+
+    const usable = legs
+      .filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode))
+      .sort((a, b) => new Date(a.schedDepUtc).getTime() - new Date(b.schedDepUtc).getTime())
+      .slice(0, 12);
+    anyLegsAtAll += usable.length;
+
+    for (const leg of usable) {
+      results.push(await scoreLeg(input, leg, usable, board, holiday));
+    }
+  }
+
+  // Connections only when nonstops are thin — they cost extra flight-data calls.
+  if (maxStops >= 1 && results.length < 3) {
+    const candidates = await findConnections(input, origins, dests, carrierFilter, 3 - results.length);
+    for (const candidate of candidates) {
+      const key = `${candidate.second.origin}-${candidate.second.dest}`;
+      if (!boards.has(key)) {
+        boards.set(
+          key,
+          await availabilityBoard({
+            ...input,
+            origin: candidate.second.origin,
+            dest: candidate.second.dest,
+          }),
+        );
+      }
+      const firstKey = `${candidate.first.origin}-${candidate.first.dest}`;
+      if (!boards.has(firstKey)) boards.set(firstKey, EMPTY_BOARD);
+      results.push(await scoreConnection(input, candidate, boards, holiday));
+    }
   }
 
   results.sort((a, b) => b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""));
   results.forEach((r, i) => {
     r.rank = i + 1;
   });
-  return results;
+
+  let reason: RankReason | null = null;
+  if (results.length === 0) {
+    if (anyBoardBlocked) reason = "data_unavailable";
+    else if (anyLegsBeforeCarrierFilter > 0 && anyLegsAtAll === 0) reason = "carrier_filter";
+    else if (isLateInDay(input.travelDate)) reason = "day_over";
+    else reason = "no_service";
+  }
+
+  return { options: results, reason, scanned: { origins, dests } };
+}
+
+/** Rough "the useful part of the day is behind you" test, in the origin's rough local time. */
+function isLateInDay(travelDate: string): boolean {
+  const end = new Date(`${travelDate}T23:59:59Z`).getTime();
+  const now = Date.now();
+  return now < end && end - now < 8 * 3600000;
 }
 
 function reasonTitle(p: Pillar): string {
