@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { createPlan, getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
 import { AIRLINES } from "@/lib/aircue/airlines";
-import type { Judgment } from "@/lib/aircue/standby";
+import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plan/")({
   head: () => ({
@@ -52,7 +52,7 @@ function PlanHome() {
   const [cabin, setCabin] = useState("any");
   const [carrierMode, setCarrierMode] = useState("profile");
   const [showPrefs, setShowPrefs] = useState(false);
-  const [allowConnections, setAllowConnections] = useState(true);
+  const [routingMode, setRoutingMode] = useState<RoutingMode>("best");
   const [nearby, setNearby] = useState(false);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => loadProfile() });
@@ -80,7 +80,8 @@ function PlanHome() {
           travelers,
           cabin,
           carriers,
-          maxStops: allowConnections ? 1 : 0,
+          maxStops: routingMode === "nonstop" ? 0 : 1,
+          routingMode,
           nearby,
         },
       }),
@@ -165,24 +166,25 @@ function PlanHome() {
             </div>
 
             <div>
-              <Label className="text-xs text-muted-foreground">Routing</Label>
+              <Label className="text-xs text-muted-foreground">How wide should we look?</Label>
               <Select
-                value={allowConnections ? "connections" : "nonstop"}
-                onValueChange={(v) => setAllowConnections(v === "connections")}
+                value={routingMode}
+                onValueChange={(v) => setRoutingMode(v as RoutingMode)}
               >
                 <SelectTrigger className="mt-1.5 h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="connections">
-                    Nonstops first, connections if needed
-                  </SelectItem>
-                  <SelectItem value="nonstop">Nonstops only</SelectItem>
+                  {(["best", "nonstop", "wide"] as RoutingMode[]).map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {routingModeLabel[mode]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                A connection means clearing standby twice, so AirCue only suggests one when
-                nonstops are thin.
+                {routingModeHint[routingMode]} · a connection means clearing standby twice, so
+                AirCue only suggests one when the ways onward make up for it.
               </p>
             </div>
 
