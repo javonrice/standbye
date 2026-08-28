@@ -86,7 +86,13 @@ function OptionsScreen() {
             </StandbyeTake>
           )}
 
-          <ul className="mt-5 space-y-3">
+          {plan.options.length > 0 && (
+            <h2 className="mt-6 font-display text-[19px] font-semibold tracking-tight">
+              Best standby setups
+            </h2>
+          )}
+
+          <ul className="mt-3 space-y-2.5">
             {plan.options.map((option) => (
               <li key={option.id}>
                 <StandbyOptionRow option={option} rank={option.rank} />
