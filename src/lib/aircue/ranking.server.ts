@@ -1310,10 +1310,10 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
       ]);
       boards.set(`${origin}-${dest}`, board);
       if (budgetBlocked) anyBlocked = true;
+      anyLegs += legs.length;
       const usable = legs
         .filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode))
         .slice(0, 6);
-      anyLegs += usable.length;
       const scored = await mapWithConcurrency(usable, LEG_CONCURRENCY, (leg) =>
         scoreLeg(input, leg, usable, board, holiday),
       );
