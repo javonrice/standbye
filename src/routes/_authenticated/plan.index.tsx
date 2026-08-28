@@ -299,22 +299,7 @@ function PlanHome() {
           <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
             {(plans ?? []).map((p) => (
               <li key={p.id}>
-                <Link
-                  to="/plans/$planId"
-                  params={{ planId: p.id }}
-                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-semibold tracking-tight">
-                      {p.origin} → {p.dest}
-                    </span>
-                    <span className="block text-[12px] text-muted-foreground">
-                      {p.travelDate} · {p.optionCount} option{p.optionCount === 1 ? "" : "s"}
-                    </span>
-                  </span>
-                  {p.bestJudgment && <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />}
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </Link>
+                <RecentPlanRow plan={p} />
               </li>
             ))}
           </ul>
