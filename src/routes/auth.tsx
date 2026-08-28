@@ -31,7 +31,11 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // Arriving with an onboarding draft means "Get started" — default to creating
+  // an account, not "Welcome back".
+  const [mode, setMode] = useState<"signin" | "signup">(() =>
+    readDraft() ? "signup" : "signin",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
