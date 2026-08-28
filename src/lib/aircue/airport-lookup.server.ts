@@ -163,3 +163,53 @@ export async function localClockAt(iata: string, utcIso: string): Promise<string
     return "";
   }
 }
+
+const ALASKA_TZ = new Set([
+  "America/Anchorage",
+  "America/Juneau",
+  "America/Nome",
+  "America/Sitka",
+  "America/Yakutat",
+  "America/Metlakatla",
+  "America/Adak",
+]);
+
+const CONUS_TZ_PREFIXES = [
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Phoenix",
+  "America/Detroit",
+  "America/Boise",
+  "America/Indiana/",
+  "America/Kentucky/",
+  "America/North_Dakota/",
+  "America/Menominee",
+];
+
+/**
+ * The real ICAO identifier for an airport, used for AWC weather lookups.
+ * Prefers the stored code; otherwise derives the US prefix from state/timezone.
+ * Returns null for anything we cannot place (Canada, Caribbean, Mexico, …) so
+ * callers skip the request instead of sending a malformed id AWC rejects.
+ */
+export async function icaoForAirport(iata: string): Promise<string | null> {
+  const code = iata.toUpperCase();
+  // icao, state and tz all come from the shared metadata row, so this costs
+  // no query of its own once any caller has touched the airport.
+  const row = await airportMeta(code);
+  let icao: string | null = row?.icao?.trim() ? row.icao.trim().toUpperCase() : null;
+
+  if (!icao && code.length === 3) {
+    const state = row?.state?.toUpperCase() ?? null;
+    const tz = row?.tz ?? "";
+    if (state === "HI" || state === "AK" || tz === "Pacific/Honolulu" || ALASKA_TZ.has(tz)) {
+      icao = `P${code}`;
+    } else if (CONUS_TZ_PREFIXES.some((p) => (p.endsWith("/") ? tz.startsWith(p) : tz === p))) {
+      icao = `K${code}`;
+    }
+  }
+
+  return icao;
+}

@@ -34,20 +34,21 @@ function toIso(raw: string): string {
 }
 
 async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<RouteLeg | null> {
-  // A full-leg board and a flight-status record both carry departure/arrival;
-  // a legacy/partial board reports the queried airport implicitly and the far
-  // end under `movement`.
+  // A departures board reports the queried airport implicitly and the far end
+  // under `movement`; a flight-status record carries departure/arrival instead.
   const depMovement = flight.departure ?? flight.movement;
   const arrMovement = flight.arrival ?? flight.movement;
 
   const dep = depMovement?.scheduledTime?.utc;
   if (!dep) return null;
 
-  const origin = flight.departure
-    ? (flight.departure.airport?.iata ??
+  // A board result for the queried airport usually omits `departure.airport`
+  // because the origin is implicit; only a full flight-status record carries it.
+  const origin = flight.departure?.airport
+    ? (flight.departure.airport.iata ??
       (await iataFromAirportName(
-        flight.departure.airport?.name,
-        flight.departure.airport?.icao,
+        flight.departure.airport.name,
+        flight.departure.airport.icao,
       )))
     : boardOrigin;
   const dest =
@@ -55,9 +56,9 @@ async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<Route
     (await iataFromAirportName(arrMovement?.airport?.name, arrMovement?.airport?.icao));
   if (!origin || !dest) return null;
 
-  // A real arrival only ever comes from an `arrival` block (full-leg board via
-  // withLeg=true, or a flight-status record). A bare `movement` names the far
-  // airport but carries the departure clock, so it is never an arrival.
+  // A true `arrival` block (from withLeg=true board or flight-status) carries
+  // the destination clock. A bare `movement` object only names the far airport
+  // and carries the departure clock, so it must never be treated as arrival.
   const arr = flight.arrival?.scheduledTime?.utc;
   const arrLocal = flight.arrival?.scheduledTime?.local;
   const depLocal = depMovement?.scheduledTime?.local;

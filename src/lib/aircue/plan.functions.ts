@@ -16,7 +16,13 @@ export interface StandbyProfileValues {
   homeAirports: string[];
   notifyMode: string;
   onboarded: boolean;
+  painPoint?: string | null | undefined;
+  accessMode?: string | null | undefined;
+  freeDayUsed?: boolean | undefined;
+  notifyOptin?: boolean | undefined;
+  coachSeen?: boolean | undefined;
 }
+
 
 export interface PlanSummary {
   id: string;
@@ -69,12 +75,18 @@ export const saveStandbyProfile = createServerFn({ method: "POST" })
   .inputValidator((input: StandbyProfileValues) =>
     z
       .object({
-        homeAirline: z.string().min(2).max(3),
+        homeAirline: z.string().max(3),
         travelerType: z.string().min(2).max(24),
-        airlineAccess: z.array(z.string().min(2).max(3)).max(12),
+        airlineAccess: z.array(z.string().min(2).max(3)).max(20),
         homeAirports: z.array(z.string().length(3)).max(6),
         notifyMode: z.string().min(3).max(24),
         onboarded: z.boolean(),
+        painPoint: z.string().max(32).nullable().optional(),
+        accessMode: z.string().max(16).nullable().optional(),
+        freeDayUsed: z.boolean().optional(),
+        notifyOptin: z.boolean().optional(),
+        coachSeen: z.boolean().optional(),
+
       })
       .parse(input),
   )

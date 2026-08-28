@@ -9,6 +9,10 @@ const ROWS = [
   { iata: "DEN", icao: "KDEN", lat: 39.86, lon: -104.67, city: "Denver", state: "CO", tz: "America/Denver" },
   { iata: "HNL", icao: "PHNL", lat: 21.32, lon: -157.92, city: "Honolulu", state: "HI", tz: "Pacific/Honolulu" },
   { iata: "NUL", icao: null, lat: 1, lon: 2, city: null, state: null, tz: null },
+  // No stored ICAO: the prefix must be derived from state/timezone.
+  { iata: "ANC", icao: null, lat: 61.17, lon: -150.0, city: "Anchorage", state: "AK", tz: "America/Anchorage" },
+  { iata: "ORD", icao: "  kord ", lat: 41.97, lon: -87.9, city: "Chicago", state: "IL", tz: "America/Chicago" },
+  { iata: "YYZ", icao: null, lat: 43.68, lon: -79.63, city: "Toronto", state: null, tz: "America/Toronto" },
 ];
 
 let selects: string[] = [];
@@ -30,9 +34,8 @@ mock.module("@/integrations/supabase/client.server", () => ({
   },
 }));
 
-const { airportGeo, airportMeta, airportTimezone, airportLookupStats } = await import(
-  "@/lib/aircue/airport-lookup.server"
-);
+const { airportGeo, airportMeta, airportTimezone, icaoForAirport, airportLookupStats } =
+  await import("@/lib/aircue/airport-lookup.server");
 
 afterEach(() => {
   selects = [];
@@ -83,6 +86,30 @@ describe("airport metadata cache", () => {
     const before = airportLookupStats.metadataReads;
     await airportMeta("den");
     await airportGeo(["den"]);
+    expect(airportLookupStats.metadataReads - before).toBe(0);
+  });
+});
+
+describe("icaoForAirport over the shared cache", () => {
+  it("prefers the stored ICAO, trimmed and uppercased", async () => {
+    expect(await icaoForAirport("ORD")).toBe("KORD");
+    expect(await icaoForAirport("DEN")).toBe("KDEN");
+  });
+
+  it("derives P/K prefixes from state and timezone when no ICAO is stored", async () => {
+    expect(await icaoForAirport("ANC")).toBe("PANC");
+  });
+
+  it("returns null for an airport it cannot place, so callers skip the request", async () => {
+    expect(await icaoForAirport("YYZ")).toBeNull();
+    expect(await icaoForAirport("ZZZ")).toBeNull();
+  });
+
+  it("costs no query of its own once the airport is cached", async () => {
+    await airportMeta("ORD");
+    const before = airportLookupStats.metadataReads;
+    await icaoForAirport("ORD");
+    await icaoForAirport("ord");
     expect(airportLookupStats.metadataReads - before).toBe(0);
   });
 });

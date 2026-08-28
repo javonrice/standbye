@@ -37,7 +37,11 @@ export const Route = createFileRoute("/_authenticated/plan/")({
   component: PlanHome,
 });
 
-const today = () => new Date().toISOString().slice(0, 10);
+/** Local calendar date, not UTC — otherwise evening users lose "today". */
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 function PlanHome() {
   const navigate = useNavigate();

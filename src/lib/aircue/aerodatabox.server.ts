@@ -257,14 +257,7 @@ export function pickLeg(
 }
 
 
-/**
- * Tier 2: departures board for one airport/day, shared across every watch. Cached 1h.
- *
- * `withLeg=true` makes each item carry the full leg — both `departure` and
- * `arrival` with real scheduled times — instead of only the queried end plus a
- * bare `movement`. Same endpoint, same single request, same 2 units, so arrival
- * times come free rather than costing a per-flight status call.
- */
+/** Tier 2: departures board for one airport/day, shared across every watch. Cached 1h. */
 export async function fetchDepartureBoard(
   iata: string,
   travelDate: string,
@@ -274,7 +267,6 @@ export async function fetchDepartureBoard(
 ): Promise<{ departures: AdbFlight[]; budgetBlocked: boolean }> {
   if (!aeroDataBoxEnabled()) return { departures: [], budgetBlocked: true };
 
-  // v2: payloads cached before withLeg=true carry no arrival times.
   const cacheKey = `adb:fids:v2:${iata}:${travelDate}:${cacheSuffix}`;
 
   const result = await cachedCall<{ departures?: AdbFlight[] }>(
