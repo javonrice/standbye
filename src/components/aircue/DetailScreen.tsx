@@ -151,17 +151,24 @@ export function PartyScale({
   tested: Array<{ adults: number; showing: boolean }>;
 }) {
   return (
-    <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+    <div className="flex flex-wrap items-end justify-center gap-x-7 gap-y-3">
       {tested.map((t) => (
-        <div key={t.adults} className="flex flex-col items-center gap-2">
-          <span className="text-[13px] font-medium text-muted-foreground">{t.adults}</span>
+        <div key={t.adults} className="flex flex-col items-center gap-1.5">
           <span
             className={cn(
-              "h-3.5 w-3.5 rounded-full",
+              "h-4 w-4 rounded-full",
               t.showing ? "bg-primary" : "border border-border bg-transparent",
             )}
             aria-label={t.showing ? "still selling" : "not selling"}
           />
+          <span
+            className={cn(
+              "text-xs font-medium",
+              t.showing ? "text-foreground" : "text-muted-foreground/60",
+            )}
+          >
+            {t.adults}
+          </span>
         </div>
       ))}
     </div>
