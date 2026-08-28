@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createPlan, getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
+import type { PlanSummary } from "@/lib/aircue/plan.functions";
 import { AIRLINES } from "@/lib/aircue/airlines";
 import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } from "@/lib/aircue/standby";
 
