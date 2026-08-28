@@ -96,6 +96,7 @@ export const createPlan = createServerFn({ method: "POST" })
     carriers: string[] | null;
     maxStops?: number;
     nearby?: boolean;
+    routingMode?: string;
   }) =>
     z
       .object({
@@ -107,6 +108,7 @@ export const createPlan = createServerFn({ method: "POST" })
         carriers: z.array(z.string().min(2).max(3)).max(12).nullable(),
         maxStops: z.number().int().min(0).max(1).optional(),
         nearby: z.boolean().optional(),
+        routingMode: z.enum(["best", "nonstop", "wide"]).optional(),
       })
       .parse(input),
   )
