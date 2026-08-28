@@ -85,7 +85,14 @@ export interface RecoveryEvidence {
   summary: string;
   hoursRemaining: number | null;
   laterNonstops: Array<{ flightLabel: string; depLocal: string; judgment: Judgment }>;
-  alternates: Array<{ routing: string; depLocal: string; judgment: Judgment; note: string }>;
+  alternates: Array<{
+    routing: string;
+    depLocal: string;
+    judgment: Judgment;
+    note: string;
+    /** Set when the alternate is a gateway we can open. */
+    hub?: string;
+  }>;
 }
 
 export interface ReportedLoad {
