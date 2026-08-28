@@ -126,16 +126,17 @@ export function DataBar({
 }) {
   const clamped = Math.min(100, Math.max(0, fill));
   return (
-    <div className="py-2.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          {label}
-        </p>
-        <p className="text-[13px] font-medium">{value}</p>
-      </div>
-      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+    <div className="py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-[15px] font-medium leading-snug">{value}</p>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className={cn("h-full rounded-full", tone === "primary" ? "bg-primary" : "bg-foreground/30")}
+          className={cn(
+            "h-full rounded-full",
+            tone === "primary" ? "bg-primary" : "bg-foreground/30",
+          )}
           style={{ width: `${clamped}%` }}
         />
       </div>
@@ -150,7 +151,7 @@ export function PartyScale({
   tested: Array<{ adults: number; showing: boolean }>;
 }) {
   return (
-    <div className="mt-4 flex items-end gap-5">
+    <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
       {tested.map((t) => (
         <div key={t.adults} className="flex flex-col items-center gap-2">
           <span className="text-[13px] font-medium text-muted-foreground">{t.adults}</span>
