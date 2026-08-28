@@ -49,17 +49,23 @@ Still considering nonstop?
 - Other ways: next 3 as quiet one-line rows, with "Show all X" for the rest. No accordions — the earlier expandable gateway card is replaced by the detail screen below.
 - Nonstops live in a small secondary section at the bottom only.
 
-## 3. Route-detail screen
+## 3. Route-detail screen — vertical itinerary timeline
 
-Tapping any escape route opens its own screen:
+Tapping any escape route opens its own screen, laid out like a Trip.com multi-leg itinerary rather than a card stack:
 
 - Judgment face + "STRONG ESCAPE ROUTE"
-- Big path `IAH → DFW → ORD` with the connecting code dominant and city beneath
-- Extra travel vs nonstop
-- **GET OUT OF HOUSTON** — the realistic first-leg shots (time, flight, chevron)
-- **ONCE YOU'RE IN DALLAS** — the useful onward departures
+- Big path `IAH → DFW → ORD` with the connecting code dominant and city beneath; extra travel vs nonstop
+- A single vertical timeline rail down the screen, with times on the left and content on the right:
+  - **GET OUT OF HOUSTON** — each realistic first-leg shot as a timeline node (time, flight, judgment, chevron)
+  - a connection node between the halves: "Connect in Dallas — you clear standby again here"
+  - **ONCE YOU'RE IN DALLAS** — the useful onward departures as timeline nodes
 - **RECOVERY ROOM** — colored state plus plain-English rationale, including that a connection means clearing standby twice
 - Actions: "Use this escape" and "Check another route" (the existing specific-airport check)
+
+## Reference feel
+
+Trip.com transfer results (transfer-in-X chips, clear two-leg summary), Transit and Apple Maps route alternatives (one obvious pick, quiet compact alternates), Trip.com multi-leg itinerary (the vertical timeline rail), Flighty alternate flights (calm, scannable flight rows). Standbye's own tokens, type, radii, and bottom nav stay unchanged.
+
 
 ## 4. Copy rules
 
