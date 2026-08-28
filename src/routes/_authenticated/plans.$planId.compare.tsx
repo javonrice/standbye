@@ -1,13 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 
-import { JudgmentPill } from "@/components/aircue/JudgmentPill";
 import { getPlan } from "@/lib/aircue/plan.functions";
-import { pillarDot, pillarTitle, type PillarKey } from "@/lib/aircue/standby";
-
-const pillarOrder: PillarKey[] = ["availability", "operations", "history", "recovery"];
+import {
+  judgmentFace,
+  judgmentShort,
+  pillarDot,
+  type PillarState,
+  type StandbyOption,
+} from "@/lib/aircue/standby";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
   head: () => ({
@@ -25,6 +29,61 @@ export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
   component: ComparePage,
 });
 
+interface Cell {
+  text: string;
+  state?: PillarState;
+}
+
+/** One comparison row: a label plus one short cell per option. */
+function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell[] }> {
+  const pillar = (o: StandbyOption, key: string) => o.pillars.find((p) => p.key === key);
+
+  return [
+    {
+      label: "Judgment",
+      cells: options.map((o) => ({ text: `${judgmentFace[o.judgment]} ${judgmentShort[o.judgment]}` })),
+    },
+    { label: "Depart", cells: options.map((o) => ({ text: o.depLocal || "—" })) },
+    { label: "Arrive", cells: options.map((o) => ({ text: o.arrLocal || "—" })) },
+    {
+      label: "Clears",
+      cells: options.map((o) => {
+        const n = Math.max(1, o.segments.length);
+        return { text: `${n} standby${n === 1 ? "" : "s"}` };
+      }),
+    },
+    {
+      label: "Availability",
+      cells: options.map((o) => {
+        const p = pillar(o, "availability");
+        return { text: p?.label ?? "Unknown", state: p?.state };
+      }),
+    },
+    {
+      label: "Operations",
+      cells: options.map((o) => {
+        const p = pillar(o, "operations");
+        return { text: p?.label ?? "Unknown", state: p?.state };
+      }),
+    },
+    {
+      label: "Recovery",
+      cells: options.map((o) => ({
+        text: o.evidence.recovery.label,
+        state: o.evidence.recovery.state,
+      })),
+    },
+    {
+      label: "Later shots",
+      cells: options.map((o) => ({ text: String(o.evidence.recovery.laterNonstops.length) })),
+    },
+    {
+      label: "Complexity",
+      cells: options.map((o) => ({ text: o.kind === "connection" ? "Medium" : "Low" })),
+    },
+  ];
+}
+
 function ComparePage() {
   const { planId } = Route.useParams();
   const fetchPlan = useServerFn(getPlan);
@@ -34,6 +93,8 @@ function ComparePage() {
   });
 
   const options = (plan?.options ?? []).slice(0, 3);
+  const rows = buildRows(options);
+  const pick = options[0];
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-4xl md:px-10 md:pt-12">
@@ -59,129 +120,97 @@ function ComparePage() {
       )}
 
       {options.length > 0 && (
-        <div className="mt-5 space-y-5 md:space-y-0 md:overflow-x-auto">
-          {/* Mobile: one card per option, pillars stacked inside */}
-          <div className="space-y-4 md:hidden">
-            {options.map((o, i) => (
-              <section
-                key={o.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-card"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Option {i + 1}
-                    </p>
-                    <p className="font-display text-base font-bold tracking-tight">
-                      {o.flightLabel}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{o.depLocal} local</p>
-                  </div>
-                  <JudgmentPill judgment={o.judgment} size="sm" />
-                </div>
-
-                <p className="mt-3 text-sm text-foreground/85">{o.headline}</p>
-
-                <dl className="mt-3 space-y-2">
-                  {pillarOrder.map((key) => {
-                    const pillar = o.pillars.find((p) => p.key === key);
-                    return (
-                      <div
-                        key={key}
-                        className="rounded-xl border border-border bg-surface px-3 py-2.5"
-                      >
-                        <dt className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${pillarDot[pillar?.state ?? "unknown"]}`}
-                            aria-hidden
-                          />
-                          {pillarTitle[key]}
-                        </dt>
-                        <dd className="mt-0.5 text-sm font-semibold text-foreground">
-                          {pillar?.label ?? "Unknown"}
-                        </dd>
-                        <dd className="mt-0.5 text-xs text-muted-foreground">
-                          {pillar?.detail ?? "No read."}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
-
-                <Link
-                  to="/options/$optionId"
-                  params={{ optionId: o.id }}
-                  className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary"
-                >
-                  See the cue <ArrowLeft className="h-4 w-4 rotate-180" />
-                </Link>
-              </section>
-            ))}
-          </div>
-
-          {/* Desktop: side-by-side grid */}
-          <div className="hidden md:block">
-            <div className="grid min-w-[520px] grid-cols-[7rem_repeat(auto-fit,minmax(9rem,1fr))] gap-x-3 gap-y-3">
-              <div />
-              {options.map((o) => (
-                <Link
+        <>
+          <div className="-mx-5 mt-5 overflow-x-auto px-5 md:mx-0 md:px-0">
+            <div
+              className="min-w-max rounded-2xl border border-border bg-card"
+              style={{
+                display: "grid",
+                gridTemplateColumns: `6.5rem repeat(${options.length}, minmax(8rem, 1fr))`,
+              }}
+            >
+              <div className="border-b border-border px-3 py-3" />
+              {options.map((o, i) => (
+                <div
                   key={o.id}
-                  to="/options/$optionId"
-                  params={{ optionId: o.id }}
-                  className="rounded-2xl border border-border bg-card p-3"
+                  className={cn(
+                    "border-b border-l border-border px-3 py-3",
+                    i === 0 && "bg-accent/40",
+                  )}
                 >
-                  <p className="font-display text-sm font-semibold">{o.flightLabel}</p>
-                  <p className="text-xs text-muted-foreground">{o.depLocal} local</p>
-                  <div className="mt-2">
-                    <JudgmentPill judgment={o.judgment} size="sm" />
+                  {i === 0 && (
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-primary">
+                      Standbye pick
+                    </p>
+                  )}
+                  <p className="mt-0.5 truncate font-display text-[15px] font-bold tracking-tight">
+                    {o.kind === "connection" && o.segments.length > 1
+                      ? `Via ${o.segments[0]?.dest ?? "hub"}`
+                      : o.flightLabel}
+                  </p>
+                </div>
+              ))}
+
+              {rows.map((row, r) => (
+                <div key={row.label} className="contents">
+                  <div
+                    className={cn(
+                      "px-3 py-2.5 text-[12px] font-semibold text-muted-foreground",
+                      r < rows.length - 1 && "border-b border-border",
+                    )}
+                  >
+                    {row.label}
                   </div>
-                </Link>
-              ))}
-
-              {pillarOrder.map((key) => (
-                <PillarRow key={key} pillarKey={key} options={options} />
-              ))}
-
-              <div className="self-start pt-1 text-xs font-semibold text-muted-foreground">
-                Read on it
-              </div>
-              {options.map((o) => (
-                <p key={o.id} className="text-xs text-muted-foreground">
-                  {o.headline}
-                </p>
+                  {row.cells.map((cell, i) => (
+                    <div
+                      key={`${row.label}-${i}`}
+                      className={cn(
+                        "flex items-center gap-1.5 border-l border-border px-3 py-2.5 text-[14px] font-medium",
+                        r < rows.length - 1 && "border-b",
+                        i === 0 && "bg-accent/40",
+                      )}
+                    >
+                      {cell.state && (
+                        <span
+                          aria-hidden
+                          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pillarDot[cell.state])}
+                        />
+                      )}
+                      <span className="truncate">{cell.text}</span>
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
           </div>
-        </div>
+
+          {pick && (
+            <p className="mt-4 text-[15px] leading-snug text-foreground">
+              <span className="font-semibold">Why the pick. </span>
+              {pick.headline}
+            </p>
+          )}
+
+          <div className="mt-5 space-y-2">
+            {options.map((o) => (
+              <Link
+                key={o.id}
+                to="/options/$optionId"
+                params={{ optionId: o.id }}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{o.flightLabel}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {o.depLocal} local · {judgmentShort[o.judgment]}
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </main>
-  );
-}
-
-function PillarRow({
-  pillarKey,
-  options,
-}: {
-  pillarKey: PillarKey;
-  options: NonNullable<Awaited<ReturnType<typeof getPlan>>>["options"];
-}) {
-  return (
-    <>
-      <div className="self-start pt-1 text-xs font-semibold text-muted-foreground">
-        {pillarTitle[pillarKey]}
-      </div>
-      {options.map((o) => {
-        const pillar = o.pillars.find((p) => p.key === pillarKey);
-        return (
-          <div key={o.id} className="rounded-xl border border-border bg-surface px-3 py-2">
-            <p className="flex items-center gap-1.5 text-sm font-medium">
-              <span className={`h-2 w-2 rounded-full ${pillarDot[pillar?.state ?? "unknown"]}`} />
-              {pillar?.label ?? "Unknown"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{pillar?.detail ?? "No read."}</p>
-          </div>
-        );
-      })}
-    </>
   );
 }
