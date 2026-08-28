@@ -48,9 +48,11 @@ function OptionsScreen() {
           <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight">
             {plan.origin} → {plan.dest}
           </h1>
-          <p className="mt-2 text-[14px] text-muted-foreground">
-            {plan.travelDate} · {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"} ·{" "}
-            {plan.options.length} option{plan.options.length === 1 ? "" : "s"}
+          <p className="mt-2 text-[15px] font-medium text-foreground">
+            {longDate(plan.travelDate)}
+          </p>
+          <p className="mt-0.5 text-[14px] text-muted-foreground">
+            {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
           </p>
 
           {plan.options.length === 0 && (
