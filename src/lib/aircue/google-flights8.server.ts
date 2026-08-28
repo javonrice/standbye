@@ -12,7 +12,13 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const DEFAULT_TTL_MIN = 120;
 const NEAR_DEP_TTL_MIN = 60;
-const STEPDOWN = [7, 5, 4, 3, 2, 1] as const;
+/**
+ * The provider stops returning real carrier itineraries above a party of 4 —
+ * it falls back to a couple of long connections regardless of true inventory.
+ * So 4 is our "still selling freely" ceiling, not 9.
+ */
+const CEILING_PARTY = 4;
+const STEPDOWN = [3, 2, 1] as const;
 const API_HOST = "google-flights8.p.rapidapi.com";
 
 export type SellableBucket = "9+" | "1-8" | "0";
@@ -208,21 +214,21 @@ export async function buildRouteBoard(input: {
 
   try {
     const shared = { origin: input.origin, dest: input.dest, date: input.date, ttlMinutes };
-    const [at9, at1] = await Promise.all([
-      routeSearchCached({ ...shared, adults: 9 }),
+    const [atCeiling, at1] = await Promise.all([
+      routeSearchCached({ ...shared, adults: CEILING_PARTY }),
       routeSearchCached({ ...shared, adults: 1 }),
     ]);
-    const nine = nonstopsFrom(at9, input.carrier);
+    const top = nonstopsFrom(atCeiling, input.carrier);
     const one = nonstopsFrom(at1, input.carrier);
 
-    const adultsHit = [9, 1];
+    const adultsHit = [CEILING_PARTY, 1];
     const flights: RouteBoardFlight[] = [];
     const tight: string[] = [];
 
-    for (const [label, flight] of [...one, ...nine]) {
+    for (const [label, flight] of [...one, ...top]) {
       if (flights.some((f) => f.flightLabel === label)) continue;
-      const bookableAt9 = nine.has(label);
-      if (!bookableAt9) tight.push(label);
+      const bookableAtCeiling = top.has(label);
+      if (!bookableAtCeiling) tight.push(label);
       flights.push({
         airlineCode: flight.code,
         airlineName: flight.airlineName,
@@ -230,8 +236,8 @@ export async function buildRouteBoard(input: {
         flightLabel: label,
         depLocal: flight.depLocal,
         arrLocal: flight.arrLocal,
-        bucket: bookableAt9 ? "9+" : "1-8",
-        largestN: bookableAt9 ? 9 : null,
+        bucket: bookableAtCeiling ? "9+" : "1-8",
+        largestN: bookableAtCeiling ? CEILING_PARTY : null,
       });
     }
 
