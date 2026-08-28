@@ -31,9 +31,10 @@ export function AirportField({
   const [open, setOpen] = useState(false);
   const search = useServerFn(searchAirports);
   const { data: options } = useQuery({
-    queryKey: ["airports", value],
+    queryKey: ["airports-search", value],
     queryFn: () => search({ data: { q: value } }),
     enabled: value.length >= 2,
+    staleTime: 1000 * 60 * 5,
   });
 
   const normalized = value.toUpperCase();
