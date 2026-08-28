@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, BellOff, RefreshCw } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-import { JudgmentPill } from "@/components/aircue/JudgmentPill";
+import { CueBadge } from "@/components/aircue/CueBadge";
 import { PlanChangedTakeover } from "@/components/aircue/PlanChangedTakeover";
-import { listWatchPlans, refreshWatchPlan, stopWatchPlan } from "@/lib/aircue/plan.functions";
+import { listWatchPlans, type WatchSummary } from "@/lib/aircue/plan.functions";
 import { agoLabel, type Judgment } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/watching/")({
@@ -25,36 +25,84 @@ export const Route = createFileRoute("/_authenticated/watching/")({
   component: WatchingHome,
 });
 
+/** "2026-08-29" -> a friendly bucket heading, without timezone drift. */
+function dayHeading(travelDate: string): string {
+  const [y, m, d] = travelDate.split("-").map(Number);
+  if (!y || !m || !d) return travelDate;
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((date.getTime() - today.getTime()) / 86_400_000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days > 1 && days < 7) return date.toLocaleDateString(undefined, { weekday: "long" });
+  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function groupByDay(watches: WatchSummary[]) {
+  const sorted = [...watches].sort((a, b) =>
+    a.travelDate === b.travelDate
+      ? a.depLocal.localeCompare(b.depLocal)
+      : a.travelDate.localeCompare(b.travelDate),
+  );
+  const groups: { key: string; heading: string; items: WatchSummary[] }[] = [];
+  for (const w of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && last.key === w.travelDate) last.items.push(w);
+    else groups.push({ key: w.travelDate, heading: dayHeading(w.travelDate), items: [w] });
+  }
+  return groups;
+}
+
+function WatchRow({ watch }: { watch: WatchSummary }) {
+  const changed = watch.unseenChanges > 0;
+  return (
+    <li>
+      <Link
+        to="/watching/$watchId"
+        params={{ watchId: watch.id }}
+        className="flex items-center gap-3 py-3.5 transition-colors hover:bg-muted/40"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-2">
+            <p className="font-display text-[17px] font-semibold tracking-tight">
+              {watch.origin} → {watch.dest}
+            </p>
+            <span className="truncate text-sm text-muted-foreground">{watch.flightLabel}</span>
+          </div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <CueBadge judgment={watch.judgment as Judgment} size="sm" short />
+            <span className="truncate text-xs text-muted-foreground">
+              {changed
+                ? `Changed ${agoLabel(watch.lastCheckedAt)}`
+                : "No important changes"}
+            </span>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </Link>
+    </li>
+  );
+}
+
 function WatchingHome() {
-  const queryClient = useQueryClient();
   const list = useServerFn(listWatchPlans);
-  const stop = useServerFn(stopWatchPlan);
-  const refresh = useServerFn(refreshWatchPlan);
 
   const { data: watches, isLoading } = useQuery({
     queryKey: ["watches"],
     queryFn: () => list(),
   });
 
-  const end = useMutation({
-    mutationFn: (watchId: string) => stop({ data: { watchId } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watches"] }),
-  });
-
-  const recheck = useMutation({
-    mutationFn: (watchId: string) => refresh({ data: { watchId } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watches"] }),
-  });
-
   const active = (watches ?? []).filter((w) => w.state === "active");
   const ended = (watches ?? []).filter((w) => w.state !== "active");
   const changed = active.filter((w) => w.unseenChanges > 0);
+  const groups = groupByDay(active);
 
   const [takeoverDismissed, setTakeoverDismissed] = useState(false);
   const showTakeover = changed.length > 0 && !takeoverDismissed;
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-3xl md:px-10 md:pt-12">
+    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
       {showTakeover && (
         <PlanChangedTakeover watches={changed} onDismiss={() => setTakeoverDismissed(true)} />
       )}
@@ -76,73 +124,32 @@ function WatchingHome() {
         </div>
       )}
 
-      <ul className="mt-5 space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-        {active.map((w) => (
-          <li key={w.id} className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-display text-base font-semibold">
-                  {w.flightLabel} · {w.origin} → {w.dest}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {w.travelDate} · {w.depLocal} local
-                </p>
-              </div>
-              <JudgmentPill judgment={w.judgment as Judgment} size="sm" />
-            </div>
-
-            <p className="mt-2 text-sm text-foreground/85">{w.verdict}</p>
-
-            <p className="mt-1 text-xs text-muted-foreground">
-              Checked {agoLabel(w.lastCheckedAt)}
-              {w.unseenChanges > 0
-                ? ` · ${w.unseenChanges} new ${w.unseenChanges === 1 ? "update" : "updates"}`
-                : ""}
-            </p>
-
-            <div className="mt-3 flex items-center justify-between">
-              <Link
-                to="/watching/$watchId"
-                params={{ watchId: w.id }}
-                className="flex items-center gap-1 text-sm font-semibold text-primary"
-              >
-                What changed <ArrowRight className="h-4 w-4" />
-              </Link>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => recheck.mutate(w.id)}
-                  disabled={recheck.isPending}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  <RefreshCw className="h-4 w-4" /> Recheck
-                </button>
-                <button
-                  type="button"
-                  onClick={() => end.mutate(w.id)}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  <BellOff className="h-4 w-4" /> Stop
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {groups.map((group) => (
+        <section key={group.key} className="mt-6">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {group.heading}
+          </h2>
+          <ul className="mt-1 divide-y divide-border/70">
+            {group.items.map((w) => (
+              <WatchRow key={w.id} watch={w} />
+            ))}
+          </ul>
+        </section>
+      ))}
 
       {ended.length > 0 && (
-        <>
-          <h2 className="mt-8 font-display text-base font-bold tracking-tight">Finished</h2>
-          <ul className="mt-2 space-y-2">
+        <section className="mt-8">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Finished
+          </h2>
+          <ul className="mt-1 divide-y divide-border/70">
             {ended.map((w) => (
-              <li key={w.id} className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-sm text-muted-foreground">
-                  {w.flightLabel} · {w.origin} → {w.dest} · {w.travelDate}
-                </p>
+              <li key={w.id} className="py-3 text-sm text-muted-foreground">
+                {w.origin} → {w.dest} · {w.flightLabel} · {w.travelDate}
               </li>
             ))}
           </ul>
-        </>
+        </section>
       )}
     </main>
   );
