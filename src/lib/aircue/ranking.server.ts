@@ -6,7 +6,8 @@
  * leaves this module: callers get a judgment label, pillar states and reasons.
  */
 import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
-import { findRouteLegs, type RouteLeg } from "@/lib/aircue/route-search.server";
+import { findRouteLegs, findOriginDepartures, type RouteLeg } from "@/lib/aircue/route-search.server";
+import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import { getRouteHistory } from "@/lib/aircue/history.server";
 import { getFaaPrograms, getMetar, getTaf, icaoFor } from "@/lib/aircue/sources.server";
@@ -33,6 +34,19 @@ export interface RankInput {
   travelers: number;
   cabin: string;
   userId: string;
+  /** 0 = nonstop only, 1 = allow a single connection when nonstops are thin. */
+  maxStops?: number;
+  /** Include driveable nearby airports in the search. */
+  nearby?: boolean;
+}
+
+/** Why a search came back with nothing, so the UI can say something honest. */
+export type RankReason = "no_service" | "day_over" | "carrier_filter" | "data_unavailable";
+
+export interface RankResult {
+  options: RankedOption[];
+  reason: RankReason | null;
+  scanned: { origins: string[]; dests: string[] };
 }
 
 export interface RankedOption {

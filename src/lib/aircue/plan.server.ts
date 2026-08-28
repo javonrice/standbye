@@ -191,13 +191,13 @@ export async function buildPlan(
     userId,
   });
 
-  if (ranked.length > 0) {
+  if (ranked.options.length > 0) {
     await db(client)
       .from("plan_options")
-      .insert(ranked.map((o) => optionInsert(planId, userId, o)));
+      .insert(ranked.options.map((o) => optionInsert(planId, userId, o)));
   }
 
-  return { planId, optionCount: ranked.length };
+  return { planId, optionCount: ranked.options.length, reason: ranked.reason };
 }
 
 async function loadsFor(
@@ -588,7 +588,7 @@ export async function recheckWatch(
     userId,
   });
 
-  const fresh = ranked.find((o) => o.flightLabel === before.flightLabel);
+  const fresh = ranked.options.find((o) => o.flightLabel === before.flightLabel);
   if (!fresh) return { changed: false };
 
   await db(client)
