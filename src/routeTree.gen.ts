@@ -10,10 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BuddiesRouteImport } from './routes/buddies'
 import { Route as RoutesRouteImport } from './routes/routes'
 import { Route as WatchesRouteImport } from './routes/watches'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
+import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan.index'
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
 import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
@@ -21,6 +24,15 @@ import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BuddiesRoute = BuddiesRouteImport.update({
@@ -43,6 +55,11 @@ const ShareTokenRoute = ShareTokenRouteImport.update({
   path: '/share/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPlanIndexRoute = AuthenticatedPlanIndexRouteImport.update({
+  id: '/plan/',
+  path: '/plan/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicRunWatchesRoute = ApiPublicRunWatchesRouteImport.update({
   id: '/api/public/run-watches',
   path: '/api/public/run-watches',
@@ -62,32 +79,39 @@ const BriefBriefIdSignalSignalIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/plan/': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/plan': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
 }
@@ -95,37 +119,46 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/buddies'
     | '/routes'
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
+    | '/plan/'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/buddies'
     | '/routes'
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
+    | '/plan'
     | '/brief/$briefId'
     | '/brief/$briefId/signal/$signalId'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/buddies'
     | '/routes'
     | '/watches'
     | '/share/$token'
     | '/api/public/run-watches'
+    | '/_authenticated/plan/'
     | '/brief/$briefId/'
     | '/brief/$briefId/signal/$signalId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   BuddiesRoute: typeof BuddiesRoute
   RoutesRoute: typeof RoutesRoute
   WatchesRoute: typeof WatchesRoute
@@ -142,6 +175,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/buddies': {
@@ -172,6 +219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShareTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/plan/': {
+      id: '/_authenticated/plan/'
+      path: '/plan'
+      fullPath: '/plan/'
+      preLoaderRoute: typeof AuthenticatedPlanIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/run-watches': {
       id: '/api/public/run-watches'
       path: '/api/public/run-watches'
@@ -196,8 +250,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   BuddiesRoute: BuddiesRoute,
   RoutesRoute: RoutesRoute,
   WatchesRoute: WatchesRoute,
