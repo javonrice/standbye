@@ -80,9 +80,7 @@ interface AirportRow {
 
 /** Fill the cache for every code not already known. One query, not one per code. */
 async function loadAirportMeta(codes: string[]): Promise<void> {
-  const missing = [...new Set(codes.map((c) => c.toUpperCase()))].filter(
-    (c) => !metaCache.has(c),
-  );
+  const missing = [...new Set(codes.map((c) => c.toUpperCase()))].filter((c) => !metaCache.has(c));
   if (missing.length === 0) return;
 
   airportLookupStats.metadataReads += 1;

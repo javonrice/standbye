@@ -6,7 +6,11 @@
  * leaves this module: callers get a judgment label, pillar states and reasons.
  */
 import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
-import { findRouteLegs, findOriginDepartures, type RouteLeg } from "@/lib/aircue/route-search.server";
+import {
+  findRouteLegs,
+  findOriginDepartures,
+  type RouteLeg,
+} from "@/lib/aircue/route-search.server";
 import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
 import {
   airportGeo,
@@ -122,7 +126,9 @@ async function mapWithConcurrency<T, R>(
 function hhmm(iso: string, fallback?: string): string {
   if (fallback) return to12h(fallback);
   const d = new Date(iso);
-  return to12h(`${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`);
+  return to12h(
+    `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`,
+  );
 }
 
 function to12h(raw: string): string {
@@ -164,7 +170,12 @@ interface BoardEntry {
 async function availabilityBoard(
   input: RankInput,
   mode: "quick" | "precise" = "precise",
-): Promise<{ map: Map<string, BoardEntry>; ok: boolean; checkedAt: string | null; reason?: string }> {
+): Promise<{
+  map: Map<string, BoardEntry>;
+  ok: boolean;
+  checkedAt: string | null;
+  reason?: string;
+}> {
   const carrier =
     input.carriers && input.carriers.length === 1 ? (input.carriers[0] ?? null) : null;
   const board = await buildRouteBoard({
@@ -183,7 +194,12 @@ async function availabilityBoard(
       arrLocal: (f as { arrLocal?: string | null }).arrLocal || null,
     });
   }
-  const result: { map: Map<string, BoardEntry>; ok: boolean; checkedAt: string | null; reason?: string } = {
+  const result: {
+    map: Map<string, BoardEntry>;
+    ok: boolean;
+    checkedAt: string | null;
+    reason?: string;
+  } = {
     map,
     ok: Boolean(board.ok),
     checkedAt: board.ok ? new Date().toISOString() : null,
@@ -192,7 +208,12 @@ async function availabilityBoard(
   return result;
 }
 
-function availabilityFor(entry: BoardEntry | undefined, ok: boolean, checkedAt: string | null, reason?: string) {
+function availabilityFor(
+  entry: BoardEntry | undefined,
+  ok: boolean,
+  checkedAt: string | null,
+  reason?: string,
+) {
   if (!ok || !entry) {
     const ev: AvailabilityEvidence = {
       checked: false,
@@ -204,7 +225,8 @@ function availabilityFor(entry: BoardEntry | undefined, ok: boolean, checkedAt: 
     return {
       state: "unknown" as PillarState,
       label: "Not available",
-      detail: "We could not get a useful booking availability signal. That is not the same as full.",
+      detail:
+        "We could not get a useful booking availability signal. That is not the same as full.",
       evidence: ev,
     };
   }
@@ -318,7 +340,11 @@ async function operationsFor(
         : "No active ground stop",
     delays: delayProgram ? "Delays above normal" : "Delays currently near normal",
     weather: metarText ? metarText.slice(0, 90) : "No current observation",
-    forecast: stormy ? "Convective weather in the forecast window" : tafText ? "Nothing unusual in the forecast" : null,
+    forecast: stormy
+      ? "Convective weather in the forecast window"
+      : tafText
+        ? "Nothing unusual in the forecast"
+        : null,
     forecastState: stormy ? "fair" : "good",
     note: stormy
       ? `Your ${depLocal} departure may sit near the higher-risk weather window.`
@@ -336,7 +362,12 @@ async function historyFor(
   travelDate: string,
   localHour: number | null,
   carrier: string | null,
-): Promise<{ state: PillarState; label: string; detail: string; evidence: HistoryEvidence | null }> {
+): Promise<{
+  state: PillarState;
+  label: string;
+  detail: string;
+  evidence: HistoryEvidence | null;
+}> {
   const history = await getRouteHistory({
     origin,
     dest,
@@ -405,9 +436,22 @@ const TZ_COUNTRY: Record<string, string> = {
 };
 
 const COUNTRY_FLAG: Record<string, string> = {
-  JP: "🇯🇵", KR: "🇰🇷", CN: "🇨🇳", HK: "🇭🇰", SG: "🇸🇬", GB: "🇬🇧", FR: "🇫🇷",
-  DE: "🇩🇪", ES: "🇪🇸", IT: "🇮🇹", NL: "🇳🇱", CH: "🇨🇭", CA: "🇨🇦", MX: "🇲🇽",
-  AU: "🇦🇺", US: "🇺🇸",
+  JP: "🇯🇵",
+  KR: "🇰🇷",
+  CN: "🇨🇳",
+  HK: "🇭🇰",
+  SG: "🇸🇬",
+  GB: "🇬🇧",
+  FR: "🇫🇷",
+  DE: "🇩🇪",
+  ES: "🇪🇸",
+  IT: "🇮🇹",
+  NL: "🇳🇱",
+  CH: "🇨🇭",
+  CA: "🇨🇦",
+  MX: "🇲🇽",
+  AU: "🇦🇺",
+  US: "🇺🇸",
 };
 
 /** A hung holiday API must never hold the whole search before scoring starts. */
@@ -539,12 +583,7 @@ async function scoreLeg(
   const arrLocal = await arrivalClock(leg, boardEntry?.arrLocal ?? null);
   const localHour = leg.depLocalTime ? Number(leg.depLocalTime.slice(0, 2)) : null;
 
-  const availability = availabilityFor(
-    boardEntry,
-    board.ok,
-    board.checkedAt,
-    board.reason,
-  );
+  const availability = availabilityFor(boardEntry, board.ok, board.checkedAt, board.reason);
   const [operations, history, cancels] = await Promise.all([
     operationsFor(leg.origin, leg.dest, input.travelDate, depLocal),
     historyFor(leg.origin, leg.dest, input.travelDate, localHour, carrier),
@@ -575,8 +614,18 @@ async function scoreLeg(
   }
 
   const pillars: Pillar[] = [
-    { key: "availability", state: availability.state, label: availability.label, detail: availability.detail },
-    { key: "operations", state: opsState, label: opsState === "good" ? "Normal" : operations.label, detail: opsDetail },
+    {
+      key: "availability",
+      state: availability.state,
+      label: availability.label,
+      detail: availability.detail,
+    },
+    {
+      key: "operations",
+      state: opsState,
+      label: opsState === "good" ? "Normal" : operations.label,
+      detail: opsDetail,
+    },
     { key: "history", state: history.state, label: history.label, detail: history.detail },
     { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
   ];
@@ -637,7 +686,12 @@ function scoreOf(pillars: Pillar[]): number {
 }
 
 function reasonsOf(pillars: Pillar[]): Reason[] {
-  return pillars.map((p) => ({ key: p.key, state: p.state, title: reasonTitle(p), detail: p.detail }));
+  return pillars.map((p) => ({
+    key: p.key,
+    state: p.state,
+    title: reasonTitle(p),
+    detail: p.detail,
+  }));
 }
 
 const worst = (a: PillarState, b: PillarState): PillarState => {
@@ -750,7 +804,9 @@ async function findGateways(
     let onward: RouteLeg[] = [];
     for (const dest of dests) {
       const { legs: found } = await findRouteLegs(hub, dest, input.travelDate, carrierFilter);
-      onward = onward.concat(found.filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode)));
+      onward = onward.concat(
+        found.filter((l) => !allowed || !l.airlineCode || allowed.has(l.airlineCode)),
+      );
     }
     if (onward.length === 0) continue;
     onward.sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
@@ -877,8 +933,18 @@ async function scoreConnection(
 
   const firstBoard = boards.get(`${first.origin}-${first.dest}`) ?? EMPTY_BOARD;
   const secondBoard = boards.get(`${second.origin}-${second.dest}`) ?? EMPTY_BOARD;
-  const a1 = availabilityFor(firstBoard.map.get(legLabel(first)), firstBoard.ok, firstBoard.checkedAt, firstBoard.reason);
-  const a2 = availabilityFor(secondBoard.map.get(legLabel(second)), secondBoard.ok, secondBoard.checkedAt, secondBoard.reason);
+  const a1 = availabilityFor(
+    firstBoard.map.get(legLabel(first)),
+    firstBoard.ok,
+    firstBoard.checkedAt,
+    firstBoard.reason,
+  );
+  const a2 = availabilityFor(
+    secondBoard.map.get(legLabel(second)),
+    secondBoard.ok,
+    secondBoard.checkedAt,
+    secondBoard.reason,
+  );
 
   const depLocal = hhmm(first.schedDepUtc, first.depLocalTime);
   const [operations, history] = await Promise.all([
@@ -983,7 +1049,9 @@ async function scoreConnection(
 
 export async function rankStandbyOptions(input: RankInput): Promise<RankResult> {
   const carrierFilter =
-    input.carriers && input.carriers.length === 1 ? (input.carriers[0] ?? ALL_AIRLINES) : ALL_AIRLINES;
+    input.carriers && input.carriers.length === 1
+      ? (input.carriers[0] ?? ALL_AIRLINES)
+      : ALL_AIRLINES;
   const routingMode: RoutingMode = input.routingMode ?? "best";
   const wide = routingMode === "wide";
   const maxStops = routingMode === "nonstop" ? 0 : (input.maxStops ?? 1);
@@ -1071,7 +1139,11 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     const alternates = builds.slice(0, 2).map((b) => ({
       routing: `Via ${b.hub}`,
       depLocal: hhmm(b.best.first.schedDepUtc, b.best.first.depLocalTime),
-      judgment: (b.state === "good" ? "favorable" : b.state === "poor" ? "riskier" : "mixed") as Judgment,
+      judgment: (b.state === "good"
+        ? "favorable"
+        : b.state === "poor"
+          ? "riskier"
+          : "mixed") as Judgment,
       note: `${b.inbound.length} way${b.inbound.length === 1 ? "" : "s"} in, ${b.onward.length} onward — needs two clears.`,
       hub: b.hub,
     }));
@@ -1082,8 +1154,10 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     }
   }
 
-
-  results.sort((a, b) => b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""));
+  results.sort(
+    (a, b) =>
+      b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""),
+  );
   results.forEach((r, i) => {
     r.rank = i + 1;
   });
@@ -1108,8 +1182,12 @@ function isLateInDay(travelDate: string): boolean {
 
 function reasonTitle(p: Pillar): string {
   if (p.key === "availability") return `${p.label} public availability`;
-  if (p.key === "operations") return p.state === "good" ? "Operations look normal" : `Operations: ${p.label.toLowerCase()}`;
-  if (p.key === "history") return p.state === "unknown" ? "No historical pattern yet" : `Historically ${p.label.toLowerCase()}`;
+  if (p.key === "operations")
+    return p.state === "good" ? "Operations look normal" : `Operations: ${p.label.toLowerCase()}`;
+  if (p.key === "history")
+    return p.state === "unknown"
+      ? "No historical pattern yet"
+      : `Historically ${p.label.toLowerCase()}`;
   return `${p.label} recovery room`;
 }
 
@@ -1130,10 +1208,14 @@ function buildRecovery(
   board: { map: Map<string, BoardEntry>; ok: boolean },
 ): RecoveryEvidence {
   const laterNonstops = later.slice(0, 3).map((l) => {
-    const label = l.airlineCode && l.flightNumber ? `${l.airlineCode}${l.flightNumber}` : `${l.origin}→${l.dest}`;
+    const label =
+      l.airlineCode && l.flightNumber
+        ? `${l.airlineCode}${l.flightNumber}`
+        : `${l.origin}→${l.dest}`;
     const entry = board.map.get(label);
     const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 9 : null);
-    const judgment: Judgment = largest === null ? "mixed" : largest >= 6 ? "favorable" : largest >= 1 ? "mixed" : "riskier";
+    const judgment: Judgment =
+      largest === null ? "mixed" : largest >= 6 ? "favorable" : largest >= 1 ? "mixed" : "riskier";
     return { flightLabel: label, depLocal: hhmm(l.schedDepUtc, l.depLocalTime), judgment };
   });
 

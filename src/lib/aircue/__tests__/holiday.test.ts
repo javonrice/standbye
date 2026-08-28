@@ -5,7 +5,15 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 
 const AIRPORTS = [
-  { iata: "ORD", icao: "KORD", lat: 41.97, lon: -87.9, city: "Chicago", state: "IL", tz: "America/Chicago" },
+  {
+    iata: "ORD",
+    icao: "KORD",
+    lat: 41.97,
+    lon: -87.9,
+    city: "Chicago",
+    state: "IL",
+    tz: "America/Chicago",
+  },
   { iata: "XXX", icao: null, lat: 0, lon: 0, city: null, state: null, tz: null },
 ];
 
@@ -20,9 +28,8 @@ mock.module("@/integrations/supabase/client.server", () => ({
   },
 }));
 
-const { holidayFor, holidayStats, __resetHolidayCache } = await import(
-  "@/lib/aircue/ranking.server"
-);
+const { holidayFor, holidayStats, __resetHolidayCache } =
+  await import("@/lib/aircue/ranking.server");
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
