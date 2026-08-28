@@ -23,7 +23,9 @@ export function OptionCard({ option, rank }: { option: StandbyOption; rank: numb
               : `${option.flightLabel} · ${option.origin} → ${option.dest}`}
           </p>
           <p className="text-sm text-muted-foreground">
-            {option.depLocal} – {option.arrLocal} local
+            {option.arrLocal
+              ? `${option.depLocal} – ${option.arrLocal} local`
+              : `Departs ${option.depLocal} local`}
             {option.kind === "connection" ? " · one stop" : ""}
           </p>
         </div>
