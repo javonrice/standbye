@@ -1,12 +1,12 @@
-# AirCue Escape — "Stuck? Find another way."
+# Standbye Escape — "Stuck? Find another way."
 
 Escape is an on-demand mode inside the existing Standby Day, not a new product surface or a
-new SKU. Normal Plan stays cheap and fast; Escape is where AirCue spends real search effort.
+new SKU. Normal Plan stays cheap and fast; Escape is where Standbye spends real search effort.
 
 ## Where it shows up
 
 - **Plan home** — below the search card, a quiet divider then: "😬 Stuck or trying to get home?
-  AirCue can look for unconventional ways to keep you moving." with **Find an escape route →**.
+  Standbye can look for unconventional ways to keep you moving." with **Find an escape route →**.
 - **Contextually**, when the current plan is deteriorating — a plan whose options are thin
   (one useful nonstop left, or recovery room poor/tight) and any watched plan in the same
   state. The existing option/plan screens and the Plan Changed takeover gain a secondary
@@ -30,7 +30,7 @@ there, checking availability and operations, ranking escapes.
 
 ## Escape results (`/escape/$planId`)
 
-Header: "Escape to Chicago · From IAH · Starting now", then "AirCue found 5 realistic ways to
+Header: "Escape to Chicago · From IAH · Starting now", then "Standbye found 5 realistic ways to
 keep moving."
 
 - **Best escape** — a full card in our existing card language: judgment pill, `IAH → OKC → ORD`,
@@ -42,8 +42,8 @@ keep moving."
   "3 shots in · 4 onward", chevron into the existing gateway detail screen.
 - Nonstops that still exist are shown first if any are worth trying, so Escape never hides an
   obvious answer.
-- **Expert fallback** at the bottom: "Know a route AirCue missed? **Check via a specific
-  airport**" → type a code (OKC) and AirCue evaluates `IAH → OKC → ORD` with the same engine
+- **Expert fallback** at the bottom: "Know a route Standbye missed? **Check via a specific
+  airport**" → type a code (OKC) and Standbye evaluates `IAH → OKC → ORD` with the same engine
   and renders it as a normal escape card, including a plain reason when it doesn't work
   (no onward flights today, layover impossible, airline you can't use).
 
