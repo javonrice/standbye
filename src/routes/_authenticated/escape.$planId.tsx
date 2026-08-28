@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ChevronRight, CornerUpRight, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, CornerUpRight, Sparkles } from "lucide-react";
 
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { PillarGrid } from "@/components/aircue/PillarGrid";
@@ -210,18 +210,16 @@ function EscapeResults() {
             {viaResult && (
               <div className="mt-3 rounded-xl border border-border bg-card p-3.5">
                 {viaResult.gateway ? (
-                  <Link
-                    to={viaResult.optionId ? "/options/$optionId" : "/escape/$planId"}
-                    params={
-                      viaResult.optionId ? { optionId: viaResult.optionId } : { planId }
-                    }
-                    className="block"
-                  >
+                  <>
                     <EscapeGatewayRow gateway={viaResult.gateway} />
-                    <p className="mt-2 flex items-center gap-1 text-[13px] font-semibold text-primary">
+                    <Link
+                      to={viaResult.optionId ? "/options/$optionId" : "/escape/$planId"}
+                      params={viaResult.optionId ? { optionId: viaResult.optionId } : { planId }}
+                      className="mt-2 flex items-center gap-1 text-[13px] font-semibold text-primary"
+                    >
                       See this escape <ChevronRight className="h-4 w-4" />
-                    </p>
-                  </Link>
+                    </Link>
+                  </>
                 ) : (
                   <p className="text-[13px] leading-relaxed text-muted-foreground">
                     {viaResult.reason ?? "That routing does not work today."}
@@ -251,32 +249,99 @@ function SectionHeading({ children }: { children: string }) {
 }
 
 function EscapeGatewayRow({ gateway }: { gateway: GatewayOption }) {
+  const [open, setOpen] = useState(false);
   const waysIn = gateway.inboundShots.length;
+  const contentId = `gateway-${gateway.hub}`;
+
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-3.5">
-      <div className="flex items-center gap-2">
-        <span aria-hidden className="text-[13px] leading-none">
-          {gatewayDot[gateway.state]}
-        </span>
-        <p className="truncate font-display text-[16px] font-bold tracking-tight">
-          Via {gateway.hub}
-        </p>
-        <span className="truncate text-[13px] text-muted-foreground">
-          {gateway.city ?? gateway.hub}
-        </span>
-      </div>
-      <p className="mt-1 text-[13px] text-muted-foreground">
-        {waysIn} way{waysIn === 1 ? "" : "s"} in · {gateway.onwardCount} onward
-        {gateway.addedMinutes !== null && gateway.addedMinutes > 0
-          ? ` · about ${gateway.addedMinutes} extra min in the air`
-          : ""}
-      </p>
-      {gateway.caveat && (
-        <p className="mt-1 text-[12px] text-muted-foreground">{gateway.caveat}</p>
+    <div className="rounded-2xl border border-border bg-card">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={contentId}
+        className="flex w-full items-start gap-3 px-4 py-3.5 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="text-[13px] leading-none">
+              {gatewayDot[gateway.state]}
+            </span>
+            <p className="truncate font-display text-[16px] font-bold tracking-tight">
+              Via {gateway.hub}
+            </p>
+            <span className="truncate text-[13px] text-muted-foreground">
+              {gateway.city ?? gateway.hub}
+            </span>
+          </div>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {waysIn} way{waysIn === 1 ? "" : "s"} in · {gateway.onwardCount} onward
+            {gateway.addedMinutes !== null && gateway.addedMinutes > 0
+              ? ` · about ${gateway.addedMinutes} extra min in the air`
+              : ""}
+          </p>
+          {gateway.caveat && (
+            <p className="mt-1 text-[12px] text-muted-foreground">{gateway.caveat}</p>
+          )}
+        </div>
+        <ChevronDown
+          className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div id={contentId} className="border-t border-border px-4 py-3.5">
+          <p className="text-[13px] leading-relaxed text-foreground">{gateway.summary}</p>
+
+          <p className="mt-3 text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+            Ways into {gateway.hub}
+          </p>
+          {waysIn > 0 ? (
+            <ul className="mt-1.5 space-y-1.5">
+              {gateway.inboundShots.map((shot) => (
+                <li
+                  key={`${shot.flightLabel}-${shot.depLocal}`}
+                  className="flex items-start justify-between gap-3"
+                >
+                  <span className="min-w-0 break-words text-[14px] font-medium">
+                    {shot.flightLabel}
+                  </span>
+                  <span className="shrink-0 text-[13px] text-muted-foreground">
+                    {shot.depLocal}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              No useful departures left into {gateway.hub} today.
+            </p>
+          )}
+
+          <p className="mt-3 text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+            Onward to your destination
+          </p>
+          {gateway.onwardDepartures.length > 0 ? (
+            <p className="mt-1.5 text-[14px]">{gateway.onwardDepartures.join(" · ")}</p>
+          ) : (
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
+              Onward legs aren't confirmed for today.
+            </p>
+          )}
+
+          <p className="mt-3 text-[13px] text-muted-foreground">
+            If it doesn't work: {gateway.recoveryLabel}
+          </p>
+          <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
+            A connection means clearing standby twice — once out of here, once out of{" "}
+            {gateway.hub}.
+          </p>
+        </div>
       )}
     </div>
   );
 }
+
 
 /** "2026-08-29" -> "Saturday, Aug 29" without shifting into another timezone. */
 function longDate(iso: string): string {
