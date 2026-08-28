@@ -34,8 +34,9 @@ function toIso(raw: string): string {
 }
 
 async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<RouteLeg | null> {
-  // A departures board reports the queried airport implicitly and the far end
-  // under `movement`; a flight-status record carries departure/arrival instead.
+  // A full-leg board and a flight-status record both carry departure/arrival;
+  // a legacy/partial board reports the queried airport implicitly and the far
+  // end under `movement`.
   const depMovement = flight.departure ?? flight.movement;
   const arrMovement = flight.arrival ?? flight.movement;
 
@@ -54,11 +55,11 @@ async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<Route
     (await iataFromAirportName(arrMovement?.airport?.name, arrMovement?.airport?.icao));
   if (!origin || !dest) return null;
 
-  // Only a flight-status record carries a true arrival. A departures board
-  // reports the destination airport but the departure clock, so anything we
-  // derived from it would be a guess.
-  const arr = flight.arrival && flight.departure ? flight.arrival.scheduledTime?.utc : undefined;
-  const arrLocal = flight.arrival && flight.departure ? flight.arrival.scheduledTime?.local : undefined;
+  // A real arrival only ever comes from an `arrival` block (full-leg board via
+  // withLeg=true, or a flight-status record). A bare `movement` names the far
+  // airport but carries the departure clock, so it is never an arrival.
+  const arr = flight.arrival?.scheduledTime?.utc;
+  const arrLocal = flight.arrival?.scheduledTime?.local;
   const depLocal = depMovement?.scheduledTime?.local;
   const digits = (flight.number ?? "").replace(/\D/g, "");
   return {
