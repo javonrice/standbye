@@ -6,7 +6,7 @@ import { ArrowRight, Plane, SlidersHorizontal } from "lucide-react";
 
 import { AirportField } from "@/components/aircue/AirportField";
 import { SearchingOverlay } from "@/components/aircue/SearchingOverlay";
-import { JudgmentPill } from "@/components/aircue/JudgmentPill";
+import { CueBadge } from "@/components/aircue/CueBadge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -24,13 +24,13 @@ import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } fr
 export const Route = createFileRoute("/_authenticated/plan/")({
   head: () => ({
     meta: [
-      { title: "Plan a standby attempt — AirCue" },
+      { title: "Plan a standby attempt — Standbye" },
       {
         name: "description",
         content:
-          "Set your route, date and preferences, and AirCue ranks the day's realistic standby setups.",
+          "Set your route, date and preferences, and Standbye ranks the day's realistic standby setups.",
       },
-      { property: "og:title", content: "Plan a standby attempt — AirCue" },
+      { property: "og:title", content: "Plan a standby attempt — Standbye" },
       { property: "og:description", content: "Ranked standby setups for your route and date." },
     ],
   }),
@@ -96,13 +96,15 @@ function PlanHome() {
     <main className="mx-auto w-full max-w-md px-5 pb-12 pt-8 md:max-w-3xl md:px-10 md:pt-12">
       {run.isPending && <SearchingOverlay phase="building" origin={origin} dest={dest} />}
 
-      <h1 className="font-display text-2xl font-bold tracking-tight">Plan a standby</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Tell AirCue where you are trying to get. It ranks the day's realistic setups.
+      <h1 className="font-display text-[30px] font-bold leading-tight tracking-tight">
+        Plan a standby
+      </h1>
+      <p className="mt-1.5 text-[15px] text-muted-foreground">
+        Tell us where you need to get. We'll rank today's realistic shots.
       </p>
 
       <form
-        className="mt-6 rounded-2xl border border-border bg-card p-4 shadow-card"
+        className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-card"
         onSubmit={(e) => {
           e.preventDefault();
           run.mutate();
@@ -188,7 +190,7 @@ function PlanHome() {
               </Select>
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {routingModeHint[routingMode]} · a connection means clearing standby twice, so
-                AirCue only suggests one when the ways onward make up for it.
+                Standbye only suggests one when the ways onward make up for it.
               </p>
             </div>
 
@@ -228,7 +230,7 @@ function PlanHome() {
         <Button
           type="submit"
           disabled={origin.length !== 3 || dest.length !== 3 || run.isPending}
-          className="mt-4 h-12 w-full"
+          className="mt-5 h-14 w-full rounded-2xl text-[16px] font-semibold"
         >
           Find my best shots
         </Button>
@@ -242,9 +244,9 @@ function PlanHome() {
 
       <Link
         to="/known-flight"
-        className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3.5"
+        className="mt-3 flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-4"
       >
-        <span className="flex items-center gap-2.5 text-sm font-semibold">
+        <span className="flex items-center gap-2.5 text-[15px] font-semibold">
           <Plane className="h-4 w-4 text-primary" />
           I already know the flight
         </span>
@@ -253,25 +255,25 @@ function PlanHome() {
 
       {(plans ?? []).length > 0 && (
         <section className="mt-8">
-          <h2 className="font-display text-base font-bold tracking-tight">Recent plans</h2>
+          <h2 className="font-display text-[19px] font-semibold tracking-tight">Recent plans</h2>
           <ul className="mt-2 space-y-2">
             {(plans ?? []).map((p) => (
               <li key={p.id}>
                 <Link
                   to="/plans/$planId"
                   params={{ planId: p.id }}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3.5"
                 >
                   <span>
-                    <span className="block text-sm font-semibold">
+                    <span className="block text-[16px] font-semibold">
                       {p.origin} → {p.dest}
                     </span>
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block text-[13px] text-muted-foreground">
                       {p.travelDate} · {p.optionCount} option{p.optionCount === 1 ? "" : "s"}
                     </span>
                   </span>
                   {p.bestJudgment && (
-                    <JudgmentPill judgment={p.bestJudgment as Judgment} size="sm" />
+                    <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />
                   )}
                 </Link>
               </li>

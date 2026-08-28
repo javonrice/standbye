@@ -1,5 +1,5 @@
 /**
- * AirCue sellable tightness probe (SerpAPI Google Flights).
+ * Standbye sellable tightness probe (SerpAPI Google Flights).
  *
  * Party-size trick: search one-way economy for the trip's carrier/date with
  * adults=9. If the exact flight is still bookable at 9, bucket is "9+".
@@ -469,7 +469,7 @@ function nonstopsFrom(body: SerpSearchResponse): Map<string, Nonstop> {
 
 /**
  * Route day board: every nonstop that is still sellable in the public search,
- * with a coarse AirCue bucket. Quick mode runs adults=9 (bucket "9+") plus
+ * with a coarse Standbye bucket. Quick mode runs adults=9 (bucket "9+") plus
  * adults=1 (everything else, bucket "1-8"). Precise mode steps the shared
  * levels down to pin the exact largest party size.
  */

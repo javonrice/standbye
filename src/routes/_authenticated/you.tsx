@@ -10,14 +10,14 @@ import { travelerTypes } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/you")({
   head: () => ({
     meta: [
-      { title: "You — AirCue" },
+      { title: "You — Standbye" },
       {
         name: "description",
         content:
-          "Your travel setup: airline access, traveler type, home airports, and how AirCue judges your standby options.",
+          "Your travel setup: airline access, traveler type, home airports, and how Standbye judges your standby options.",
       },
-      { property: "og:title", content: "You — AirCue" },
-      { property: "og:description", content: "Your AirCue travel setup and account." },
+      { property: "og:title", content: "You — Standbye" },
+      { property: "og:description", content: "Your Standbye travel setup and account." },
     ],
   }),
   component: YouPage,
@@ -43,7 +43,7 @@ function YouPage() {
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
       <h1 className="font-display text-2xl font-bold tracking-tight">You</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        AirCue reads your options through your travel setup, so keep this current.
+        Standbye reads your options through your travel setup, so keep this current.
       </p>
 
       <section className="mt-5 rounded-2xl border border-border bg-card p-4">
@@ -104,18 +104,18 @@ function YouPage() {
       </section>
 
       <section className="mt-4 rounded-2xl border border-border bg-surface p-4">
-        <h2 className="font-display text-base font-semibold">How AirCue thinks</h2>
+        <h2 className="font-display text-base font-semibold">How Standbye thinks</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          AirCue reads four things: what is still publicly bookable, how the operation looks today,
+          Standbye reads four things: what is still publicly bookable, how the operation looks today,
           how the route usually behaves, and what backup you would have left. It never claims to
           know your list position or whether you will clear. A load you enter yourself always beats
-          what AirCue can infer.
+          what Standbye can infer.
         </p>
         <Link
           to="/how-it-works"
           className="mt-3 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium"
         >
-          How AirCue works
+          How Standbye works
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </Link>
       </section>

@@ -6,13 +6,13 @@ import { useOption } from "@/lib/aircue/use-option";
 export const Route = createFileRoute("/_authenticated/options/$optionId/context/history")({
   head: () => ({
     meta: [
-      { title: "How this route usually runs — AirCue" },
+      { title: "How this route usually runs — Standbye" },
       {
         name: "description",
         content:
           "What past government data says about how full and how reliable this route usually is around this time of year.",
       },
-      { property: "og:title", content: "How this route usually runs — AirCue" },
+      { property: "og:title", content: "How this route usually runs — Standbye" },
       { property: "og:description", content: "Historical pattern for this route and month." },
     ],
   }),

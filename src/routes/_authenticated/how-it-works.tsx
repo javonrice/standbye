@@ -7,16 +7,16 @@ import type { Judgment } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/how-it-works")({
   head: () => ({
     meta: [
-      { title: "How AirCue works — AirCue" },
+      { title: "How Standbye works — Standbye" },
       {
         name: "description",
         content:
-          "What AirCue actually looks at, what each judgment means, and where its reading can be wrong.",
+          "What Standbye actually looks at, what each judgment means, and where its reading can be wrong.",
       },
-      { property: "og:title", content: "How AirCue works — AirCue" },
+      { property: "og:title", content: "How Standbye works — Standbye" },
       {
         property: "og:description",
-        content: "Plain-language guide to AirCue's standby judgments.",
+        content: "Plain-language guide to Standbye's standby judgments.",
       },
     ],
   }),
@@ -49,7 +49,7 @@ const judgments: { judgment: Judgment; meaning: string }[] = [
 const inputs = [
   {
     title: "What is still bookable",
-    body: "AirCue checks how many seats the airline will still sell on the flight. If almost nothing is left for sale, there is almost nothing left for standby.",
+    body: "Standbye checks how many seats the airline will still sell on the flight. If almost nothing is left for sale, there is almost nothing left for standby.",
   },
   {
     title: "How today is running",
@@ -72,9 +72,9 @@ function HowItWorks() {
         <ArrowLeft className="h-4 w-4" /> Back to you
       </Link>
 
-      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">How AirCue works</h1>
+      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">How Standbye works</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
-        AirCue does not know your list position and never claims to. It reads the day around your
+        Standbye does not know your list position and never claims to. It reads the day around your
         flight and tells you, in plain terms, whether the setup is worth your time. The call is
         always yours.
       </p>
@@ -115,14 +115,14 @@ function HowItWorks() {
             turn a clear day in an hour.
           </li>
           <li>
-            A load number you enter yourself always beats what AirCue infers. If you see the real
+            A load number you enter yourself always beats what Standbye infers. If you see the real
             numbers, report them and we will use yours.
           </li>
         </ul>
       </section>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        AirCue is a read on the day, not a guarantee of a seat.
+        Standbye is a read on the day, not a guarantee of a seat.
       </p>
     </main>
   );

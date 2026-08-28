@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
-import mark from "@/assets/aircue-mark.png.asset.json";
-import wordmark from "@/assets/aircue-wordmark.png.asset.json";
+import mark from "@/assets/standbye-mark.png.asset.json";
+import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { readDraft } from "@/lib/aircue/onboarding";
@@ -11,14 +11,14 @@ import { readDraft } from "@/lib/aircue/onboarding";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AirCue — standby without the constant checking" },
+      { title: "Standbye — standby without the constant checking" },
       {
         name: "description",
         content:
-          "AirCue finds the standby flights worth trying, explains what could change, and keeps an eye on your backup options.",
+          "Standbye finds the standby flights worth trying, explains what could change, and keeps an eye on your backup options.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "AirCue — standby without the constant checking" },
+      { property: "og:title", content: "Standbye — standby without the constant checking" },
       {
         property: "og:description",
         content:
@@ -50,17 +50,16 @@ function FirstLaunch() {
   if (checking) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background">
-        <img src={mark.url} alt="" aria-hidden className="h-10 w-10 animate-pulse invert" />
+        <img src={mark.url} alt="" aria-hidden className="h-10 w-10 animate-pulse" />
       </main>
     );
   }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-7 pb-16 pt-16 text-center">
-      <img src={mark.url} alt="" aria-hidden className="mx-auto h-14 w-14 invert" />
-      <img src={wordmark.url} alt="AirCue" className="mx-auto mt-5 h-8 w-auto invert" />
+      <img src={wordmark.url} alt="Standbye" className="mx-auto h-16 w-auto object-contain" />
 
-      <h1 className="sr-only">AirCue — standby without all the constant checking</h1>
+      <h1 className="sr-only">Standbye — standby without all the constant checking</h1>
 
       <p className="mt-7 font-display text-xl font-semibold leading-snug">
         Standby without all the constant checking.
@@ -76,7 +75,7 @@ function FirstLaunch() {
       </Button>
 
       <p className="mt-6 text-sm text-muted-foreground">
-        Already use AirCue?{" "}
+        Already use Standbye?{" "}
         <Link to="/auth" className="font-semibold text-foreground underline underline-offset-4">
           Sign in
         </Link>

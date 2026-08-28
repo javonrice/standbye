@@ -7,13 +7,13 @@ import { pillarDot } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/options/$optionId/context/weather")({
   head: () => ({
     meta: [
-      { title: "Operating conditions — AirCue" },
+      { title: "Operating conditions — Standbye" },
       {
         name: "description",
         content:
           "Airport programs, current delays, and the weather picture that could shake up this standby attempt.",
       },
-      { property: "og:title", content: "Operating conditions — AirCue" },
+      { property: "og:title", content: "Operating conditions — Standbye" },
       { property: "og:description", content: "Airport programs, delays, and weather." },
     ],
   }),

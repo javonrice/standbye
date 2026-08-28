@@ -13,13 +13,13 @@ import { checkKnownFlight } from "@/lib/aircue/plan.functions";
 export const Route = createFileRoute("/_authenticated/known-flight")({
   head: () => ({
     meta: [
-      { title: "Check a specific flight — AirCue" },
+      { title: "Check a specific flight — Standbye" },
       {
         name: "description",
         content:
-          "Already know the flight you want to try? Enter the number and AirCue reads that setup for standby.",
+          "Already know the flight you want to try? Enter the number and Standbye reads that setup for standby.",
       },
-      { property: "og:title", content: "Check a specific flight — AirCue" },
+      { property: "og:title", content: "Check a specific flight — Standbye" },
       { property: "og:description", content: "Read one specific flight as a standby setup." },
     ],
   }),
@@ -74,7 +74,7 @@ function KnownFlightPage() {
         I already know the flight
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Enter it and AirCue will read that exact setup, plus what you would have left if it does not
+        Enter it and Standbye will read that exact setup, plus what you would have left if it does not
         work.
       </p>
 

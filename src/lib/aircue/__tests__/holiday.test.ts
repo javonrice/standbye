@@ -53,7 +53,7 @@ describe("holidayFor", () => {
       country: "🇺🇸 US",
       name: "Independence Day",
       date: "2026-07-04",
-      note: "Major holidays can make normal historical demand less useful. AirCue treats this as context, not proof the flight will be full.",
+      note: "Major holidays can make normal historical demand less useful. Standbye treats this as context, not proof the flight will be full.",
     });
     expect(calls).toBe(1);
 

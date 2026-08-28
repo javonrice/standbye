@@ -7,13 +7,13 @@ import { agoLabel } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/options/$optionId/availability")({
   head: () => ({
     meta: [
-      { title: "Availability detail — AirCue" },
+      { title: "Availability detail — Standbye" },
       {
         name: "description",
         content:
           "Exactly what the public booking check showed for this flight, and why it is a demand signal rather than a load.",
       },
-      { property: "og:title", content: "Availability detail — AirCue" },
+      { property: "og:title", content: "Availability detail — Standbye" },
       { property: "og:description", content: "What the public availability check found." },
     ],
   }),
@@ -45,7 +45,7 @@ function AvailabilityDetail() {
         <div className="mt-5 rounded-2xl border border-border bg-card p-4">
           <p className="text-sm font-semibold">We could not check this one</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            The public availability check did not return a usable answer. AirCue treats that as
+            The public availability check did not return a usable answer. Standbye treats that as
             unknown — not as full.
           </p>
         </div>

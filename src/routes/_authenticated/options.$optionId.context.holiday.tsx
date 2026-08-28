@@ -6,13 +6,13 @@ import { useOption } from "@/lib/aircue/use-option";
 export const Route = createFileRoute("/_authenticated/options/$optionId/context/holiday")({
   head: () => ({
     meta: [
-      { title: "Holiday and demand context — AirCue" },
+      { title: "Holiday and demand context — Standbye" },
       {
         name: "description",
         content:
           "Whether your travel date lands on a holiday or a known heavy travel window, and what that usually does to standby.",
       },
-      { property: "og:title", content: "Holiday and demand context — AirCue" },
+      { property: "og:title", content: "Holiday and demand context — Standbye" },
       { property: "og:description", content: "Holiday pressure on your travel date." },
     ],
   }),

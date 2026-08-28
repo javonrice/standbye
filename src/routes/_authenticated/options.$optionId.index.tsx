@@ -10,8 +10,10 @@ import {
   LifeBuoy,
 } from "lucide-react";
 
-import { JudgmentPill } from "@/components/aircue/JudgmentPill";
-import { PillarList } from "@/components/aircue/PillarGrid";
+import { CueBadge } from "@/components/aircue/CueBadge";
+import { FlightHero } from "@/components/aircue/FlightHero";
+import { StandbyeTake } from "@/components/aircue/StandbyeTake";
+import { SignalGroup, SignalRow } from "@/components/aircue/SignalRow";
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
 import { startWatchPlan, stopWatchPlan } from "@/lib/aircue/plan.functions";
@@ -20,19 +22,20 @@ import {
   confidenceLabel,
   loadIsStale,
   loadSourceLabel,
+  pillarTitle,
   type Confidence,
 } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/options/$optionId/")({
   head: () => ({
     meta: [
-      { title: "Standby cue — AirCue" },
+      { title: "Standby cue — Standbye" },
       {
         name: "description",
         content:
           "Why this standby setup looks the way it does: availability, operations, history, and the backup options you would still have.",
       },
-      { property: "og:title", content: "Standby cue — AirCue" },
+      { property: "og:title", content: "Standby cue — Standbye" },
       { property: "og:description", content: "The reasoning behind one standby option." },
     ],
   }),
@@ -90,19 +93,20 @@ function CueScreen() {
         </Link>
       )}
 
-      <header className="mt-3">
-        <JudgmentPill judgment={option.judgment} size="lg" />
-        <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">
-          {option.flightLabel} · {option.origin} → {option.dest}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {option.arrLocal
-            ? `${option.depLocal} – ${option.arrLocal} local`
-            : `Departs ${option.depLocal} local`}{" "}
-          · Confidence:{" "}
-          {confidenceLabel[option.confidence as Confidence]} · checked {agoLabel(option.refreshedAt)}
-        </p>
-        <p className="mt-3 text-base text-foreground/90">{option.headline}</p>
+      <header className="mt-4">
+        <CueBadge judgment={option.judgment} size="lg" />
+        <FlightHero
+          className="mt-5"
+          eyebrow={option.flightLabel}
+          origin={option.origin}
+          dest={option.dest}
+          depLocal={option.depLocal}
+          arrLocal={option.arrLocal}
+          footnote={`All times local · confidence ${confidenceLabel[
+            option.confidence as Confidence
+          ].toLowerCase()} · checked ${agoLabel(option.refreshedAt)}`}
+        />
+        <StandbyeTake className="mt-5">{option.headline}</StandbyeTake>
       </header>
 
       {option.load && (
@@ -129,10 +133,19 @@ function CueScreen() {
         </section>
       )}
 
-      <section className="mt-6">
-        <h2 className="font-display text-base font-bold tracking-tight">Why AirCue says this</h2>
-        <div className="mt-2">
-          <PillarList pillars={option.pillars} />
+      <section className="mt-7">
+        <h2 className="font-display text-[19px] font-semibold tracking-tight">Why we say that</h2>
+        <div className="mt-1 rounded-2xl border border-border bg-card px-4">
+          <SignalGroup>
+            {option.pillars.map((p) => (
+              <SignalRow
+                key={p.key}
+                state={p.state}
+                title={`${pillarTitle[p.key]} · ${p.label}`}
+                detail={p.detail}
+              />
+            ))}
+          </SignalGroup>
         </div>
       </section>
 
@@ -205,7 +218,7 @@ function CueScreen() {
       )}
 
       <p className="mt-5 text-xs text-muted-foreground">
-        AirCue reads public availability and operating conditions. It is not airline load data and
+        Standbye reads public availability and operating conditions. It is not airline load data and
         never predicts whether you will clear.
       </p>
     </main>

@@ -1,7 +1,7 @@
 /**
- * Client-safe vocabulary for the AirCue standby decision engine.
+ * Client-safe vocabulary for the Standbye standby decision engine.
  *
- * AirCue never shows a boarding probability. Internally options carry a score;
+ * Standbye never shows a boarding probability. Internally options carry a score;
  * the customer only ever sees a judgment label, four pillar states, and plain
  * reasons.
  */
@@ -104,7 +104,7 @@ export interface ReportedLoad {
   checkedAt: string;
 }
 
-/** How wide the traveller wants AirCue to cast the net. */
+/** How wide the traveller wants Standbye to cast the net. */
 export type RoutingMode = "best" | "nonstop" | "wide";
 
 export const routingModeLabel: Record<RoutingMode, string> = {

@@ -20,13 +20,13 @@ import { useOption } from "@/lib/aircue/use-option";
 export const Route = createFileRoute("/_authenticated/options/$optionId/load")({
   head: () => ({
     meta: [
-      { title: "Add a load — AirCue" },
+      { title: "Add a load — Standbye" },
       {
         name: "description",
         content:
-          "Enter the open seats and listed standbys you can see, and AirCue re-reads the whole setup around it.",
+          "Enter the open seats and listed standbys you can see, and Standbye re-reads the whole setup around it.",
       },
-      { property: "og:title", content: "Add a load — AirCue" },
+      { property: "og:title", content: "Add a load — Standbye" },
       { property: "og:description", content: "Employee-entered loads are the strongest evidence." },
     ],
   }),
@@ -79,7 +79,7 @@ function AddLoad() {
           : "Loading…"}
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
-        What you can see in your employee system beats anything AirCue can infer from public data.
+        What you can see in your employee system beats anything Standbye can infer from public data.
         It stays private to your account.
       </p>
 

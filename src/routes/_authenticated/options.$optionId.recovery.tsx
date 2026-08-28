@@ -7,13 +7,13 @@ import { useOption } from "@/lib/aircue/use-option";
 export const Route = createFileRoute("/_authenticated/options/$optionId/recovery")({
   head: () => ({
     meta: [
-      { title: "Recovery room — AirCue" },
+      { title: "Recovery room — Standbye" },
       {
         name: "description",
         content:
           "What you would still have left if this standby attempt does not work: later nonstops and alternate routings.",
       },
-      { property: "og:title", content: "Recovery room — AirCue" },
+      { property: "og:title", content: "Recovery room — Standbye" },
       { property: "og:description", content: "Your backup options if this attempt fails." },
     ],
   }),
