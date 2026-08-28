@@ -8,7 +8,7 @@
 import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
 import { findRouteLegs, findOriginDepartures, type RouteLeg } from "@/lib/aircue/route-search.server";
 import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
-import { airportGeo, milesBetween } from "@/lib/aircue/airport-lookup.server";
+import { airportGeo, localClockAt, milesBetween } from "@/lib/aircue/airport-lookup.server";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import { getRouteHistory } from "@/lib/aircue/history.server";
 import { getFaaPrograms, getMetar, getTaf, icaoFor } from "@/lib/aircue/sources.server";
