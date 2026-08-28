@@ -1295,12 +1295,14 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
   const deadline = Date.now() + ESCAPE_BUDGET_MS;
   const outOfTime = () => Date.now() > deadline;
 
-  const results: RankedOption[] = [];
+  const nonstops: RankedOption[] = [];
   const boards = new Map<string, Board>();
   let anyLegs = 0;
   let anyBlocked = false;
 
-  // A good escape never hides an obvious answer: usable nonstops come first.
+  // Nonstops are not escape routes — they are fetched for context (recovery
+  // room, later shots, and the "still considering nonstop?" footnote) and are
+  // ranked strictly below every alternate routing.
   for (const origin of origins) {
     for (const dest of dests) {
       if (origin === dest || outOfTime()) continue;
@@ -1317,10 +1319,10 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
       const scored = await mapWithConcurrency(usable, LEG_CONCURRENCY, (leg) =>
         scoreLeg(input, leg, usable, board, holiday),
       );
-      results.push(...scored);
+      nonstops.push(...scored);
     }
   }
-  const nonstopCount = results.length;
+  const nonstopCount = nonstops.length;
 
   const builds = await findGateways(input, origins, dests, carrierFilter, allowed, {
     maxHubs: ESCAPE_MAX_HUBS,
@@ -1328,6 +1330,7 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
     maxDetour: ESCAPE_DETOUR,
   });
 
+  const connections: Array<{ option: RankedOption; escapeScore: number }> = [];
   for (const build of builds.slice(0, ESCAPE_SCORE_COUNT)) {
     if (outOfTime()) break;
     const legsNeeded = [build.best.first, build.best.second].filter(
@@ -1342,18 +1345,28 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
       const board = fetched[i];
       if (board) boards.set(`${leg.origin}-${leg.dest}`, board);
     });
-    results.push(await scoreConnection(input, build, boards, holiday));
+    const option = await scoreConnection(input, build, boards, holiday);
+    const gateway = gatewayOptionOf(build, boards);
+    connections.push({ option, escapeScore: escapeScoreOf(option, gateway) });
   }
 
   const gateways = builds.map((b) => gatewayOptionOf(b, boards));
 
-  results.sort(
+  connections.sort(
+    (a, b) =>
+      b.escapeScore - a.escapeScore ||
+      minutesOfDay(a.option.schedDepUtc ?? "") - minutesOfDay(b.option.schedDepUtc ?? ""),
+  );
+  nonstops.sort(
     (a, b) =>
       b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""),
   );
+
+  const results: RankedOption[] = [...connections.map((c) => c.option), ...nonstops];
   results.forEach((r, i) => {
     r.rank = i + 1;
   });
+
 
   let reason: RankReason | null = null;
   if (results.length === 0 && gateways.length === 0) {
