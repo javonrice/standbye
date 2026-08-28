@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ChevronRight, CornerUpRight, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, CornerUpRight, Sparkles } from "lucide-react";
 
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { PillarGrid } from "@/components/aircue/PillarGrid";
