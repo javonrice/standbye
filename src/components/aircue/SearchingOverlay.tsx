@@ -73,7 +73,7 @@ export function SearchingOverlay({ phase, flightLabel, origin, dest }: Searching
             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
               <span className="text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground">
-                Building brief
+                {phase === "escape" ? "Finding escapes" : "Building brief"}
               </span>
             </div>
           )}
