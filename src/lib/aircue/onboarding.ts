@@ -98,3 +98,23 @@ export function resolvedAccess(draft: OnboardingDraft): string[] {
   }
   return [];
 }
+
+/**
+ * Airlines Standbye may consider for a saved profile. `airline_access` can hold
+ * the access-mode token ("home"/"any") rather than real codes, so filter to
+ * genuine IATA codes and fall back to the home airline.
+ */
+export function profileCarriers(profile: {
+  homeAirline?: string | null | undefined;
+  airlineAccess?: string[] | null | undefined;
+  accessMode?: string | null | undefined;
+}): string[] | null {
+  const home = (profile.homeAirline ?? "").toUpperCase();
+  const codes = (profile.airlineAccess ?? [])
+    .map((a) => a.toUpperCase())
+    .filter((a) => /^[A-Z0-9]{2,3}$/.test(a) && a !== "ANY" && a !== "ALL");
+  if (profile.accessMode === "any" || profile.accessMode === "all") return null;
+  if (profile.accessMode === "home") return home ? [home] : null;
+  const merged = Array.from(new Set([...(home ? [home] : []), ...codes]));
+  return merged.length ? merged : null;
+}

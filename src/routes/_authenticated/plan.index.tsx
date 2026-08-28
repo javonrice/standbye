@@ -1,3 +1,4 @@
+import { profileCarriers } from "@/lib/aircue/onboarding";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -80,7 +81,7 @@ function PlanHome() {
     carrierMode === "all"
       ? null
       : carrierMode === "profile"
-        ? (profile?.airlineAccess?.length ? profile.airlineAccess : null)
+        ? (profile ? profileCarriers(profile) : null)
         : [carrierMode];
 
   const run = useMutation({
