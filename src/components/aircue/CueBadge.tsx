@@ -1,4 +1,10 @@
-import { judgmentFace, judgmentTitle, judgmentTone, type Judgment } from "@/lib/aircue/standby";
+import {
+  judgmentFace,
+  judgmentShort,
+  judgmentTitle,
+  judgmentTone,
+  type Judgment,
+} from "@/lib/aircue/standby";
 import { cn } from "@/lib/utils";
 
 /**
