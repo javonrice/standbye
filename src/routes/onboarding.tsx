@@ -382,7 +382,7 @@ function OnboardingFlow() {
       action={
         hideCta ? null : (
           <Button
-            className="h-12 w-full text-base"
+            className="h-14 w-full rounded-full text-base font-semibold"
             disabled={disabled}
             onClick={() => (step === TOTAL - 1 ? navigate({ to: "/auth" }) : next())}
           >

@@ -64,28 +64,44 @@ function Welcome() {
   }, [save, load, navigate]);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 pb-12 text-center">
-      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-fine-soft">
-        {saving ? (
-          <Check className="h-6 w-6 animate-pulse text-fine-foreground" />
-        ) : (
-          <Gift className="h-6 w-6 text-fine-foreground" />
-        )}
-      </span>
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-7 pb-8 pt-20 text-center">
+      <div className="flex flex-1 flex-col justify-center">
+        <span className="relative mx-auto flex h-24 w-24 items-center justify-center">
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full bg-fine-soft opacity-70 blur-xl"
+          />
+          <span className="relative flex h-20 w-20 items-center justify-center rounded-full bg-fine-soft shadow-card">
+            {saving ? (
+              <Check className="h-8 w-8 animate-pulse text-fine-foreground" />
+            ) : (
+              <Gift className="h-8 w-8 text-fine-foreground" />
+            )}
+          </span>
+        </span>
 
-      <h1 className="mt-5 font-display text-2xl font-bold tracking-tight">
-        {saving ? "Saving your profile…" : "Your first standby day is on us"}
-      </h1>
-      <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-        {saving
-          ? "One moment while Standbye gets set up the way you travel."
-          : "Plan a route, see the day ranked, and let Standbye watch it while you get to the airport."}
-      </p>
+        {!saving && (
+          <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-fine-foreground">
+            One full standby day, on us
+          </p>
+        )}
+
+        <h1
+          className={`font-display text-[30px] font-bold leading-[1.12] tracking-tight ${saving ? "mt-8" : "mt-3"}`}
+        >
+          {saving ? "Saving your profile…" : "Try it on your actual trip"}
+        </h1>
+        <p className="mx-auto mt-4 max-w-[20rem] text-[16px] leading-relaxed text-muted-foreground">
+          {saving
+            ? "One moment while Standbye gets set up the way you travel."
+            : "Plan a real route, see the day ranked, and let Standbye watch it while you get to the airport."}
+        </p>
+      </div>
 
       <Button
         size="lg"
         disabled={saving}
-        className="mt-9 h-12 rounded-2xl text-base font-semibold"
+        className="h-14 rounded-full text-base font-semibold"
         onClick={() => navigate({ to: "/plan" })}
       >
         Plan my first standby
