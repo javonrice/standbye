@@ -64,11 +64,11 @@ function WatchRow({ watch }: { watch: WatchSummary }) {
         className="flex items-center gap-3 py-3.5 transition-colors hover:bg-muted/40"
       >
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
+          <div className="flex flex-wrap items-baseline gap-x-2">
             <p className="font-display text-[17px] font-semibold tracking-tight">
               {watch.origin} → {watch.dest}
             </p>
-            <span className="truncate text-sm text-muted-foreground">{watch.flightLabel}</span>
+            <span className="text-sm text-muted-foreground">{watch.flightLabel}</span>
           </div>
           <div className="mt-1.5 flex items-center gap-2">
             <CueBadge judgment={watch.judgment as Judgment} size="sm" short />

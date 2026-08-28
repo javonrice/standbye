@@ -143,7 +143,7 @@ function ComparePage() {
                       Standbye pick
                     </p>
                   )}
-                  <p className="mt-0.5 truncate font-display text-[15px] font-bold tracking-tight">
+                  <p className="mt-0.5 break-words font-display text-[15px] font-bold leading-snug tracking-tight">
                     {o.kind === "connection" && o.segments.length > 1
                       ? `Via ${o.segments[0]?.dest ?? "hub"}`
                       : o.flightLabel}
@@ -200,7 +200,7 @@ function ComparePage() {
                 className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
               >
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold">{o.flightLabel}</span>
+                  <span className="block break-words text-sm font-semibold">{o.flightLabel}</span>
                   <span className="block text-xs text-muted-foreground">
                     {o.depLocal} local · {judgmentShort[o.judgment]}
                   </span>
