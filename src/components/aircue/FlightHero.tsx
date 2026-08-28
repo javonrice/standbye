@@ -49,7 +49,7 @@ function Endpoint({
   align = "left",
 }: {
   code: string;
-  time?: string | null;
+  time: string | null | undefined;
   label: string;
   align?: "left" | "right";
 }) {
