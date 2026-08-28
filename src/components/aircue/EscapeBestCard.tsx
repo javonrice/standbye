@@ -34,16 +34,25 @@ export function EscapeBestCard({
         Via {gateway.city ?? gateway.hub}
       </p>
 
-      <dl className="mt-4 space-y-2 text-[14px]">
-        <Line term="Ways out" value={`${shots} shot${shots === 1 ? "" : "s"} to ${gateway.hub}`} />
-        <Line
-          term="Once there"
-          value={`${gateway.onwardCount} useful ${dest} flight${gateway.onwardCount === 1 ? "" : "s"}`}
+      <div className="mt-4 space-y-3 text-[14px]">
+        <TimeBlock
+          term={`Out of ${origin}`}
+          items={gateway.inboundShots.map((shot) => `${shot.depLocal} · ${shot.flightLabel}`)}
+          empty="No named departures came back for this leg."
         />
+        <TimeBlock
+          term={`${gateway.hub} → ${dest}`}
+          items={gateway.onwardDepartures}
+          empty="Nothing useful onward right now."
+        />
+      </div>
+
+      <dl className="mt-4 space-y-2 border-t border-border pt-3 text-[14px]">
         <Line term="Recovery Room" value={gateway.recoveryLabel} />
         {gateway.addedMinutes !== null && gateway.addedMinutes > 0 && (
           <Line term="Extra travel" value={`about ${gateway.addedMinutes} min`} />
         )}
+        <Line term="Ways out" value={`${shots} shot${shots === 1 ? "" : "s"}`} />
       </dl>
 
       <p className="mt-4 text-[14px] leading-relaxed text-foreground">{gateway.summary}</p>
@@ -66,7 +75,7 @@ export function EscapeBestCard({
           params={{ planId, hub: gateway.hub }}
           className="flex items-center justify-center gap-1 py-1 text-[14px] font-semibold text-primary"
         >
-          See how this works <ChevronRight className="h-4 w-4" />
+          See the full routing <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
     </div>
