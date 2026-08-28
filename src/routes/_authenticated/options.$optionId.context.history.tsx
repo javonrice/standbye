@@ -1,6 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
 
+import {
+  DataBar,
+  DetailHeading,
+  DetailShell,
+} from "@/components/aircue/DetailScreen";
+import { StandbyeTake } from "@/components/aircue/StandbyeTake";
 import { useOption } from "@/lib/aircue/use-option";
 
 export const Route = createFileRoute("/_authenticated/options/$optionId/context/history")({
@@ -19,64 +24,70 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/context/
   component: HistoryContext,
 });
 
+/**
+ * Turns the plain-language pattern we already publish into a rough bar length.
+ * The words stay the truth; the bar is only a relative sense of scale.
+ */
+function scaleFor(pattern: string): number {
+  const text = pattern.toLowerCase();
+  if (text.includes("almost never") || text.includes("very rarely")) return 8;
+  if (text.includes("rarely") || text.includes("seldom")) return 18;
+  if (text.includes("small") || text.includes("now and then") || text.includes("occasional"))
+    return 32;
+  if (text.includes("often") || text.includes("frequent")) return 72;
+  if (text.includes("regularly") || text.includes("sometimes")) return 50;
+  return 40;
+}
+
 function HistoryContext() {
   const { optionId } = Route.useParams();
   const { data } = useOption(optionId);
   const history = data?.option?.evidence.history;
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
-      <Link
-        to="/options/$optionId"
-        params={{ optionId }}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to the cue
-      </Link>
-
-      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">
-        How this route usually runs
-      </h1>
-
+    <DetailShell
+      optionId={optionId}
+      title="How this route usually runs"
+      subtitle={history ? `${history.carrierLabel} · ${history.monthLabel}` : undefined}
+    >
       {!history && (
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="mt-5 text-sm text-muted-foreground">
           We do not have enough past data on this route to say anything useful yet.
         </p>
       )}
 
       {history && (
         <>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {history.carrierLabel} · {history.monthLabel}
-          </p>
-
-          <div className="mt-5 rounded-2xl border border-border bg-card p-4">
-            <p className="text-sm text-foreground/90">{history.summary}</p>
+          <DetailHeading>The usual pattern</DetailHeading>
+          <div className="mt-1 divide-y divide-border/70">
             {history.loadIndex !== null && (
-              <div className="mt-3">
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.min(100, Math.max(0, history.loadIndex))}%` }}
-                  />
-                </div>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  How full this route typically runs this month, compared with the rest of the year.
-                </p>
-              </div>
+              <DataBar
+                label="How full it runs"
+                fill={history.loadIndex}
+                value={
+                  history.loadIndex >= 75
+                    ? "Usually full"
+                    : history.loadIndex >= 45
+                      ? "Moderately full"
+                      : "Usually room"
+                }
+              />
             )}
+            <DataBar
+              label="Late departures"
+              fill={scaleFor(history.delayPattern)}
+              value={history.delayPattern}
+              tone="muted"
+            />
+            <DataBar
+              label="Cancellations"
+              fill={scaleFor(history.cancelPattern)}
+              value={history.cancelPattern}
+              tone="muted"
+            />
           </div>
 
-          <div className="mt-3 space-y-3">
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-sm font-semibold">Cancellations</p>
-              <p className="mt-1 text-sm text-muted-foreground">{history.cancelPattern}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-sm font-semibold">Late departures</p>
-              <p className="mt-1 text-sm text-muted-foreground">{history.delayPattern}</p>
-            </div>
-          </div>
+          <StandbyeTake className="mt-6">{history.summary}</StandbyeTake>
 
           <p className="mt-5 text-xs text-muted-foreground">
             Based on published government travel data{" "}
@@ -85,6 +96,6 @@ function HistoryContext() {
           </p>
         </>
       )}
-    </main>
+    </DetailShell>
   );
 }
