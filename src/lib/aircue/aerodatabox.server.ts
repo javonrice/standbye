@@ -267,13 +267,13 @@ export async function fetchDepartureBoard(
 ): Promise<{ departures: AdbFlight[]; budgetBlocked: boolean }> {
   if (!aeroDataBoxEnabled()) return { departures: [], budgetBlocked: true };
 
-  const cacheKey = `adb:fids:${iata}:${travelDate}:${cacheSuffix}`;
+  const cacheKey = `adb:fids:v2:${iata}:${travelDate}:${cacheSuffix}`;
 
   const result = await cachedCall<{ departures?: AdbFlight[] }>(
     cacheKey,
     FIDS_TTL_SECONDS,
     "fids-departures",
-    `/flights/airports/iata/${iata}/${windowStartLocal}/${windowEndLocal}?withLeg=false&direction=Departure&withCancelled=true&withCodeshared=false&withCargo=false&withPrivate=false&withLocation=false`,
+    `/flights/airports/iata/${iata}/${windowStartLocal}/${windowEndLocal}?withLeg=true&direction=Departure&withCancelled=true&withCodeshared=false&withCargo=false&withPrivate=false&withLocation=false`,
   );
 
   return {
