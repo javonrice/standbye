@@ -9,13 +9,13 @@ import { getPlan } from "@/lib/aircue/plan.functions";
 export const Route = createFileRoute("/_authenticated/plans/$planId/ways")({
   head: () => ({
     meta: [
-      { title: "All ways there — AirCue" },
+      { title: "All ways there — Standbye" },
       {
         name: "description",
         content:
           "Every realistic way to reach your destination today, including the connecting cities worth committing to.",
       },
-      { property: "og:title", content: "All ways there — AirCue" },
+      { property: "og:title", content: "All ways there — Standbye" },
       {
         property: "og:description",
         content: "The connecting cities that actually get you there today.",
@@ -67,7 +67,7 @@ function AllWaysThere() {
       </div>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        A connection means clearing standby twice. AirCue only recommends one when the ways onward
+        A connection means clearing standby twice. Standbye only recommends one when the ways onward
         genuinely make up for it.
       </p>
     </main>

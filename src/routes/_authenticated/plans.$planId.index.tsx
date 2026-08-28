@@ -11,13 +11,13 @@ import { getPlan } from "@/lib/aircue/plan.functions";
 export const Route = createFileRoute("/_authenticated/plans/$planId/")({
   head: () => ({
     meta: [
-      { title: "Your standby options — AirCue" },
+      { title: "Your standby options — Standbye" },
       {
         name: "description",
         content:
           "The day's standby setups ranked by availability, operations, history, and recovery room.",
       },
-      { property: "og:title", content: "Your standby options — AirCue" },
+      { property: "og:title", content: "Your standby options — Standbye" },
       { property: "og:description", content: "Ranked standby setups for this route and date." },
     ],
   }),
@@ -134,7 +134,7 @@ function OptionsScreen() {
           )}
 
           <p className="mt-6 text-xs text-muted-foreground">
-            Public availability is a demand signal, not airline load. AirCue never predicts whether
+            Public availability is a demand signal, not airline load. Standbye never predicts whether
             you will clear.
           </p>
         </>

@@ -15,13 +15,13 @@ import { agoLabel, type Judgment } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/watching/$watchId")({
   head: () => ({
     meta: [
-      { title: "What changed — AirCue" },
+      { title: "What changed — Standbye" },
       {
         name: "description",
         content:
           "A plain timeline of everything that shifted on this standby setup since you started watching it.",
       },
-      { property: "og:title", content: "What changed — AirCue" },
+      { property: "og:title", content: "What changed — Standbye" },
       { property: "og:description", content: "Timeline of meaningful changes on your plan." },
     ],
   }),

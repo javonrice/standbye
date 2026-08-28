@@ -1,7 +1,7 @@
 /** Server-only, cache-first fetchers for the free data sources (FAA, AWC, NWS). */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const UA = "Aircue/1.0 (standby pressure monitor; contact: support@aircue.app)";
+const UA = "Standbye/1.0 (standby pressure monitor; contact: support@aircue.app)";
 
 export interface SourceResult<T> {
   ok: boolean;

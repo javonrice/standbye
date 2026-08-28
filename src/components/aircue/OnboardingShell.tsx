@@ -31,7 +31,7 @@ export function OnboardingShell({
         ) : (
           <span className="h-9 w-9" />
         )}
-        <img src={wordmark.url} alt="Standbye" className="h-4 w-auto" />
+        <img src={wordmark.url} alt="Standbye" className="h-7 w-auto object-contain" />
         <span className="h-9 w-9" />
       </header>
 

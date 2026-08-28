@@ -12,13 +12,13 @@ import { agoLabel, type Judgment } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/watching/")({
   head: () => ({
     meta: [
-      { title: "Watching — AirCue" },
+      { title: "Watching — Standbye" },
       {
         name: "description",
         content:
-          "The standby setups AirCue is keeping an eye on, and whether anything has changed enough to reconsider.",
+          "The standby setups Standbye is keeping an eye on, and whether anything has changed enough to reconsider.",
       },
-      { property: "og:title", content: "Watching — AirCue" },
+      { property: "og:title", content: "Watching — Standbye" },
       { property: "og:description", content: "Your watched standby setups and what changed." },
     ],
   }),
@@ -60,7 +60,7 @@ function WatchingHome() {
       )}
       <h1 className="font-display text-2xl font-bold tracking-tight">Watching</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        AirCue rechecks these setups and tells you when something changes enough to matter.
+        Standbye rechecks these setups and tells you when something changes enough to matter.
       </p>
 
       {isLoading && <p className="mt-6 text-sm text-muted-foreground">Loading…</p>}

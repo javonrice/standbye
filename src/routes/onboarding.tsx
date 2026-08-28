@@ -33,17 +33,17 @@ import {
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
-      { title: "Set up AirCue for how you nonrev" },
+      { title: "Set up Standbye for how you nonrev" },
       {
         name: "description",
         content:
-          "A few quick questions and four short examples, then AirCue is ready to rank your standby day.",
+          "A few quick questions and four short examples, then Standbye is ready to rank your standby day.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "Set up AirCue for how you nonrev" },
+      { property: "og:title", content: "Set up Standbye for how you nonrev" },
       {
         property: "og:description",
-        content: "Tell AirCue how you travel standby and see how it picks a plan.",
+        content: "Tell Standbye how you travel standby and see how it picks a plan.",
       },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -158,7 +158,7 @@ function OnboardingFlow() {
         return (
           <section>
             <h1 className="font-display text-2xl font-bold tracking-tight">
-              What can AirCue consider when finding a way there?
+              What can Standbye consider when finding a way there?
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">You can change this anytime.</p>
             <div className="mt-5 space-y-2">
@@ -208,7 +208,7 @@ function OnboardingFlow() {
               Where do you usually start?
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              AirCue uses this as your default origin. One airport is enough for now.
+              Standbye uses this as your default origin. One airport is enough for now.
             </p>
             <div className="mt-5">
               <AirportField
@@ -238,7 +238,7 @@ function OnboardingFlow() {
               ))}
             </div>
             <p className="mt-5 text-[15px] font-semibold">
-              AirCue would rather start with the earlier flight.
+              Standbye would rather start with the earlier flight.
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Why? If it doesn't work, you still have somewhere to go next.
@@ -260,7 +260,7 @@ function OnboardingFlow() {
               But an earlier flight cancels and its availability tightens.
             </p>
             <hr className="my-5 border-border" />
-            <p className="text-sm text-muted-foreground">AirCue looks again.</p>
+            <p className="text-sm text-muted-foreground">Standbye looks again.</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-primary">
               New best move
             </p>
@@ -275,7 +275,7 @@ function OnboardingFlow() {
               <p className="text-sm text-muted-foreground">5 useful LAX flights after</p>
             </div>
             <p className="mt-5 text-[15px] font-semibold">
-              AirCue isn't married to the flight.
+              Standbye isn't married to the flight.
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground">
               It's trying to help you get where you're going.
@@ -294,7 +294,7 @@ function OnboardingFlow() {
               <ExampleCard flight={noLoadExample(origin)} />
             </div>
             <p className="mt-5 text-sm text-muted-foreground">
-              AirCue can still give you useful context without pretending it knows the standby
+              Standbye can still give you useful context without pretending it knows the standby
               list.
             </p>
           </section>
@@ -318,7 +318,7 @@ function OnboardingFlow() {
               Confidence: High
             </p>
             <p className="mt-5 text-sm text-muted-foreground">
-              AirCue combines what you know with what it can see. If that changes the best
+              Standbye combines what you know with what it can see. If that changes the best
               option, we'll tell you.
             </p>
           </section>
@@ -328,7 +328,7 @@ function OnboardingFlow() {
         return (
           <section>
             <h1 className="font-display text-2xl font-bold tracking-tight">
-              One thing AirCue won't do: make up your odds.
+              One thing Standbye won't do: make up your odds.
             </h1>
             <div className="relative mx-auto mt-8 w-fit">
               <span className="font-display text-5xl font-bold text-muted-foreground/40 line-through">
@@ -342,7 +342,7 @@ function OnboardingFlow() {
               too.
             </p>
             <p className="mt-3 text-sm text-muted-foreground">
-              What AirCue gives you is a better read on the decision — not a fake boarding
+              What Standbye gives you is a better read on the decision — not a fake boarding
               prediction.
             </p>
           </section>
@@ -433,7 +433,7 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
         What's your home airline?
       </h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
-        This helps AirCue understand the ways you can usually travel.
+        This helps Standbye understand the ways you can usually travel.
       </p>
       <Input
         value={query}
@@ -504,7 +504,7 @@ function RevealStep({ draft }: { draft: OnboardingDraft }) {
         <Check className="h-6 w-6 text-fine-foreground" />
       </span>
       <h1 className="mt-4 font-display text-2xl font-bold tracking-tight">
-        AirCue is ready for you
+        Standbye is ready for you
       </h1>
       <p className="mt-1.5 text-sm text-muted-foreground">Your standby profile</p>
 
@@ -524,7 +524,7 @@ function RevealStep({ draft }: { draft: OnboardingDraft }) {
       </div>
 
       <p className="mt-5 text-sm text-muted-foreground">
-        When you search, AirCue will rank the options around the way you can actually travel.
+        When you search, Standbye will rank the options around the way you can actually travel.
       </p>
     </section>
   );
@@ -558,7 +558,7 @@ function SetupStep({ onDone }: { onDone: () => void }) {
 
   return (
     <section className="pt-6">
-      <h1 className="font-display text-2xl font-bold tracking-tight">Setting up AirCue…</h1>
+      <h1 className="font-display text-2xl font-bold tracking-tight">Setting up Standbye…</h1>
       <ul className="mt-6 space-y-3">
         {lines.map((line, i) => (
           <li key={line} className="flex items-center gap-3 text-[15px]">

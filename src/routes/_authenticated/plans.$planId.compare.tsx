@@ -12,13 +12,13 @@ const pillarOrder: PillarKey[] = ["availability", "operations", "history", "reco
 export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
   head: () => ({
     meta: [
-      { title: "Compare setups — AirCue" },
+      { title: "Compare setups — Standbye" },
       {
         name: "description",
         content:
           "Put your standby options side by side and see where they actually differ before you commit to one.",
       },
-      { property: "og:title", content: "Compare setups — AirCue" },
+      { property: "og:title", content: "Compare setups — Standbye" },
       { property: "og:description", content: "Side-by-side comparison of your standby options." },
     ],
   }),

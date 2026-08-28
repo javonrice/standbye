@@ -1,5 +1,5 @@
 /**
- * AirCue ranking engine.
+ * Standbye ranking engine.
  *
  * Turns a route + date into ranked standby setups. Four pillars — availability,
  * operations, history, recovery — feed an internal score. The score never
@@ -535,7 +535,7 @@ export async function holidayFor(
       country: `${COUNTRY_FLAG[country] ?? ""} ${country}`.trim(),
       name: near.localName || near.name,
       date: near.date,
-      note: "Major holidays can make normal historical demand less useful. AirCue treats this as context, not proof the flight will be full.",
+      note: "Major holidays can make normal historical demand less useful. Standbye treats this as context, not proof the flight will be full.",
     };
   } catch {
     return null;

@@ -57,8 +57,7 @@ function FirstLaunch() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-7 pb-16 pt-16 text-center">
-      <img src={mark.url} alt="" aria-hidden className="mx-auto h-14 w-14" />
-      <img src={wordmark.url} alt="Standbye" className="mx-auto mt-5 h-8 w-auto" />
+      <img src={wordmark.url} alt="Standbye" className="mx-auto h-16 w-auto object-contain" />
 
       <h1 className="sr-only">Standbye — standby without all the constant checking</h1>
 

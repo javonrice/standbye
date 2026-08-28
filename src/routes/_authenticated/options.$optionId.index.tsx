@@ -26,13 +26,13 @@ import {
 export const Route = createFileRoute("/_authenticated/options/$optionId/")({
   head: () => ({
     meta: [
-      { title: "Standby cue — AirCue" },
+      { title: "Standby cue — Standbye" },
       {
         name: "description",
         content:
           "Why this standby setup looks the way it does: availability, operations, history, and the backup options you would still have.",
       },
-      { property: "og:title", content: "Standby cue — AirCue" },
+      { property: "og:title", content: "Standby cue — Standbye" },
       { property: "og:description", content: "The reasoning behind one standby option." },
     ],
   }),
@@ -130,7 +130,7 @@ function CueScreen() {
       )}
 
       <section className="mt-6">
-        <h2 className="font-display text-base font-bold tracking-tight">Why AirCue says this</h2>
+        <h2 className="font-display text-base font-bold tracking-tight">Why Standbye says this</h2>
         <div className="mt-2">
           <PillarList pillars={option.pillars} />
         </div>
@@ -205,7 +205,7 @@ function CueScreen() {
       )}
 
       <p className="mt-5 text-xs text-muted-foreground">
-        AirCue reads public availability and operating conditions. It is not airline load data and
+        Standbye reads public availability and operating conditions. It is not airline load data and
         never predicts whether you will clear.
       </p>
     </main>

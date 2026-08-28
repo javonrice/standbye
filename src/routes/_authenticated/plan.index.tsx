@@ -24,13 +24,13 @@ import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } fr
 export const Route = createFileRoute("/_authenticated/plan/")({
   head: () => ({
     meta: [
-      { title: "Plan a standby attempt — AirCue" },
+      { title: "Plan a standby attempt — Standbye" },
       {
         name: "description",
         content:
-          "Set your route, date and preferences, and AirCue ranks the day's realistic standby setups.",
+          "Set your route, date and preferences, and Standbye ranks the day's realistic standby setups.",
       },
-      { property: "og:title", content: "Plan a standby attempt — AirCue" },
+      { property: "og:title", content: "Plan a standby attempt — Standbye" },
       { property: "og:description", content: "Ranked standby setups for your route and date." },
     ],
   }),
@@ -98,7 +98,7 @@ function PlanHome() {
 
       <h1 className="font-display text-2xl font-bold tracking-tight">Plan a standby</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Tell AirCue where you are trying to get. It ranks the day's realistic setups.
+        Tell Standbye where you are trying to get. It ranks the day's realistic setups.
       </p>
 
       <form
@@ -188,7 +188,7 @@ function PlanHome() {
               </Select>
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {routingModeHint[routingMode]} · a connection means clearing standby twice, so
-                AirCue only suggests one when the ways onward make up for it.
+                Standbye only suggests one when the ways onward make up for it.
               </p>
             </div>
 

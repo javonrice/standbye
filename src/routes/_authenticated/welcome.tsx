@@ -10,12 +10,12 @@ import { clearDraft, readDraft, resolvedAccess } from "@/lib/aircue/onboarding";
 export const Route = createFileRoute("/_authenticated/welcome")({
   head: () => ({
     meta: [
-      { title: "Your first standby day — AirCue" },
+      { title: "Your first standby day — Standbye" },
       {
         name: "description",
-        content: "Your standby profile is saved. Start your first full standby day in AirCue.",
+        content: "Your standby profile is saved. Start your first full standby day in Standbye.",
       },
-      { property: "og:title", content: "Your first standby day — AirCue" },
+      { property: "og:title", content: "Your first standby day — Standbye" },
       { property: "og:description", content: "Your standby profile is saved and ready." },
     ],
   }),
@@ -78,8 +78,8 @@ function Welcome() {
       </h1>
       <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
         {saving
-          ? "One moment while AirCue gets set up the way you travel."
-          : "Plan a route, see the day ranked, and let AirCue watch it while you get to the airport."}
+          ? "One moment while Standbye gets set up the way you travel."
+          : "Plan a route, see the day ranked, and let Standbye watch it while you get to the airport."}
       </p>
 
       <Button
