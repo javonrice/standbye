@@ -501,7 +501,7 @@ export async function loadPlan(
 export async function loadPlanSummaries(client: unknown, userId: string): Promise<PlanSummary[]> {
   const { data } = await db(client)
     .from("plans")
-    .select("id,origin_iata,dest_iata,travel_date,travelers,created_at,plan_options(label,rank)")
+    .select("id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,plan_options(label,rank)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(10);

@@ -34,6 +34,7 @@ export interface PlanSummary {
   bestJudgment: string | null;
   optionCount: number;
   createdAt: string;
+  mode: "standby" | "escape";
 }
 
 export interface WatchSummary {
