@@ -210,18 +210,16 @@ function EscapeResults() {
             {viaResult && (
               <div className="mt-3 rounded-xl border border-border bg-card p-3.5">
                 {viaResult.gateway ? (
-                  <Link
-                    to={viaResult.optionId ? "/options/$optionId" : "/escape/$planId"}
-                    params={
-                      viaResult.optionId ? { optionId: viaResult.optionId } : { planId }
-                    }
-                    className="block"
-                  >
+                  <>
                     <EscapeGatewayRow gateway={viaResult.gateway} />
-                    <p className="mt-2 flex items-center gap-1 text-[13px] font-semibold text-primary">
+                    <Link
+                      to={viaResult.optionId ? "/options/$optionId" : "/escape/$planId"}
+                      params={viaResult.optionId ? { optionId: viaResult.optionId } : { planId }}
+                      className="mt-2 flex items-center gap-1 text-[13px] font-semibold text-primary"
+                    >
                       See this escape <ChevronRight className="h-4 w-4" />
-                    </p>
-                  </Link>
+                    </Link>
+                  </>
                 ) : (
                   <p className="text-[13px] leading-relaxed text-muted-foreground">
                     {viaResult.reason ?? "That routing does not work today."}
