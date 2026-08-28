@@ -100,7 +100,7 @@ function OnboardingFlow() {
       case 1:
         return (
           <section>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Yeah. We know the routine.
             </h1>
             <ol className="mt-6 space-y-1.5 text-center">
@@ -157,7 +157,7 @@ function OnboardingFlow() {
       case 4:
         return (
           <section>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               What can Standbye consider when finding a way there?
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">You can change this anytime.</p>
@@ -204,7 +204,7 @@ function OnboardingFlow() {
       case 5:
         return (
           <section>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Where do you usually start?
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
@@ -228,7 +228,7 @@ function OnboardingFlow() {
             {draft.painPoint && (
               <p className="text-sm text-muted-foreground">{painEcho[draft.painPoint]}</p>
             )}
-            <h1 className="mt-2 font-display text-2xl font-bold tracking-tight">
+            <h1 className="mt-3 font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Let's say you're trying to get to LAX.
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">{origin} → LAX · Saturday</p>
@@ -249,7 +249,7 @@ function OnboardingFlow() {
       case 7:
         return (
           <section>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Then the nonstop gets worse.
             </h1>
             <p aria-hidden className="mt-5 text-center text-5xl">
@@ -286,7 +286,7 @@ function OnboardingFlow() {
       case 8:
         return (
           <section>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               Can't see that airline's load?
             </h1>
             <p className="mt-1.5 text-sm text-muted-foreground">That's normal.</p>
@@ -303,7 +303,7 @@ function OnboardingFlow() {
       case 9:
         return (
           <section>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               And if you DO have the load… add it.
             </h1>
             <div className="mt-5 rounded-2xl border border-border bg-card p-4 shadow-card">
@@ -327,7 +327,7 @@ function OnboardingFlow() {
       case 10:
         return (
           <section>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               One thing Standbye won't do: make up your odds.
             </h1>
             <div className="relative mx-auto mt-8 w-fit">
@@ -407,7 +407,7 @@ function Question({
 }) {
   return (
     <section>
-      <h1 className="font-display text-2xl font-bold tracking-tight">{title}</h1>
+      <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">{title}</h1>
       {sub && <p className="mt-1.5 text-sm text-muted-foreground">{sub}</p>}
       <div className="mt-5 space-y-2">{children}</div>
     </section>
@@ -429,7 +429,7 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
 
   return (
     <section>
-      <h1 className="font-display text-2xl font-bold tracking-tight">
+      <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
         What's your home airline?
       </h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
@@ -558,7 +558,7 @@ function SetupStep({ onDone }: { onDone: () => void }) {
 
   return (
     <section className="pt-6">
-      <h1 className="font-display text-2xl font-bold tracking-tight">Setting up Standbye…</h1>
+      <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">Setting up Standbye…</h1>
       <ul className="mt-6 space-y-3">
         {lines.map((line, i) => (
           <li key={line} className="flex items-center gap-3 text-[15px]">
