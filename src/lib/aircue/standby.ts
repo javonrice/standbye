@@ -198,6 +198,9 @@ export interface StandbyPlan {
   emptyReason: "no_service" | "day_over" | "carrier_filter" | "data_unavailable" | null;
   /** Airports the search actually covered, primary first. */
   scannedAirports: { origins: string[]; dests: string[] };
+  /** Connecting cities worth committing to, strongest first. */
+  gateways: GatewayOption[];
+  routingMode: RoutingMode;
 }
 
 export const judgmentFace: Record<Judgment, string> = {
