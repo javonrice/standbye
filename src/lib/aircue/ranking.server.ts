@@ -880,7 +880,7 @@ async function scoreConnection(
     origin: first.origin,
     dest: second.dest,
     depLocal,
-    arrLocal: "",
+    arrLocal: segments[1]?.arrLocal ?? "",
     schedDepUtc: first.schedDepUtc,
     schedArrUtc: second.schedArrUtc,
     segments,
