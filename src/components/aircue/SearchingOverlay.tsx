@@ -8,7 +8,7 @@ import { Check, Plane } from "lucide-react";
  * travellers know something is happening without feeling frantic.
  */
 
-export type SearchingPhase = "building";
+export type SearchingPhase = "building" | "escape";
 
 const BUILDING_STEPS = [
   "Reading airport conditions",
@@ -16,6 +16,14 @@ const BUILDING_STEPS = [
   "Tracing the aircraft chain",
   "Checking booking inventory",
   "Weighing standby pressure",
+] as const;
+
+const ESCAPE_STEPS = [
+  "Looking beyond the usual route",
+  "Finding stations you can actually reach",
+  "Checking what leaves from each one",
+  "Checking availability and operations",
+  "Ranking your escapes",
 ] as const;
 
 /** Slowing cadence so the list never runs out before the work is done. */
@@ -30,7 +38,7 @@ interface SearchingOverlayProps {
 }
 
 export function SearchingOverlay({ phase, flightLabel, origin, dest }: SearchingOverlayProps) {
-  const steps = BUILDING_STEPS;
+  const steps = phase === "escape" ? ESCAPE_STEPS : BUILDING_STEPS;
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
