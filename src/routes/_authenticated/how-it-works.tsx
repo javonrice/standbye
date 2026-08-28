@@ -25,24 +25,24 @@ export const Route = createFileRoute("/_authenticated/how-it-works")({
 
 const judgments: { judgment: Judgment; meaning: string }[] = [
   {
-    judgment: "good",
+    judgment: "favorable",
     meaning:
       "Seats still look open, the day is running normally, and there is another flight behind this one if it slips. This is the kind of setup most people clear on.",
   },
   {
-    judgment: "tight",
+    judgment: "mixed",
     meaning:
       "It can work, but there is less room than you want — fewer open seats, a busy day, or a thin backup. Worth taking if you can handle a wait.",
   },
   {
-    judgment: "risky",
+    judgment: "riskier",
     meaning:
       "Something is clearly working against you: the flight is close to full, the operation is struggling, or there is nothing useful behind it. Only take it if you have a real fallback.",
   },
   {
-    judgment: "avoid",
+    judgment: "changed",
     meaning:
-      "We would not plan a standby day around this one. Look at another flight, another airport, or another day.",
+      "Something moved after you started watching — a cancellation, a big delay, or seats disappearing. Open it and decide again before you head to the airport.",
   },
 ];
 
