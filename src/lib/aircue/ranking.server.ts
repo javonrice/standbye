@@ -140,6 +140,7 @@ interface BoardEntry {
 
 async function availabilityBoard(
   input: RankInput,
+  mode: "quick" | "precise" = "precise",
 ): Promise<{ map: Map<string, BoardEntry>; ok: boolean; checkedAt: string | null; reason?: string }> {
   const carrier =
     input.carriers && input.carriers.length === 1 ? (input.carriers[0] ?? null) : null;
@@ -148,7 +149,7 @@ async function availabilityBoard(
     dest: input.dest,
     date: input.travelDate,
     carrier,
-    mode: "precise",
+    mode,
     deviceId: input.userId,
   });
   const map = new Map<string, BoardEntry>();
