@@ -30,6 +30,7 @@ import { Route as AuthenticatedOptionsOptionIdRecoveryRouteImport } from './rout
 import { Route as AuthenticatedPlansPlanIdIndexRouteImport } from './routes/_authenticated/plans.$planId.index'
 import { Route as AuthenticatedPlansPlanIdCompareRouteImport } from './routes/_authenticated/plans.$planId.compare'
 import { Route as AuthenticatedPlansPlanIdWaysRouteImport } from './routes/_authenticated/plans.$planId.ways'
+import { Route as AuthenticatedEscapePlanIdViaHubRouteImport } from './routes/_authenticated/escape.$planId.via.$hub'
 import { Route as AuthenticatedOptionsOptionIdContextHistoryRouteImport } from './routes/_authenticated/options.$optionId.context.history'
 import { Route as AuthenticatedOptionsOptionIdContextHolidayRouteImport } from './routes/_authenticated/options.$optionId.context.holiday'
 import { Route as AuthenticatedOptionsOptionIdContextWeatherRouteImport } from './routes/_authenticated/options.$optionId.context.weather'
@@ -150,6 +151,12 @@ const AuthenticatedPlansPlanIdWaysRoute =
     path: '/plans/$planId/ways',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEscapePlanIdViaHubRoute =
+  AuthenticatedEscapePlanIdViaHubRouteImport.update({
+    id: '/via/$hub',
+    path: '/via/$hub',
+    getParentRoute: () => AuthenticatedEscapePlanIdRoute,
+  } as any)
 const AuthenticatedOptionsOptionIdContextHistoryRoute =
   AuthenticatedOptionsOptionIdContextHistoryRouteImport.update({
     id: '/options/$optionId/context/history',
@@ -177,7 +184,7 @@ export interface FileRoutesByFullPath {
   '/known-flight': typeof AuthenticatedKnownFlightRoute
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/you': typeof AuthenticatedYouRoute
-  '/escape/$planId': typeof AuthenticatedEscapePlanIdRoute
+  '/escape/$planId': typeof AuthenticatedEscapePlanIdRouteWithChildren
   '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/escape/': typeof AuthenticatedEscapeIndexRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
+  '/escape/$planId/via/$hub': typeof AuthenticatedEscapePlanIdViaHubRoute
   '/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
   '/options/$optionId/context/holiday': typeof AuthenticatedOptionsOptionIdContextHolidayRoute
   '/options/$optionId/context/weather': typeof AuthenticatedOptionsOptionIdContextWeatherRoute
@@ -202,7 +210,7 @@ export interface FileRoutesByTo {
   '/known-flight': typeof AuthenticatedKnownFlightRoute
   '/welcome': typeof AuthenticatedWelcomeRoute
   '/you': typeof AuthenticatedYouRoute
-  '/escape/$planId': typeof AuthenticatedEscapePlanIdRoute
+  '/escape/$planId': typeof AuthenticatedEscapePlanIdRouteWithChildren
   '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/escape': typeof AuthenticatedEscapeIndexRoute
@@ -215,6 +223,7 @@ export interface FileRoutesByTo {
   '/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/options/$optionId': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/plans/$planId': typeof AuthenticatedPlansPlanIdIndexRoute
+  '/escape/$planId/via/$hub': typeof AuthenticatedEscapePlanIdViaHubRoute
   '/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
   '/options/$optionId/context/holiday': typeof AuthenticatedOptionsOptionIdContextHolidayRoute
   '/options/$optionId/context/weather': typeof AuthenticatedOptionsOptionIdContextWeatherRoute
@@ -229,7 +238,7 @@ export interface FileRoutesById {
   '/_authenticated/known-flight': typeof AuthenticatedKnownFlightRoute
   '/_authenticated/welcome': typeof AuthenticatedWelcomeRoute
   '/_authenticated/you': typeof AuthenticatedYouRoute
-  '/_authenticated/escape/$planId': typeof AuthenticatedEscapePlanIdRoute
+  '/_authenticated/escape/$planId': typeof AuthenticatedEscapePlanIdRouteWithChildren
   '/_authenticated/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/_authenticated/escape/': typeof AuthenticatedEscapeIndexRoute
@@ -242,6 +251,7 @@ export interface FileRoutesById {
   '/_authenticated/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/_authenticated/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/_authenticated/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
+  '/_authenticated/escape/$planId/via/$hub': typeof AuthenticatedEscapePlanIdViaHubRoute
   '/_authenticated/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
   '/_authenticated/options/$optionId/context/holiday': typeof AuthenticatedOptionsOptionIdContextHolidayRoute
   '/_authenticated/options/$optionId/context/weather': typeof AuthenticatedOptionsOptionIdContextWeatherRoute
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/plans/$planId/ways'
     | '/options/$optionId/'
     | '/plans/$planId/'
+    | '/escape/$planId/via/$hub'
     | '/options/$optionId/context/history'
     | '/options/$optionId/context/holiday'
     | '/options/$optionId/context/weather'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/plans/$planId/ways'
     | '/options/$optionId'
     | '/plans/$planId'
+    | '/escape/$planId/via/$hub'
     | '/options/$optionId/context/history'
     | '/options/$optionId/context/holiday'
     | '/options/$optionId/context/weather'
@@ -320,6 +332,7 @@ export interface FileRouteTypes {
     | '/_authenticated/plans/$planId/ways'
     | '/_authenticated/options/$optionId/'
     | '/_authenticated/plans/$planId/'
+    | '/_authenticated/escape/$planId/via/$hub'
     | '/_authenticated/options/$optionId/context/history'
     | '/_authenticated/options/$optionId/context/holiday'
     | '/_authenticated/options/$optionId/context/weather'
@@ -482,6 +495,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlansPlanIdWaysRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/escape/$planId/via/$hub': {
+      id: '/_authenticated/escape/$planId/via/$hub'
+      path: '/via/$hub'
+      fullPath: '/escape/$planId/via/$hub'
+      preLoaderRoute: typeof AuthenticatedEscapePlanIdViaHubRouteImport
+      parentRoute: typeof AuthenticatedEscapePlanIdRoute
+    }
     '/_authenticated/options/$optionId/context/history': {
       id: '/_authenticated/options/$optionId/context/history'
       path: '/options/$optionId/context/history'
@@ -506,12 +526,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedEscapePlanIdRouteChildren {
+  AuthenticatedEscapePlanIdViaHubRoute: typeof AuthenticatedEscapePlanIdViaHubRoute
+}
+
+const AuthenticatedEscapePlanIdRouteChildren: AuthenticatedEscapePlanIdRouteChildren =
+  {
+    AuthenticatedEscapePlanIdViaHubRoute: AuthenticatedEscapePlanIdViaHubRoute,
+  }
+
+const AuthenticatedEscapePlanIdRouteWithChildren =
+  AuthenticatedEscapePlanIdRoute._addFileChildren(
+    AuthenticatedEscapePlanIdRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHowItWorksRoute: typeof AuthenticatedHowItWorksRoute
   AuthenticatedKnownFlightRoute: typeof AuthenticatedKnownFlightRoute
   AuthenticatedWelcomeRoute: typeof AuthenticatedWelcomeRoute
   AuthenticatedYouRoute: typeof AuthenticatedYouRoute
-  AuthenticatedEscapePlanIdRoute: typeof AuthenticatedEscapePlanIdRoute
+  AuthenticatedEscapePlanIdRoute: typeof AuthenticatedEscapePlanIdRouteWithChildren
   AuthenticatedWatchingWatchIdRoute: typeof AuthenticatedWatchingWatchIdRoute
   AuthenticatedEscapeIndexRoute: typeof AuthenticatedEscapeIndexRoute
   AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
@@ -533,7 +567,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKnownFlightRoute: AuthenticatedKnownFlightRoute,
   AuthenticatedWelcomeRoute: AuthenticatedWelcomeRoute,
   AuthenticatedYouRoute: AuthenticatedYouRoute,
-  AuthenticatedEscapePlanIdRoute: AuthenticatedEscapePlanIdRoute,
+  AuthenticatedEscapePlanIdRoute: AuthenticatedEscapePlanIdRouteWithChildren,
   AuthenticatedWatchingWatchIdRoute: AuthenticatedWatchingWatchIdRoute,
   AuthenticatedEscapeIndexRoute: AuthenticatedEscapeIndexRoute,
   AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
