@@ -56,7 +56,7 @@ function WatchingHome() {
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-3xl md:px-10 md:pt-12">
       {showTakeover && (
-        <PlanChangedTakeover watches={changed} onDismiss={() => setTakeoverDismissed(true)} /gt
+        <PlanChangedTakeover watches={changed} onDismiss={() => setTakeoverDismissed(true)} />
       )}
       <h1 className="font-display text-2xl font-bold tracking-tight">Watching</h1>
       <p className="mt-1 text-sm text-muted-foreground">
