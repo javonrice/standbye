@@ -931,10 +931,18 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
   const results: RankedOption[] = [];
   const boards = new Map<string, Board>();
 
+  // Hard deadline: a standby search must answer with what it has, not hang.
+  const deadline = Date.now() + SEARCH_BUDGET_MS;
+  const outOfTime = () => Date.now() > deadline;
+
   for (const [origin, dest] of scanned) {
+    if (outOfTime() && results.length > 0) break;
+    // Only the primary pair earns the precise seat ladder; extra pairs use the
+    // cheap 9-then-1 probe, which still buckets 9+ / 1-8 / 0.
+    const isPrimary = origin === input.origin && dest === input.dest;
     const [{ legs, budgetBlocked }, board] = await Promise.all([
       findRouteLegs(origin, dest, input.travelDate, carrierFilter),
-      availabilityBoard({ ...input, origin, dest }),
+      availabilityBoard({ ...input, origin, dest }, isPrimary ? "precise" : "quick"),
     ]);
     boards.set(`${origin}-${dest}`, board);
     if (budgetBlocked) anyBoardBlocked = true;
@@ -946,9 +954,10 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
       .slice(0, 12);
     anyLegsAtAll += usable.length;
 
-    for (const leg of usable) {
-      results.push(await scoreLeg(input, leg, usable, board, holiday));
-    }
+    const scored = await mapWithConcurrency(usable, LEG_CONCURRENCY, (leg) =>
+      scoreLeg(input, leg, usable, board, holiday),
+    );
+    results.push(...scored);
   }
 
   // Gateways are first-class now: we look for them whenever the traveller
@@ -956,21 +965,27 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
   const nonstopCount = results.length;
   let gateways: GatewayOption[] = [];
 
-  if (maxStops >= 1) {
+  if (maxStops >= 1 && !(outOfTime() && results.length > 0)) {
     const maxHubs = wide ? 5 : nonstopCount === 0 ? 4 : 3;
     const builds = await findGateways(input, origins, dests, carrierFilter, allowed, maxHubs, wide);
     const scoreCount = wide ? 4 : nonstopCount === 0 ? 3 : 2;
 
     for (const build of builds.slice(0, scoreCount)) {
-      for (const leg of [build.best.first, build.best.second]) {
-        const key = `${leg.origin}-${leg.dest}`;
-        if (!boards.has(key)) {
-          boards.set(
-            key,
-            await availabilityBoard({ ...input, origin: leg.origin, dest: leg.dest }),
-          );
-        }
-      }
+      if (outOfTime() && results.length > 0) break;
+      const legsNeeded = [build.best.first, build.best.second].filter(
+        (leg) => !boards.has(`${leg.origin}-${leg.dest}`),
+      );
+      // Connection legs always use the cheap probe — two clears already limit
+      // how much precision is worth paying for.
+      const fetched = await Promise.all(
+        legsNeeded.map((leg) =>
+          availabilityBoard({ ...input, origin: leg.origin, dest: leg.dest }, "quick"),
+        ),
+      );
+      legsNeeded.forEach((leg, i) => {
+        const board = fetched[i];
+        if (board) boards.set(`${leg.origin}-${leg.dest}`, board);
+      });
       results.push(await scoreConnection(input, build, boards, holiday));
     }
 
@@ -990,6 +1005,7 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
       }
     }
   }
+
 
   results.sort((a, b) => b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""));
   results.forEach((r, i) => {
