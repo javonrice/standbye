@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BuddiesRouteImport } from './routes/buddies'
 import { Route as RoutesRouteImport } from './routes/routes'
 import { Route as WatchesRouteImport } from './routes/watches'
+import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan.index'
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
@@ -50,6 +51,11 @@ const WatchesRoute = WatchesRouteImport.update({
   path: '/watches',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ShareTokenRoute = ShareTokenRouteImport.update({
   id: '/share/$token',
   path: '/share/$token',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/plan/': typeof AuthenticatedPlanIndexRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/plan': typeof AuthenticatedPlanIndexRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/share/$token': typeof ShareTokenRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
   '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/buddies'
     | '/routes'
     | '/watches'
+    | '/onboarding'
     | '/share/$token'
     | '/api/public/run-watches'
     | '/plan/'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/buddies'
     | '/routes'
     | '/watches'
+    | '/onboarding'
     | '/share/$token'
     | '/api/public/run-watches'
     | '/plan'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/buddies'
     | '/routes'
     | '/watches'
+    | '/_authenticated/onboarding'
     | '/share/$token'
     | '/api/public/run-watches'
     | '/_authenticated/plan/'
@@ -212,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/onboarding': {
+      id: '/_authenticated/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/share/$token': {
       id: '/share/$token'
       path: '/share/$token'
@@ -251,10 +270,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
 }
 
