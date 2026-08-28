@@ -104,6 +104,9 @@ export interface ReportedLoad {
   checkedAt: string;
 }
 
+/** What the plan is for — a normal standby search, or an Escape route search. */
+export type PlanMode = "standby" | "escape";
+
 /** How wide the traveller wants Standbye to cast the net. */
 export type RoutingMode = "best" | "nonstop" | "wide";
 
@@ -201,6 +204,10 @@ export interface StandbyPlan {
   /** Connecting cities worth committing to, strongest first. */
   gateways: GatewayOption[];
   routingMode: RoutingMode;
+  /** Escape plans search a much wider network of intermediate stations. */
+  mode: PlanMode;
+  /** True when this escape shares an existing Standby Day for the same route/date. */
+  standbyDayShared: boolean;
 }
 
 export const judgmentFace: Record<Judgment, string> = {
