@@ -14,6 +14,8 @@ export interface RouteLeg {
   schedDepUtc: string;
   schedArrUtc: string;
   depLocalTime?: string;
+  /** Scheduled arrival in the destination airport's local time, "HH:MM". */
+  arrLocalTime?: string;
   airlineName?: string;
   airlineCode?: string;
   flightNumber?: string;
