@@ -19,7 +19,7 @@ export function DetailShell({
 }: {
   optionId: string;
   title: string;
-  subtitle?: string;
+  subtitle?: string | undefined;
   children: ReactNode;
 }) {
   return (
