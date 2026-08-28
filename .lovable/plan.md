@@ -67,10 +67,8 @@ Tapping any escape route opens its own screen, laid out like a Trip.com multi-le
 Trip.com transfer results (transfer-in-X chips, clear two-leg summary), Transit and Apple Maps route alternatives (one obvious pick, quiet compact alternates), Trip.com multi-leg itinerary (the vertical timeline rail), Flighty alternate flights (calm, scannable flight rows). Standbye's own tokens, type, radii, and bottom nav stay unchanged.
 
 
-## 4. Copy rules
-
+- Presentation hierarchy everywhere in Escape: recommendation → route → shots → recovery → explanation → raw flights.
 - "Recovery Room: Good/Great/Poor" replaces "If it doesn't work: Good".
-- Judgment first, explanation second, raw flight data on the detail screen.
 - No availability/operations/recovery label grid on the results hero — natural sentences instead; the colored signal grid stays on the detail screen.
 
 ## Technical notes
