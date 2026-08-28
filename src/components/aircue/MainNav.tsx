@@ -1,8 +1,8 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Compass, Bell, User } from "lucide-react";
 
-import mark from "@/assets/aircue-mark.png.asset.json";
-import wordmark from "@/assets/aircue-wordmark.png.asset.json";
+import mark from "@/assets/standbye-mark.png.asset.json";
+import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 
 const items = [
   { to: "/plan", label: "Plan", icon: Compass },
@@ -18,20 +18,17 @@ export function MainNav() {
   return (
     <>
       {/* Mobile: bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
-        <ul className="mx-auto flex max-w-md justify-around px-2 py-2">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+        <ul className="mx-auto flex max-w-md justify-around px-2 py-1.5">
           {items.map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <Link
                 to={to}
-                className={`flex flex-col items-center gap-0.5 rounded-lg px-4 py-1.5 text-[10px] font-semibold ${
-                  isActive(to) ? "text-foreground" : "text-muted-foreground"
+                className={`flex min-w-[72px] flex-col items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-semibold ${
+                  isActive(to) ? "text-primary" : "text-muted-foreground"
                 }`}
               >
-                <Icon
-                  className={`h-5 w-5 ${isActive(to) ? "text-primary" : "text-muted-foreground"}`}
-                  strokeWidth={isActive(to) ? 2.5 : 2}
-                />
+                <Icon className="h-[22px] w-[22px]" strokeWidth={isActive(to) ? 2.4 : 1.9} />
                 {label}
               </Link>
             </li>
@@ -40,23 +37,23 @@ export function MainNav() {
       </nav>
 
       {/* Desktop: side rail */}
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 border-r border-border bg-surface px-4 py-6 md:block">
-        <Link to="/plan" className="mb-8 flex items-center gap-2.5">
-          <img src={mark.url} alt="" aria-hidden className="h-7 w-7 invert" />
-          <img src={wordmark.url} alt="AirCue" className="h-5 w-auto invert" />
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-card px-4 py-6 md:block">
+        <Link to="/plan" className="mb-9 flex items-center gap-2 px-2">
+          <img src={mark.url} alt="" aria-hidden className="h-8 w-8" />
+          <img src={wordmark.url} alt="Standbye" className="h-6 w-auto" />
         </Link>
         <ul className="space-y-1">
           {items.map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <Link
                 to={to}
-                className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors ${
                   isActive(to)
                     ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-[18px] w-[18px]" />
                 {label}
               </Link>
             </li>
