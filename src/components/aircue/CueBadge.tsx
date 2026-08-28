@@ -14,10 +14,13 @@ import { cn } from "@/lib/utils";
 export function CueBadge({
   judgment,
   size = "md",
+  short = false,
   className,
 }: {
   judgment: Judgment;
   size?: "sm" | "md" | "lg";
+  /** Use the one-word label for dense lists. */
+  short?: boolean;
   className?: string;
 }) {
   const tone = judgmentTone[judgment];
