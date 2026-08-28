@@ -118,3 +118,22 @@ function OptionsScreen() {
     </main>
   );
 }
+
+type EmptyReason = "no_service" | "day_over" | "carrier_filter" | "data_unavailable" | null;
+
+function emptyTitle(reason: EmptyReason): string {
+  if (reason === "day_over") return "The useful part of this day is behind you";
+  if (reason === "carrier_filter") return "Your airline filter is too narrow";
+  if (reason === "data_unavailable") return "We could not check flights right now";
+  return "No one flies this nonstop today";
+}
+
+function emptyBody(reason: EmptyReason, origin: string, dest: string): string {
+  if (reason === "day_over")
+    return `The remaining ${origin} → ${dest} departures have already gone or are too close to be worth planning around. Tomorrow usually looks very different.`;
+  if (reason === "carrier_filter")
+    return `There are flights on this route, but none from the airlines you selected. Widen the airlines and we can look again.`;
+  if (reason === "data_unavailable")
+    return `Live flight data did not come back for this search, so we would rather show you nothing than guess. Try again in a few minutes.`;
+  return `We could not find a workable ${origin} → ${dest} routing for this date — not even through a connection. Smaller cities often need a nearby airport instead.`;
+}
