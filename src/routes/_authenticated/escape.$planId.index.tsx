@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { checkEscapeVia, getPlan } from "@/lib/aircue/plan.functions";
 import type { GatewayOption } from "@/lib/aircue/standby";
 
-export const Route = createFileRoute("/_authenticated/escape/$planId")({
+export const Route = createFileRoute("/_authenticated/escape/$planId/")({
   head: () => ({
     meta: [
       { title: "Your escape routes — Standbye" },
