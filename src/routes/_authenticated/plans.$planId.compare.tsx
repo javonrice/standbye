@@ -145,7 +145,7 @@ function ComparePage() {
                   )}
                   <p className="mt-0.5 truncate font-display text-[15px] font-bold tracking-tight">
                     {o.kind === "connection" && o.segments.length > 1
-                      ? `Via ${o.segments[0].dest}`
+                      ? `Via ${o.segments[0]?.dest ?? "hub"}`
                       : o.flightLabel}
                   </p>
                 </div>
