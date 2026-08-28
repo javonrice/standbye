@@ -1,7 +1,7 @@
 /** Server-only persistence and orchestration for the standby decision engine. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { rankStandbyOptions, type RankedOption } from "@/lib/aircue/ranking.server";
+import { rankStandbyOptions, type RankedOption, type RankReason } from "@/lib/aircue/ranking.server";
 import { confidenceWithLoad, judgeWithLoad, loadPillar } from "@/lib/aircue/load-adjust";
 import type {
   Confidence,
@@ -163,8 +163,8 @@ export async function buildPlan(
     travelers: number;
     cabin: string;
     carriers: string[] | null;
-    maxStops?: number;
-    nearby?: boolean;
+    maxStops?: number | undefined;
+    nearby?: boolean | undefined;
   },
 ): Promise<{ planId: string; optionCount: number; reason: RankReason | null }> {
   const { data: planRow, error } = await db(client)
