@@ -94,6 +94,8 @@ export const createPlan = createServerFn({ method: "POST" })
     travelers: number;
     cabin: string;
     carriers: string[] | null;
+    maxStops?: number;
+    nearby?: boolean;
   }) =>
     z
       .object({
@@ -103,10 +105,12 @@ export const createPlan = createServerFn({ method: "POST" })
         travelers: z.number().int().min(1).max(9),
         cabin: z.string().min(3).max(16),
         carriers: z.array(z.string().min(2).max(3)).max(12).nullable(),
+        maxStops: z.number().int().min(0).max(1).optional(),
+        nearby: z.boolean().optional(),
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ planId: string; optionCount: number }> => {
+  .handler(async ({ data, context }): Promise<{ planId: string; optionCount: number; reason: string | null }> => {
     const { buildPlan } = await import("@/lib/aircue/plan.server");
     return buildPlan(context.supabase, context.userId, data);
   });

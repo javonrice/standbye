@@ -163,8 +163,10 @@ export async function buildPlan(
     travelers: number;
     cabin: string;
     carriers: string[] | null;
+    maxStops?: number;
+    nearby?: boolean;
   },
-): Promise<{ planId: string; optionCount: number }> {
+): Promise<{ planId: string; optionCount: number; reason: RankReason | null }> {
   const { data: planRow, error } = await db(client)
     .from("plans")
     .insert({
@@ -174,7 +176,7 @@ export async function buildPlan(
       travel_date: input.travelDate,
       travelers: input.travelers,
       cabin: input.cabin,
-      prefs: { carriers: input.carriers },
+      prefs: { carriers: input.carriers, maxStops: input.maxStops ?? 1, nearby: input.nearby ?? false },
     })
     .select("id")
     .single();
@@ -189,6 +191,8 @@ export async function buildPlan(
     travelers: input.travelers,
     cabin: input.cabin,
     userId,
+    maxStops: input.maxStops ?? 1,
+    nearby: input.nearby ?? false,
   });
 
   if (ranked.options.length > 0) {
