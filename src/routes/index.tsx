@@ -5,6 +5,8 @@ import mark from "@/assets/aircue-mark.png.asset.json";
 import wordmark from "@/assets/aircue-wordmark.png.asset.json";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { readDraft } from "@/lib/aircue/onboarding";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,13 +38,14 @@ function FirstLaunch() {
     let active = true;
     void supabase.auth.getUser().then(({ data }) => {
       if (!active) return;
-      if (data.user) void navigate({ to: "/plan", replace: true });
+      if (data.user) void navigate({ to: readDraft() ? "/welcome" : "/plan", replace: true });
       else setChecking(false);
     });
     return () => {
       active = false;
     };
   }, [navigate]);
+
 
   if (checking) {
     return (
