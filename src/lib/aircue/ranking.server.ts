@@ -441,7 +441,7 @@ async function scoreLeg(
   const boardEntry = board.map.get(flightLabel);
   // Schedule boards give us no arrival time, so only publish one when the
   // booking board actually reported it. A guessed arrival is worse than none.
-  const arrLocal = boardEntry?.arrLocal ?? "";
+  const arrLocal = await arrivalClock(leg, boardEntry?.arrLocal ?? null);
   const localHour = leg.depLocalTime ? Number(leg.depLocalTime.slice(0, 2)) : null;
 
   const availability = availabilityFor(
