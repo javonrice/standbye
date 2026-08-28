@@ -105,6 +105,18 @@ function to12h(raw: string): string {
   return `${twelve}:${m} ${suffix}`;
 }
 
+/**
+ * Destination-local arrival time, in order of trust: the public booking board,
+ * then the carrier-reported arrival on a flight-status record (rendered in the
+ * destination airport's own timezone). Never an estimate.
+ */
+async function arrivalClock(leg: RouteLeg, boardArrLocal: string | null): Promise<string> {
+  if (boardArrLocal) return boardArrLocal;
+  if (leg.arrLocalTime) return to12h(leg.arrLocalTime);
+  if (leg.arrUtcKnown) return await localClockAt(leg.dest, leg.schedArrUtc);
+  return "";
+}
+
 function minutesOfDay(iso: string): number {
   const d = new Date(iso);
   return d.getUTCHours() * 60 + d.getUTCMinutes();
