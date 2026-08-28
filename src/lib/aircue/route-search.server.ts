@@ -54,11 +54,11 @@ async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<Route
     (await iataFromAirportName(arrMovement?.airport?.name, arrMovement?.airport?.icao));
   if (!origin || !dest) return null;
 
-  // Only a flight-status record carries a true arrival. A departures board
-  // reports the destination airport but the departure clock, so anything we
-  // derived from it would be a guess.
-  const arr = flight.arrival && flight.departure ? flight.arrival.scheduledTime?.utc : undefined;
-  const arrLocal = flight.arrival && flight.departure ? flight.arrival.scheduledTime?.local : undefined;
+  // A true `arrival` block (from withLeg=true board or flight-status) carries
+  // the destination clock. A bare `movement` object only names the far airport
+  // and carries the departure clock, so it must never be treated as arrival.
+  const arr = flight.arrival?.scheduledTime?.utc;
+  const arrLocal = flight.arrival?.scheduledTime?.local;
   const depLocal = depMovement?.scheduledTime?.local;
   const digits = (flight.number ?? "").replace(/\D/g, "");
   return {
