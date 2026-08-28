@@ -94,6 +94,29 @@ function OptionsScreen() {
             ))}
           </ul>
 
+          {plan.gateways.length > 0 && (
+            <section className="mt-7">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-display text-base font-bold tracking-tight">All ways there</h2>
+                <Link
+                  to="/plans/$planId/ways"
+                  params={{ planId }}
+                  className="text-sm font-semibold text-primary"
+                >
+                  See every route
+                </Link>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Connecting cities that would genuinely move you toward {plan.dest} today.
+              </p>
+              <div className="mt-3 space-y-3">
+                {plan.gateways.slice(0, 3).map((gateway) => (
+                  <GatewayCard key={gateway.hub} gateway={gateway} />
+                ))}
+              </div>
+            </section>
+          )}
+
           {plan.options.length > 1 && (
             <div className="mt-6 grid gap-2 sm:grid-cols-2">
               <Button asChild variant="outline" className="h-11">

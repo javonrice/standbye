@@ -26,6 +26,7 @@ import { Route as AuthenticatedOptionsOptionIdLoadRouteImport } from './routes/_
 import { Route as AuthenticatedOptionsOptionIdRecoveryRouteImport } from './routes/_authenticated/options.$optionId.recovery'
 import { Route as AuthenticatedPlansPlanIdIndexRouteImport } from './routes/_authenticated/plans.$planId.index'
 import { Route as AuthenticatedPlansPlanIdCompareRouteImport } from './routes/_authenticated/plans.$planId.compare'
+import { Route as AuthenticatedPlansPlanIdWaysRouteImport } from './routes/_authenticated/plans.$planId.ways'
 import { Route as AuthenticatedOptionsOptionIdContextHistoryRouteImport } from './routes/_authenticated/options.$optionId.context.history'
 import { Route as AuthenticatedOptionsOptionIdContextHolidayRouteImport } from './routes/_authenticated/options.$optionId.context.holiday'
 import { Route as AuthenticatedOptionsOptionIdContextWeatherRouteImport } from './routes/_authenticated/options.$optionId.context.weather'
@@ -123,6 +124,12 @@ const AuthenticatedPlansPlanIdCompareRoute =
     path: '/plans/$planId/compare',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPlansPlanIdWaysRoute =
+  AuthenticatedPlansPlanIdWaysRouteImport.update({
+    id: '/plans/$planId/ways',
+    path: '/plans/$planId/ways',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOptionsOptionIdContextHistoryRoute =
   AuthenticatedOptionsOptionIdContextHistoryRouteImport.update({
     id: '/options/$optionId/context/history',
@@ -157,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/options/$optionId/load': typeof AuthenticatedOptionsOptionIdLoadRoute
   '/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
   '/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
+  '/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
   '/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/options/$optionId/load': typeof AuthenticatedOptionsOptionIdLoadRoute
   '/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
   '/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
+  '/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/options/$optionId': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/plans/$planId': typeof AuthenticatedPlansPlanIdIndexRoute
   '/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
@@ -201,6 +210,7 @@ export interface FileRoutesById {
   '/_authenticated/options/$optionId/load': typeof AuthenticatedOptionsOptionIdLoadRoute
   '/_authenticated/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
   '/_authenticated/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
+  '/_authenticated/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/_authenticated/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
   '/_authenticated/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
   '/_authenticated/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/options/$optionId/load'
     | '/options/$optionId/recovery'
     | '/plans/$planId/compare'
+    | '/plans/$planId/ways'
     | '/options/$optionId/'
     | '/plans/$planId/'
     | '/options/$optionId/context/history'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/options/$optionId/load'
     | '/options/$optionId/recovery'
     | '/plans/$planId/compare'
+    | '/plans/$planId/ways'
     | '/options/$optionId'
     | '/plans/$planId'
     | '/options/$optionId/context/history'
@@ -267,6 +279,7 @@ export interface FileRouteTypes {
     | '/_authenticated/options/$optionId/load'
     | '/_authenticated/options/$optionId/recovery'
     | '/_authenticated/plans/$planId/compare'
+    | '/_authenticated/plans/$planId/ways'
     | '/_authenticated/options/$optionId/'
     | '/_authenticated/plans/$planId/'
     | '/_authenticated/options/$optionId/context/history'
@@ -402,6 +415,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlansPlanIdCompareRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/plans/$planId/ways': {
+      id: '/_authenticated/plans/$planId/ways'
+      path: '/plans/$planId/ways'
+      fullPath: '/plans/$planId/ways'
+      preLoaderRoute: typeof AuthenticatedPlansPlanIdWaysRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/options/$optionId/context/history': {
       id: '/_authenticated/options/$optionId/context/history'
       path: '/options/$optionId/context/history'
@@ -438,6 +458,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOptionsOptionIdLoadRoute: typeof AuthenticatedOptionsOptionIdLoadRoute
   AuthenticatedOptionsOptionIdRecoveryRoute: typeof AuthenticatedOptionsOptionIdRecoveryRoute
   AuthenticatedPlansPlanIdCompareRoute: typeof AuthenticatedPlansPlanIdCompareRoute
+  AuthenticatedPlansPlanIdWaysRoute: typeof AuthenticatedPlansPlanIdWaysRoute
   AuthenticatedOptionsOptionIdIndexRoute: typeof AuthenticatedOptionsOptionIdIndexRoute
   AuthenticatedPlansPlanIdIndexRoute: typeof AuthenticatedPlansPlanIdIndexRoute
   AuthenticatedOptionsOptionIdContextHistoryRoute: typeof AuthenticatedOptionsOptionIdContextHistoryRoute
@@ -459,6 +480,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOptionsOptionIdRecoveryRoute:
     AuthenticatedOptionsOptionIdRecoveryRoute,
   AuthenticatedPlansPlanIdCompareRoute: AuthenticatedPlansPlanIdCompareRoute,
+  AuthenticatedPlansPlanIdWaysRoute: AuthenticatedPlansPlanIdWaysRoute,
   AuthenticatedOptionsOptionIdIndexRoute:
     AuthenticatedOptionsOptionIdIndexRoute,
   AuthenticatedPlansPlanIdIndexRoute: AuthenticatedPlansPlanIdIndexRoute,
