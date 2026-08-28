@@ -217,6 +217,14 @@ export const judgmentTitle: Record<Judgment, string> = {
   changed: "Plan changed",
 };
 
+/** One-word version used in dense, scannable lists. */
+export const judgmentShort: Record<Judgment, string> = {
+  favorable: "Favorable",
+  mixed: "Mixed",
+  riskier: "Riskier",
+  changed: "Changed",
+};
+
 /** Tailwind token families for each judgment. */
 export const judgmentTone: Record<Judgment, { text: string; bg: string; ring: string }> = {
   favorable: { text: "text-fine-foreground", bg: "bg-fine-soft", ring: "ring-fine/40" },

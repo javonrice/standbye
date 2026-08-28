@@ -48,9 +48,11 @@ function OptionsScreen() {
           <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight">
             {plan.origin} → {plan.dest}
           </h1>
-          <p className="mt-2 text-[14px] text-muted-foreground">
-            {plan.travelDate} · {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"} ·{" "}
-            {plan.options.length} option{plan.options.length === 1 ? "" : "s"}
+          <p className="mt-2 text-[15px] font-medium text-foreground">
+            {longDate(plan.travelDate)}
+          </p>
+          <p className="mt-0.5 text-[14px] text-muted-foreground">
+            {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
           </p>
 
           {plan.options.length === 0 && (
@@ -84,7 +86,13 @@ function OptionsScreen() {
             </StandbyeTake>
           )}
 
-          <ul className="mt-5 space-y-3">
+          {plan.options.length > 0 && (
+            <h2 className="mt-6 font-display text-[19px] font-semibold tracking-tight">
+              Best standby setups
+            </h2>
+          )}
+
+          <ul className="mt-3 space-y-2.5">
             {plan.options.map((option) => (
               <li key={option.id}>
                 <StandbyOptionRow option={option} rank={option.rank} />
@@ -157,4 +165,16 @@ function emptyBody(reason: EmptyReason, origin: string, dest: string): string {
   if (reason === "data_unavailable")
     return `Live flight data did not come back for this search, so we would rather show you nothing than guess. Try again in a few minutes.`;
   return `We could not find a workable ${origin} → ${dest} routing for this date — not even through a connection. Smaller cities often need a nearby airport instead.`;
+}
+
+/** "2026-08-29" -> "Saturday, Aug 29" without shifting into another timezone. */
+function longDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }

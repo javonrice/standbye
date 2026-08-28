@@ -1,4 +1,10 @@
-import { judgmentFace, judgmentTitle, judgmentTone, type Judgment } from "@/lib/aircue/standby";
+import {
+  judgmentFace,
+  judgmentShort,
+  judgmentTitle,
+  judgmentTone,
+  type Judgment,
+} from "@/lib/aircue/standby";
 import { cn } from "@/lib/utils";
 
 /**
@@ -8,10 +14,13 @@ import { cn } from "@/lib/utils";
 export function CueBadge({
   judgment,
   size = "md",
+  short = false,
   className,
 }: {
   judgment: Judgment;
   size?: "sm" | "md" | "lg";
+  /** Use the one-word label for dense lists. */
+  short?: boolean;
   className?: string;
 }) {
   const tone = judgmentTone[judgment];
@@ -35,7 +44,7 @@ export function CueBadge({
       <span aria-hidden className="text-[1.05em] leading-none">
         {judgmentFace[judgment]}
       </span>
-      {judgmentTitle[judgment]}
+      {short ? judgmentShort[judgment] : judgmentTitle[judgment]}
     </span>
   );
 }
