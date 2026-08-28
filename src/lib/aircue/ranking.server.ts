@@ -8,6 +8,7 @@
 import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
 import { findRouteLegs, findOriginDepartures, type RouteLeg } from "@/lib/aircue/route-search.server";
 import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
+import { airportGeo, milesBetween } from "@/lib/aircue/airport-lookup.server";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import { getRouteHistory } from "@/lib/aircue/history.server";
 import { getFaaPrograms, getMetar, getTaf, icaoFor } from "@/lib/aircue/sources.server";
@@ -24,6 +25,9 @@ import type {
   Reason,
   RecoveryEvidence,
   OptionSegment,
+  GatewayOption,
+  RoutingMode,
+  Shot,
 } from "@/lib/aircue/standby";
 
 export interface RankInput {
@@ -38,6 +42,8 @@ export interface RankInput {
   maxStops?: number;
   /** Include driveable nearby airports in the search. */
   nearby?: boolean;
+  /** How wide the traveller wants the net cast. */
+  routingMode?: RoutingMode;
 }
 
 /** Why a search came back with nothing, so the UI can say something honest. */
@@ -47,11 +53,15 @@ export interface RankResult {
   options: RankedOption[];
   reason: RankReason | null;
   scanned: { origins: string[]; dests: string[] };
+  gateways: GatewayOption[];
+  nonstopCount: number;
 }
 
 export interface RankedOption {
   rank: number;
   kind: "nonstop" | "connection";
+  /** Connecting city for a routing option. */
+  hub?: string | null;
   judgment: Judgment;
   confidence: Confidence;
   score: number;
@@ -664,7 +674,6 @@ async function findGateways(
     if (pairs.length === 0) continue;
 
     pairs.sort((a, b) => a.first.schedDepUtc.localeCompare(b.first.schedDepUtc));
-    inbound.sort((a, b) => a.first?.schedDepUtc?.localeCompare?.(b.schedDepUtc) ?? 0);
     inbound.sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
     const best = pairs[0]!;
 
