@@ -151,7 +151,7 @@ export function PartyScale({
   tested: Array<{ adults: number; showing: boolean }>;
 }) {
   return (
-    <div className="mt-4 flex items-end gap-5">
+    <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
       {tested.map((t) => (
         <div key={t.adults} className="flex flex-col items-center gap-2">
           <span className="text-[13px] font-medium text-muted-foreground">{t.adults}</span>
