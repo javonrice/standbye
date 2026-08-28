@@ -95,3 +95,38 @@ export function milesBetween(
     Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
   return 3958.8 * 2 * Math.asin(Math.sqrt(s));
 }
+
+const tzCache = new Map<string, string | null>();
+
+/** IANA timezone for an airport, from our airports table. */
+export async function airportTimezone(iata: string): Promise<string | null> {
+  const code = iata.toUpperCase();
+  if (tzCache.has(code)) return tzCache.get(code) ?? null;
+  const { data } = await supabaseAdmin
+    .from("airports")
+    .select("tz")
+    .eq("iata", code)
+    .maybeSingle();
+  const tz = (data as { tz?: string | null } | null)?.tz ?? null;
+  tzCache.set(code, tz);
+  return tz;
+}
+
+/**
+ * A UTC instant rendered in an airport's local clock, e.g. "5:05 PM".
+ * Returns "" when we cannot place the airport, because a wrong arrival time
+ * is worse for a standby decision than no arrival time.
+ */
+export async function localClockAt(iata: string, utcIso: string): Promise<string> {
+  const tz = await airportTimezone(iata);
+  if (!tz) return "";
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(utcIso));
+  } catch {
+    return "";
+  }
+}

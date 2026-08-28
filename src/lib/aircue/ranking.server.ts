@@ -8,7 +8,7 @@
 import { buildRouteBoard } from "@/lib/aircue/serpapi-flights.server";
 import { findRouteLegs, findOriginDepartures, type RouteLeg } from "@/lib/aircue/route-search.server";
 import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
-import { airportGeo, milesBetween } from "@/lib/aircue/airport-lookup.server";
+import { airportGeo, localClockAt, milesBetween } from "@/lib/aircue/airport-lookup.server";
 import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import { getRouteHistory } from "@/lib/aircue/history.server";
 import { getFaaPrograms, getMetar, getTaf, icaoFor } from "@/lib/aircue/sources.server";
@@ -103,6 +103,18 @@ function to12h(raw: string): string {
   const suffix = hour >= 12 ? "PM" : "AM";
   const twelve = hour % 12 === 0 ? 12 : hour % 12;
   return `${twelve}:${m} ${suffix}`;
+}
+
+/**
+ * Destination-local arrival time, in order of trust: the public booking board,
+ * then the carrier-reported arrival on a flight-status record (rendered in the
+ * destination airport's own timezone). Never an estimate.
+ */
+async function arrivalClock(leg: RouteLeg, boardArrLocal: string | null): Promise<string> {
+  if (boardArrLocal) return boardArrLocal;
+  if (leg.arrLocalTime) return to12h(leg.arrLocalTime);
+  if (leg.arrUtcKnown) return await localClockAt(leg.dest, leg.schedArrUtc);
+  return "";
 }
 
 function minutesOfDay(iso: string): number {
@@ -441,7 +453,7 @@ async function scoreLeg(
   const boardEntry = board.map.get(flightLabel);
   // Schedule boards give us no arrival time, so only publish one when the
   // booking board actually reported it. A guessed arrival is worse than none.
-  const arrLocal = boardEntry?.arrLocal ?? "";
+  const arrLocal = await arrivalClock(leg, boardEntry?.arrLocal ?? null);
   const localHour = leg.depLocalTime ? Number(leg.depLocalTime.slice(0, 2)) : null;
 
   const availability = availabilityFor(
@@ -835,16 +847,21 @@ async function scoreConnection(
   const normalized = Math.max(0, scoreOf(pillars) - 12);
   const judgment = judgeScore(normalized, availabilityState, recovery.state);
 
-  const segments: OptionSegment[] = [first, second].map((l) => ({
-    carrier: l.airlineCode ?? "",
-    flightNumber: l.flightNumber ?? "",
-    flightLabel: legLabel(l),
-    origin: l.origin,
-    dest: l.dest,
-    depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
-    arrLocal: "",
-    schedDepUtc: l.schedDepUtc,
-  }));
+  const segments: OptionSegment[] = await Promise.all(
+    [first, second].map(async (l) => {
+      const legBoard = boards.get(`${l.origin}-${l.dest}`) ?? EMPTY_BOARD;
+      return {
+        carrier: l.airlineCode ?? "",
+        flightNumber: l.flightNumber ?? "",
+        flightLabel: legLabel(l),
+        origin: l.origin,
+        dest: l.dest,
+        depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
+        arrLocal: await arrivalClock(l, legBoard.map.get(legLabel(l))?.arrLocal ?? null),
+        schedDepUtc: l.schedDepUtc,
+      };
+    }),
+  );
 
   return {
     rank: 0,
@@ -863,7 +880,7 @@ async function scoreConnection(
     origin: first.origin,
     dest: second.dest,
     depLocal,
-    arrLocal: "",
+    arrLocal: segments[1]?.arrLocal ?? "",
     schedDepUtc: first.schedDepUtc,
     schedArrUtc: second.schedArrUtc,
     segments,
