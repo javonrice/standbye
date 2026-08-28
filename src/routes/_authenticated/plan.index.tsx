@@ -80,7 +80,7 @@ function PlanHome() {
     carrierMode === "all"
       ? null
       : carrierMode === "profile"
-        ? (profile?.airlineAccess?.length ? profile.airlineAccess : null)
+        ? (profile ? profileCarriers(profile) : null)
         : [carrierMode];
 
   const run = useMutation({

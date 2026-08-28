@@ -105,9 +105,9 @@ export function resolvedAccess(draft: OnboardingDraft): string[] {
  * genuine IATA codes and fall back to the home airline.
  */
 export function profileCarriers(profile: {
-  homeAirline?: string | null;
-  airlineAccess?: string[] | null;
-  accessMode?: string | null;
+  homeAirline?: string | null | undefined;
+  airlineAccess?: string[] | null | undefined;
+  accessMode?: string | null | undefined;
 }): string[] | null {
   const home = (profile.homeAirline ?? "").toUpperCase();
   const codes = (profile.airlineAccess ?? [])
