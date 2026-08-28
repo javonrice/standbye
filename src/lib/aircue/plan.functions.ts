@@ -148,8 +148,9 @@ export const createEscapePlan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ planId: string; optionCount: number; reason: string | null }> => {
     const { buildEscapePlan, loadStandbyProfile } = await import("@/lib/aircue/plan.server");
+    const { profileCarriers } = await import("@/lib/aircue/onboarding");
     const profile = await loadStandbyProfile(context.supabase, context.userId);
-    const carriers = profile?.airlineAccess?.length ? profile.airlineAccess : null;
+    const carriers = profile ? profileCarriers(profile) : null;
     return buildEscapePlan(context.supabase, context.userId, {
       origin: data.origin,
       dest: data.dest,
