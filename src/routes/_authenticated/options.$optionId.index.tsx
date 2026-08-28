@@ -6,14 +6,13 @@ import {
   Bell,
   BellOff,
   ChevronRight,
-  ClipboardList,
   LifeBuoy,
 } from "lucide-react";
 
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { FlightHero } from "@/components/aircue/FlightHero";
 import { StandbyeTake } from "@/components/aircue/StandbyeTake";
-import { SignalGroup, SignalRow } from "@/components/aircue/SignalRow";
+import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/SignalRow";
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
 import { startWatchPlan, stopWatchPlan } from "@/lib/aircue/plan.functions";
@@ -80,6 +79,21 @@ function CueScreen() {
   }
 
   const stale = loadIsStale(option.load);
+  const dateLabel = formatTravelDate(data?.travelDate ?? null);
+  const stops =
+    option.kind === "connection" && option.segments.length > 1
+      ? `${option.segments.length - 1} stop${option.segments.length > 2 ? "s" : ""} · via ${option.segments
+          .slice(0, -1)
+          .map((s) => s.dest)
+          .join(", ")}`
+      : "Nonstop";
+
+  const pillarLink: Record<string, { to: string }> = {
+    availability: { to: "/options/$optionId/availability" },
+    operations: { to: "/options/$optionId/context/weather" },
+    recovery: { to: "/options/$optionId/recovery" },
+    history: { to: "/options/$optionId/context/history" },
+  };
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-3xl md:px-10 md:pt-12">
@@ -94,128 +108,115 @@ function CueScreen() {
       )}
 
       <header className="mt-4">
-        <CueBadge judgment={option.judgment} size="lg" />
         <FlightHero
-          className="mt-5"
-          eyebrow={option.flightLabel}
+          eyebrow={dateLabel ? `${option.flightLabel} · ${dateLabel}` : option.flightLabel}
           origin={option.origin}
           dest={option.dest}
           depLocal={option.depLocal}
           arrLocal={option.arrLocal}
-          footnote={`All times local · confidence ${confidenceLabel[
-            option.confidence as Confidence
-          ].toLowerCase()} · checked ${agoLabel(option.refreshedAt)}`}
+          footnote={`${stops} · all times local · checked ${agoLabel(option.refreshedAt)}`}
         />
-        <StandbyeTake className="mt-5">{option.headline}</StandbyeTake>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <CueBadge judgment={option.judgment} />
+          <span className="text-[13px] text-muted-foreground">
+            Confidence: {confidenceLabel[option.confidence as Confidence]}
+          </span>
+        </div>
       </header>
 
       {option.load && (
-        <section
-          className={`mt-5 rounded-2xl border p-4 ${
-            stale ? "border-watch/40 bg-watch-soft" : "border-fine/40 bg-fine-soft"
-          }`}
-        >
-          <p className="text-sm font-semibold text-foreground">
-            Your load: {option.load.openSeats ?? "—"} open
+        <section className="mt-6 rounded-2xl border border-border bg-card p-4">
+          <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Reported load
+          </p>
+          <p className="mt-1.5 text-[17px] font-semibold text-foreground">
+            {option.load.openSeats ?? "—"} open
             {option.load.standbys !== null ? ` · ${option.load.standbys} listed` : ""}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-[13px] text-muted-foreground">
             {loadSourceLabel[option.load.source] ?? "Reported"} · {agoLabel(option.load.checkedAt)}
             {stale ? " — worth refreshing before you commit." : ""}
           </p>
           <Link
             to="/options/$optionId/load"
             params={{ optionId }}
-            className="mt-2 inline-block text-sm font-semibold text-primary"
+            className="mt-2.5 inline-flex items-center gap-1 text-sm font-semibold text-primary"
           >
-            Update the load
+            Update load <ChevronRight className="h-4 w-4" />
           </Link>
         </section>
       )}
 
       <section className="mt-7">
-        <h2 className="font-display text-[19px] font-semibold tracking-tight">Why we say that</h2>
+        <h2 className="font-display text-[19px] font-semibold tracking-tight">
+          Why Standbye says this
+        </h2>
         <div className="mt-1 rounded-2xl border border-border bg-card px-4">
           <SignalGroup>
-            {option.pillars.map((p) => (
-              <SignalRow
-                key={p.key}
-                state={p.state}
-                title={`${pillarTitle[p.key]} · ${p.label}`}
-                detail={p.detail}
-              />
-            ))}
+            {option.pillars.map((p) => {
+              const link = pillarLink[p.key];
+              return link ? (
+                <SignalLinkRow
+                  key={p.key}
+                  state={p.state}
+                  title={pillarTitle[p.key]}
+                  detail={`${p.label} — ${p.detail}`}
+                  to={link.to}
+                  params={{ optionId }}
+                />
+              ) : (
+                <SignalRow
+                  key={p.key}
+                  state={p.state}
+                  title={pillarTitle[p.key]}
+                  detail={`${p.label} — ${p.detail}`}
+                />
+              );
+            })}
           </SignalGroup>
         </div>
+        {option.evidence.holiday && (
+          <Link
+            to="/options/$optionId/context/holiday"
+            params={{ optionId }}
+            className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">Holiday context</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {option.evidence.holiday.name}
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </Link>
+        )}
       </section>
 
-      <nav className="mt-6 space-y-2">
-        <DetailLink
-          to="/options/$optionId/availability"
-          optionId={optionId}
-          title="Availability detail"
-          subtitle="What the public booking signal actually showed"
-        />
-        <DetailLink
-          to="/options/$optionId/recovery"
-          optionId={optionId}
-          title="Recovery room"
-          subtitle={option.evidence.recovery.summary}
-        />
-        <DetailLink
-          to="/options/$optionId/context/history"
-          optionId={optionId}
-          title="How this route usually behaves"
-          subtitle="Historical pattern for this month and day"
-        />
-        <DetailLink
-          to="/options/$optionId/context/weather"
-          optionId={optionId}
-          title="Conditions today"
-          subtitle="FAA programs, delays, and the weather picture"
-        />
-        {option.evidence.holiday && (
-          <DetailLink
-            to="/options/$optionId/context/holiday"
-            optionId={optionId}
-            title="Holiday context"
-            subtitle={option.evidence.holiday.name}
-          />
-        )}
-      </nav>
+      <StandbyeTake className="mt-6">{option.headline}</StandbyeTake>
 
-      <div className="mt-7 grid gap-2 sm:grid-cols-2">
-        <Button asChild variant="outline" className="h-12">
-          <Link to="/options/$optionId/load" params={{ optionId }}>
-            <ClipboardList className="mr-2 h-4 w-4" /> Add a real load
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="h-12">
+      <div className="mt-6 space-y-2">
+        {data?.watchId ? (
+          <Button
+            variant="outline"
+            className="h-12 w-full"
+            disabled={unwatch.isPending}
+            onClick={() => unwatch.mutate(data.watchId as string)}
+          >
+            <BellOff className="mr-2 h-4 w-4" /> Stop watching this Standby Day
+          </Button>
+        ) : (
+          <Button className="h-12 w-full" disabled={watch.isPending} onClick={() => watch.mutate()}>
+            <Bell className="mr-2 h-4 w-4" />
+            {watch.isPending ? "Setting up…" : "Watch this Standby Day"}
+          </Button>
+        )}
+        <Button asChild variant="outline" className="h-12 w-full">
           <Link to="/options/$optionId/recovery" params={{ optionId }}>
-            <LifeBuoy className="mr-2 h-4 w-4" /> Backup options
+            <LifeBuoy className="mr-2 h-4 w-4" /> See backup options
           </Link>
         </Button>
       </div>
-
-      {data?.watchId ? (
-        <Button
-          variant="outline"
-          className="mt-2 h-12 w-full"
-          disabled={unwatch.isPending}
-          onClick={() => unwatch.mutate(data.watchId as string)}
-        >
-          <BellOff className="mr-2 h-4 w-4" /> Stop watching this plan
-        </Button>
-      ) : (
-        <Button
-          className="mt-2 h-12 w-full"
-          disabled={watch.isPending}
-          onClick={() => watch.mutate()}
-        >
-          <Bell className="mr-2 h-4 w-4" />
-          {watch.isPending ? "Setting up…" : "Watch this plan"}
-        </Button>
-      )}
 
       <p className="mt-5 text-xs text-muted-foreground">
         Standbye reads public availability and operating conditions. It is not airline load data and
@@ -223,6 +224,14 @@ function CueScreen() {
       </p>
     </main>
   );
+}
+
+/** "Aug 29" from a plain yyyy-mm-dd date, without timezone drift. */
+function formatTravelDate(date: string | null): string | null {
+  if (!date) return null;
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function DetailLink({
