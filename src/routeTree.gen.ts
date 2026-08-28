@@ -10,17 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BuddiesRouteImport } from './routes/buddies'
 import { Route as RoutesRouteImport } from './routes/routes'
 import { Route as WatchesRouteImport } from './routes/watches'
+import { Route as AuthenticatedKnownFlightRouteImport } from './routes/_authenticated/known-flight'
+import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedYouRouteImport } from './routes/_authenticated/you'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
+import { Route as AuthenticatedPlanIndexRouteImport } from './routes/_authenticated/plan.index'
+import { Route as AuthenticatedWatchingIndexRouteImport } from './routes/_authenticated/watching.index'
+import { Route as AuthenticatedWatchingWatchIdRouteImport } from './routes/_authenticated/watching.$watchId'
 import { Route as ApiPublicRunWatchesRouteImport } from './routes/api/public/run-watches'
 import { Route as BriefBriefIdIndexRouteImport } from './routes/brief.$briefId.index'
+import { Route as AuthenticatedOptionsOptionIdIndexRouteImport } from './routes/_authenticated/options.$optionId.index'
+import { Route as AuthenticatedOptionsOptionIdAvailabilityRouteImport } from './routes/_authenticated/options.$optionId.availability'
+import { Route as AuthenticatedOptionsOptionIdLoadRouteImport } from './routes/_authenticated/options.$optionId.load'
+import { Route as AuthenticatedOptionsOptionIdRecoveryRouteImport } from './routes/_authenticated/options.$optionId.recovery'
+import { Route as AuthenticatedPlansPlanIdIndexRouteImport } from './routes/_authenticated/plans.$planId.index'
+import { Route as AuthenticatedPlansPlanIdCompareRouteImport } from './routes/_authenticated/plans.$planId.compare'
 import { Route as BriefBriefIdSignalSignalIdRouteImport } from './routes/brief.$briefId.signal.$signalId'
+import { Route as AuthenticatedOptionsOptionIdContextHistoryRouteImport } from './routes/_authenticated/options.$optionId.context.history'
+import { Route as AuthenticatedOptionsOptionIdContextHolidayRouteImport } from './routes/_authenticated/options.$optionId.context.holiday'
+import { Route as AuthenticatedOptionsOptionIdContextWeatherRouteImport } from './routes/_authenticated/options.$optionId.context.weather'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BuddiesRoute = BuddiesRouteImport.update({
@@ -38,11 +64,44 @@ const WatchesRoute = WatchesRouteImport.update({
   path: '/watches',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedKnownFlightRoute =
+  AuthenticatedKnownFlightRouteImport.update({
+    id: '/known-flight',
+    path: '/known-flight',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedYouRoute = AuthenticatedYouRouteImport.update({
+  id: '/you',
+  path: '/you',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ShareTokenRoute = ShareTokenRouteImport.update({
   id: '/share/$token',
   path: '/share/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPlanIndexRoute = AuthenticatedPlanIndexRouteImport.update({
+  id: '/plan/',
+  path: '/plan/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWatchingIndexRoute =
+  AuthenticatedWatchingIndexRouteImport.update({
+    id: '/watching/',
+    path: '/watching/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedWatchingWatchIdRoute =
+  AuthenticatedWatchingWatchIdRouteImport.update({
+    id: '/watching/$watchId',
+    path: '/watching/$watchId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicRunWatchesRoute = ApiPublicRunWatchesRouteImport.update({
   id: '/api/public/run-watches',
   path: '/api/public/run-watches',
@@ -53,79 +112,233 @@ const BriefBriefIdIndexRoute = BriefBriefIdIndexRouteImport.update({
   path: '/brief/$briefId/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedOptionsOptionIdIndexRoute =
+  AuthenticatedOptionsOptionIdIndexRouteImport.update({
+    id: '/options/$optionId/',
+    path: '/options/$optionId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOptionsOptionIdAvailabilityRoute =
+  AuthenticatedOptionsOptionIdAvailabilityRouteImport.update({
+    id: '/options/$optionId/availability',
+    path: '/options/$optionId/availability',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOptionsOptionIdLoadRoute =
+  AuthenticatedOptionsOptionIdLoadRouteImport.update({
+    id: '/options/$optionId/load',
+    path: '/options/$optionId/load',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOptionsOptionIdRecoveryRoute =
+  AuthenticatedOptionsOptionIdRecoveryRouteImport.update({
+    id: '/options/$optionId/recovery',
+    path: '/options/$optionId/recovery',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPlansPlanIdIndexRoute =
+  AuthenticatedPlansPlanIdIndexRouteImport.update({
+    id: '/plans/$planId/',
+    path: '/plans/$planId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPlansPlanIdCompareRoute =
+  AuthenticatedPlansPlanIdCompareRouteImport.update({
+    id: '/plans/$planId/compare',
+    path: '/plans/$planId/compare',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const BriefBriefIdSignalSignalIdRoute =
   BriefBriefIdSignalSignalIdRouteImport.update({
     id: '/brief/$briefId/signal/$signalId',
     path: '/brief/$briefId/signal/$signalId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedOptionsOptionIdContextHistoryRoute =
+  AuthenticatedOptionsOptionIdContextHistoryRouteImport.update({
+    id: '/options/$optionId/context/history',
+    path: '/options/$optionId/context/history',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOptionsOptionIdContextHolidayRoute =
+  AuthenticatedOptionsOptionIdContextHolidayRouteImport.update({
+    id: '/options/$optionId/context/holiday',
+    path: '/options/$optionId/context/holiday',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOptionsOptionIdContextWeatherRoute =
+  AuthenticatedOptionsOptionIdContextWeatherRouteImport.update({
+    id: '/options/$optionId/context/weather',
+    path: '/options/$optionId/context/weather',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
+  '/known-flight': typeof AuthenticatedKnownFlightRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/you': typeof AuthenticatedYouRoute
   '/share/$token': typeof ShareTokenRoute
+  '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/plan/': typeof AuthenticatedPlanIndexRoute
+  '/watching/': typeof AuthenticatedWatchingIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
+  '/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
+  '/options/$optionId/load': typeof AuthenticatedOptionsOptionIdLoadRoute
+  '/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
+  '/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
+  '/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
+  '/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
+  '/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
+  '/options/$optionId/context/holiday': typeof AuthenticatedOptionsOptionIdContextHolidayRoute
+  '/options/$optionId/context/weather': typeof AuthenticatedOptionsOptionIdContextWeatherRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
+  '/known-flight': typeof AuthenticatedKnownFlightRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/you': typeof AuthenticatedYouRoute
   '/share/$token': typeof ShareTokenRoute
+  '/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/plan': typeof AuthenticatedPlanIndexRoute
+  '/watching': typeof AuthenticatedWatchingIndexRoute
   '/brief/$briefId': typeof BriefBriefIdIndexRoute
+  '/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
+  '/options/$optionId/load': typeof AuthenticatedOptionsOptionIdLoadRoute
+  '/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
+  '/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
+  '/options/$optionId': typeof AuthenticatedOptionsOptionIdIndexRoute
+  '/plans/$planId': typeof AuthenticatedPlansPlanIdIndexRoute
+  '/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
+  '/options/$optionId/context/holiday': typeof AuthenticatedOptionsOptionIdContextHolidayRoute
+  '/options/$optionId/context/weather': typeof AuthenticatedOptionsOptionIdContextWeatherRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/buddies': typeof BuddiesRoute
   '/routes': typeof RoutesRoute
   '/watches': typeof WatchesRoute
+  '/_authenticated/known-flight': typeof AuthenticatedKnownFlightRoute
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/you': typeof AuthenticatedYouRoute
   '/share/$token': typeof ShareTokenRoute
+  '/_authenticated/watching/$watchId': typeof AuthenticatedWatchingWatchIdRoute
   '/api/public/run-watches': typeof ApiPublicRunWatchesRoute
+  '/_authenticated/plan/': typeof AuthenticatedPlanIndexRoute
+  '/_authenticated/watching/': typeof AuthenticatedWatchingIndexRoute
   '/brief/$briefId/': typeof BriefBriefIdIndexRoute
+  '/_authenticated/options/$optionId/availability': typeof AuthenticatedOptionsOptionIdAvailabilityRoute
+  '/_authenticated/options/$optionId/load': typeof AuthenticatedOptionsOptionIdLoadRoute
+  '/_authenticated/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
+  '/_authenticated/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
   '/brief/$briefId/signal/$signalId': typeof BriefBriefIdSignalSignalIdRoute
+  '/_authenticated/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
+  '/_authenticated/plans/$planId/': typeof AuthenticatedPlansPlanIdIndexRoute
+  '/_authenticated/options/$optionId/context/history': typeof AuthenticatedOptionsOptionIdContextHistoryRoute
+  '/_authenticated/options/$optionId/context/holiday': typeof AuthenticatedOptionsOptionIdContextHolidayRoute
+  '/_authenticated/options/$optionId/context/weather': typeof AuthenticatedOptionsOptionIdContextWeatherRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/buddies'
     | '/routes'
     | '/watches'
+    | '/known-flight'
+    | '/onboarding'
+    | '/you'
     | '/share/$token'
+    | '/watching/$watchId'
     | '/api/public/run-watches'
+    | '/plan/'
+    | '/watching/'
     | '/brief/$briefId/'
+    | '/options/$optionId/availability'
+    | '/options/$optionId/load'
+    | '/options/$optionId/recovery'
+    | '/plans/$planId/compare'
     | '/brief/$briefId/signal/$signalId'
+    | '/options/$optionId/'
+    | '/plans/$planId/'
+    | '/options/$optionId/context/history'
+    | '/options/$optionId/context/holiday'
+    | '/options/$optionId/context/weather'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/buddies'
     | '/routes'
     | '/watches'
+    | '/known-flight'
+    | '/onboarding'
+    | '/you'
     | '/share/$token'
+    | '/watching/$watchId'
     | '/api/public/run-watches'
+    | '/plan'
+    | '/watching'
     | '/brief/$briefId'
+    | '/options/$optionId/availability'
+    | '/options/$optionId/load'
+    | '/options/$optionId/recovery'
+    | '/plans/$planId/compare'
     | '/brief/$briefId/signal/$signalId'
+    | '/options/$optionId'
+    | '/plans/$planId'
+    | '/options/$optionId/context/history'
+    | '/options/$optionId/context/holiday'
+    | '/options/$optionId/context/weather'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/buddies'
     | '/routes'
     | '/watches'
+    | '/_authenticated/known-flight'
+    | '/_authenticated/onboarding'
+    | '/_authenticated/you'
     | '/share/$token'
+    | '/_authenticated/watching/$watchId'
     | '/api/public/run-watches'
+    | '/_authenticated/plan/'
+    | '/_authenticated/watching/'
     | '/brief/$briefId/'
+    | '/_authenticated/options/$optionId/availability'
+    | '/_authenticated/options/$optionId/load'
+    | '/_authenticated/options/$optionId/recovery'
+    | '/_authenticated/plans/$planId/compare'
     | '/brief/$briefId/signal/$signalId'
+    | '/_authenticated/options/$optionId/'
+    | '/_authenticated/plans/$planId/'
+    | '/_authenticated/options/$optionId/context/history'
+    | '/_authenticated/options/$optionId/context/holiday'
+    | '/_authenticated/options/$optionId/context/weather'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   BuddiesRoute: typeof BuddiesRoute
   RoutesRoute: typeof RoutesRoute
   WatchesRoute: typeof WatchesRoute
@@ -142,6 +355,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/buddies': {
@@ -165,12 +392,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/known-flight': {
+      id: '/_authenticated/known-flight'
+      path: '/known-flight'
+      fullPath: '/known-flight'
+      preLoaderRoute: typeof AuthenticatedKnownFlightRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/onboarding': {
+      id: '/_authenticated/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/you': {
+      id: '/_authenticated/you'
+      path: '/you'
+      fullPath: '/you'
+      preLoaderRoute: typeof AuthenticatedYouRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/share/$token': {
       id: '/share/$token'
       path: '/share/$token'
       fullPath: '/share/$token'
       preLoaderRoute: typeof ShareTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/plan/': {
+      id: '/_authenticated/plan/'
+      path: '/plan'
+      fullPath: '/plan/'
+      preLoaderRoute: typeof AuthenticatedPlanIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/watching/': {
+      id: '/_authenticated/watching/'
+      path: '/watching'
+      fullPath: '/watching/'
+      preLoaderRoute: typeof AuthenticatedWatchingIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/watching/$watchId': {
+      id: '/_authenticated/watching/$watchId'
+      path: '/watching/$watchId'
+      fullPath: '/watching/$watchId'
+      preLoaderRoute: typeof AuthenticatedWatchingWatchIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/run-watches': {
       id: '/api/public/run-watches'
@@ -186,6 +455,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BriefBriefIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/options/$optionId/': {
+      id: '/_authenticated/options/$optionId/'
+      path: '/options/$optionId'
+      fullPath: '/options/$optionId/'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/options/$optionId/availability': {
+      id: '/_authenticated/options/$optionId/availability'
+      path: '/options/$optionId/availability'
+      fullPath: '/options/$optionId/availability'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdAvailabilityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/options/$optionId/load': {
+      id: '/_authenticated/options/$optionId/load'
+      path: '/options/$optionId/load'
+      fullPath: '/options/$optionId/load'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdLoadRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/options/$optionId/recovery': {
+      id: '/_authenticated/options/$optionId/recovery'
+      path: '/options/$optionId/recovery'
+      fullPath: '/options/$optionId/recovery'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdRecoveryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plans/$planId/': {
+      id: '/_authenticated/plans/$planId/'
+      path: '/plans/$planId'
+      fullPath: '/plans/$planId/'
+      preLoaderRoute: typeof AuthenticatedPlansPlanIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plans/$planId/compare': {
+      id: '/_authenticated/plans/$planId/compare'
+      path: '/plans/$planId/compare'
+      fullPath: '/plans/$planId/compare'
+      preLoaderRoute: typeof AuthenticatedPlansPlanIdCompareRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/brief/$briefId/signal/$signalId': {
       id: '/brief/$briefId/signal/$signalId'
       path: '/brief/$briefId/signal/$signalId'
@@ -193,11 +504,79 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BriefBriefIdSignalSignalIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/options/$optionId/context/history': {
+      id: '/_authenticated/options/$optionId/context/history'
+      path: '/options/$optionId/context/history'
+      fullPath: '/options/$optionId/context/history'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdContextHistoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/options/$optionId/context/holiday': {
+      id: '/_authenticated/options/$optionId/context/holiday'
+      path: '/options/$optionId/context/holiday'
+      fullPath: '/options/$optionId/context/holiday'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdContextHolidayRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/options/$optionId/context/weather': {
+      id: '/_authenticated/options/$optionId/context/weather'
+      path: '/options/$optionId/context/weather'
+      fullPath: '/options/$optionId/context/weather'
+      preLoaderRoute: typeof AuthenticatedOptionsOptionIdContextWeatherRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedKnownFlightRoute: typeof AuthenticatedKnownFlightRoute
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedYouRoute: typeof AuthenticatedYouRoute
+  AuthenticatedWatchingWatchIdRoute: typeof AuthenticatedWatchingWatchIdRoute
+  AuthenticatedPlanIndexRoute: typeof AuthenticatedPlanIndexRoute
+  AuthenticatedWatchingIndexRoute: typeof AuthenticatedWatchingIndexRoute
+  AuthenticatedOptionsOptionIdAvailabilityRoute: typeof AuthenticatedOptionsOptionIdAvailabilityRoute
+  AuthenticatedOptionsOptionIdLoadRoute: typeof AuthenticatedOptionsOptionIdLoadRoute
+  AuthenticatedOptionsOptionIdRecoveryRoute: typeof AuthenticatedOptionsOptionIdRecoveryRoute
+  AuthenticatedPlansPlanIdCompareRoute: typeof AuthenticatedPlansPlanIdCompareRoute
+  AuthenticatedOptionsOptionIdIndexRoute: typeof AuthenticatedOptionsOptionIdIndexRoute
+  AuthenticatedPlansPlanIdIndexRoute: typeof AuthenticatedPlansPlanIdIndexRoute
+  AuthenticatedOptionsOptionIdContextHistoryRoute: typeof AuthenticatedOptionsOptionIdContextHistoryRoute
+  AuthenticatedOptionsOptionIdContextHolidayRoute: typeof AuthenticatedOptionsOptionIdContextHolidayRoute
+  AuthenticatedOptionsOptionIdContextWeatherRoute: typeof AuthenticatedOptionsOptionIdContextWeatherRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedKnownFlightRoute: AuthenticatedKnownFlightRoute,
+  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedYouRoute: AuthenticatedYouRoute,
+  AuthenticatedWatchingWatchIdRoute: AuthenticatedWatchingWatchIdRoute,
+  AuthenticatedPlanIndexRoute: AuthenticatedPlanIndexRoute,
+  AuthenticatedWatchingIndexRoute: AuthenticatedWatchingIndexRoute,
+  AuthenticatedOptionsOptionIdAvailabilityRoute:
+    AuthenticatedOptionsOptionIdAvailabilityRoute,
+  AuthenticatedOptionsOptionIdLoadRoute: AuthenticatedOptionsOptionIdLoadRoute,
+  AuthenticatedOptionsOptionIdRecoveryRoute:
+    AuthenticatedOptionsOptionIdRecoveryRoute,
+  AuthenticatedPlansPlanIdCompareRoute: AuthenticatedPlansPlanIdCompareRoute,
+  AuthenticatedOptionsOptionIdIndexRoute:
+    AuthenticatedOptionsOptionIdIndexRoute,
+  AuthenticatedPlansPlanIdIndexRoute: AuthenticatedPlansPlanIdIndexRoute,
+  AuthenticatedOptionsOptionIdContextHistoryRoute:
+    AuthenticatedOptionsOptionIdContextHistoryRoute,
+  AuthenticatedOptionsOptionIdContextHolidayRoute:
+    AuthenticatedOptionsOptionIdContextHolidayRoute,
+  AuthenticatedOptionsOptionIdContextWeatherRoute:
+    AuthenticatedOptionsOptionIdContextWeatherRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   BuddiesRoute: BuddiesRoute,
   RoutesRoute: RoutesRoute,
   WatchesRoute: WatchesRoute,
