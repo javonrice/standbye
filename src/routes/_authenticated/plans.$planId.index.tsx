@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, CalendarRange, GitCompareArrows } from "lucide-react";
 
-import { GatewayCard } from "@/components/aircue/GatewayCard";
-import { OptionCard } from "@/components/aircue/OptionCard";
+import { RouteOptionRow } from "@/components/aircue/RouteOptionRow";
+import { StandbyOptionRow } from "@/components/aircue/StandbyOptionRow";
+import { StandbyeTake } from "@/components/aircue/StandbyeTake";
 import { Button } from "@/components/ui/button";
 import { getPlan } from "@/lib/aircue/plan.functions";
 
@@ -44,17 +45,17 @@ function OptionsScreen() {
 
       {plan && (
         <>
-          <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">
+          <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight">
             {plan.origin} → {plan.dest}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-2 text-[14px] text-muted-foreground">
             {plan.travelDate} · {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"} ·{" "}
             {plan.options.length} option{plan.options.length === 1 ? "" : "s"}
           </p>
 
           {plan.options.length === 0 && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-              <p className="font-display text-lg font-semibold">{emptyTitle(plan.emptyReason)}</p>
+              <p className="font-display text-[20px] font-semibold tracking-tight">{emptyTitle(plan.emptyReason)}</p>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {emptyBody(plan.emptyReason, plan.origin, plan.dest)}
               </p>
@@ -75,22 +76,18 @@ function OptionsScreen() {
             </div>
           )}
 
-          {plan.noStrongSetup && plan.options.length > 0 && (
-            <div className="mt-5 rounded-2xl border border-watch/40 bg-watch-soft p-4">
-              <p className="text-sm font-semibold text-watch-foreground">
-                No standout setup today
-              </p>
-              <p className="mt-1 text-sm text-watch-foreground/85">
-                Every option here carries a real tradeoff. Compare them side by side before you
-                commit, or look at a nearby date.
-              </p>
-            </div>
+          {plan.options.length > 0 && (
+            <StandbyeTake className="mt-5">
+              {plan.noStrongSetup
+                ? "Nothing stands out today. Every option carries a real tradeoff, so compare a couple before you commit."
+                : "Option 1 is the cleanest shot we found. The rest are here in case the day moves."}
+            </StandbyeTake>
           )}
 
           <ul className="mt-5 space-y-3">
             {plan.options.map((option) => (
               <li key={option.id}>
-                <OptionCard option={option} rank={option.rank} />
+                <StandbyOptionRow option={option} rank={option.rank} />
               </li>
             ))}
           </ul>
@@ -98,11 +95,11 @@ function OptionsScreen() {
           {plan.gateways.length > 0 && (
             <section className="mt-7">
               <div className="flex items-baseline justify-between gap-3">
-                <h2 className="font-display text-base font-bold tracking-tight">All ways there</h2>
+                <h2 className="font-display text-[19px] font-semibold tracking-tight">All ways there</h2>
                 <Link
                   to="/plans/$planId/ways"
                   params={{ planId }}
-                  className="text-sm font-semibold text-primary"
+                  className="text-[14px] font-semibold text-primary"
                 >
                   See every route
                 </Link>
@@ -112,7 +109,7 @@ function OptionsScreen() {
               </p>
               <div className="mt-3 space-y-3">
                 {plan.gateways.slice(0, 3).map((gateway) => (
-                  <GatewayCard key={gateway.hub} gateway={gateway} />
+                  <RouteOptionRow key={gateway.hub} gateway={gateway} />
                 ))}
               </div>
             </section>
