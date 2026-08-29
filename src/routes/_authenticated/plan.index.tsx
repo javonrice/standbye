@@ -73,6 +73,7 @@ function HomePage() {
   const [showPrefs, setShowPrefs] = useState(false);
   const [routingMode, setRoutingMode] = useState<RoutingMode>("best");
   const [nearby, setNearby] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => loadProfile() });
   const { data: recent } = useQuery({
