@@ -3,6 +3,7 @@
 import type { StandbyOption } from "@/lib/aircue/standby";
 import type { AccessType } from "@/lib/aircue/travel-access";
 import type { WatchFlightState } from "@/lib/aircue/watch-flight-state.server";
+import type { WatchSignalState } from "@/lib/aircue/watch-signal-gate";
 
 export type PlanWatchSnapshot = {
   judgment: string;
@@ -23,6 +24,8 @@ export type PlanWatchSnapshot = {
   accessZedCount?: number;
   accessOtherCount?: number;
   primaryStaffEligibility?: string | null;
+  /** Cheap-Watch gate snapshot. */
+  signalState?: WatchSignalState;
 };
 
 export type BackupRunway = {
@@ -282,6 +285,7 @@ export function buildPlanWatchSnapshot(input: {
   spilloverCancelled: number;
   prev?: PlanWatchSnapshot;
   primary?: StandbyOption | null;
+  signalState?: WatchSignalState;
 }): PlanWatchSnapshot {
   const anchor = input.anchor;
   const primary = input.primary ?? null;
@@ -302,6 +306,11 @@ export function buildPlanWatchSnapshot(input: {
     accessZedCount: input.backup.zedCount,
     accessOtherCount: input.backup.otherCount,
     primaryStaffEligibility: primary?.staffEligibility ?? input.prev?.primaryStaffEligibility ?? null,
+    ...(input.signalState
+      ? { signalState: input.signalState }
+      : input.prev?.signalState
+        ? { signalState: input.prev.signalState }
+        : {}),
   };
 }
 

@@ -8,7 +8,7 @@ import {
   type AdbFlight,
 } from "@/lib/aircue/aerodatabox.server";
 import { iataFromAirportName } from "@/lib/aircue/airport-lookup.server";
-
+import { fidsCacheKey, preferredBoardWindow } from "@/lib/aircue/fids-cache-key";
 
 export interface TripResolution {
   schedDepUtc: string;
@@ -19,13 +19,27 @@ export interface TripResolution {
   destIata: string;
   airlineName?: string;
   rawStatusId?: string;
+  /** Raw AeroDataBox status string when present. */
+  status?: string;
+  gate?: string | null;
+  terminal?: string | null;
+  revisedDepLocal?: string | null;
 }
-
 
 export interface FlightStatus {
   state: "scheduled" | "delayed" | "cancelled" | "departed" | "diverted";
   delayMinutes?: number;
   label: string;
+}
+
+/** Extra fields from number-status for Watch signal snapshots. */
+export interface WatchStatusDetail {
+  gate?: string | null;
+  terminal?: string | null;
+  schedDepLocal?: string | null;
+  revisedDepLocal?: string | null;
+  rawStatus?: string | null;
+  fromCache?: boolean;
 }
 
 export interface InboundStatus {
@@ -41,6 +55,10 @@ export interface RouteCancelSummary {
   /** Earlier same-route departures running 15+ minutes behind. */
   delayedFlights: number;
   window: string;
+  /** Cancelled flight numbers in the pressure window (for gating). */
+  cancelledFlightNumbers?: string[];
+  /** Canonical FIDS cache key for the exact board window used. */
+  windowKey?: string;
 }
 
 export interface LegFilter {
@@ -69,13 +87,18 @@ export interface FlightProvider {
     allowRefresh?: boolean,
     leg?: LegFilter,
   ): Promise<FlightStatus | null>;
-  /** Fresh status for watch rechecks; returns unavailable when the source cannot be verified. */
+  /** Fresh-enough status for watch rechecks; respects Watch TTL unless forceRefresh. */
   getWatchStatus(
     flightNumber: string,
     travelDate: string,
     tripId?: string,
     leg?: LegFilter,
-  ): Promise<{ status: FlightStatus | null; unavailable: boolean }>;
+    opts?: { forceRefresh?: boolean },
+  ): Promise<{
+    status: FlightStatus | null;
+    unavailable: boolean;
+    detail?: WatchStatusDetail;
+  }>;
   getInboundAircraft(
     flightNumber: string,
     travelDate: string,
@@ -125,6 +148,12 @@ function toIso(raw: string): string {
   return new Date(raw.replace(" ", "T").replace("Z", "") + "Z").toISOString();
 }
 
+function localClock(raw?: string | null): string | null {
+  if (!raw) return null;
+  const slice = raw.includes("T") || raw.includes(" ") ? raw.slice(11, 16) : raw.slice(0, 5);
+  return /^\d{2}:\d{2}$/.test(slice) ? slice : null;
+}
+
 /** One AeroDataBox leg → a trip resolution, or null when key fields are missing. */
 async function toResolution(flight: AdbFlight): Promise<TripResolution | null> {
   const dep = flight.departure?.scheduledTime?.utc;
@@ -149,10 +178,12 @@ async function toResolution(flight: AdbFlight): Promise<TripResolution | null> {
     ...(depLocal ? { depLocalTime: depLocal.slice(11, 16) } : {}),
     ...(flight.airline?.name ? { airlineName: flight.airline.name } : {}),
     ...(flight.number ? { rawStatusId: flight.number } : {}),
+    ...(flight.status ? { status: flight.status } : {}),
+    gate: flight.departure?.gate ?? null,
+    terminal: flight.departure?.terminal ?? null,
+    revisedDepLocal: localClock(flight.departure?.revisedTime?.local),
   };
-
 }
-
 
 function toFlightStatus(flight: AdbFlight): FlightStatus {
   const raw = (flight.status ?? "").toLowerCase();
@@ -174,7 +205,18 @@ function toFlightStatus(flight: AdbFlight): FlightStatus {
   return { state: "scheduled", label: "On schedule" };
 }
 
-/** AeroDataBox RapidAPI Basic: one Tier-2 status call per flight per day, cached 24h. */
+function detailFromFlight(flight: AdbFlight, fromCache: boolean): WatchStatusDetail {
+  return {
+    gate: flight.departure?.gate ?? null,
+    terminal: flight.departure?.terminal ?? null,
+    schedDepLocal: localClock(flight.departure?.scheduledTime?.local),
+    revisedDepLocal: localClock(flight.departure?.revisedTime?.local),
+    rawStatus: flight.status ?? null,
+    fromCache,
+  };
+}
+
+/** AeroDataBox RapidAPI: status + FIDS with shared cache keys. */
 export class AeroDataBoxFreeProvider implements FlightProvider {
   readonly name = "aerodatabox";
   readonly live = true;
@@ -195,6 +237,7 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
   ): Promise<TripResolution[]> {
     const { flights } = await fetchFlightLegs(flightNumber, travelDate, {
       ...(deviceId ? { deviceId } : {}),
+      watch: false,
     });
     const resolved = await Promise.all(flights.map((flight) => toResolution(flight)));
     return resolved
@@ -212,6 +255,7 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     const { flight } = await fetchFlightStatus(flightNumber, travelDate, {
       ...(tripId ? { tripId } : {}),
       force: allowRefresh,
+      watch: false,
       origin: leg?.origin,
       dest: leg?.dest,
     });
@@ -223,17 +267,27 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     travelDate: string,
     tripId?: string,
     leg?: LegFilter,
-  ): Promise<{ status: FlightStatus | null; unavailable: boolean }> {
-    const { flight, budgetBlocked } = await fetchFlightStatus(flightNumber, travelDate, {
+    opts?: { forceRefresh?: boolean },
+  ): Promise<{
+    status: FlightStatus | null;
+    unavailable: boolean;
+    detail?: WatchStatusDetail;
+  }> {
+    const { flight, budgetBlocked, fromCache } = await fetchFlightStatus(flightNumber, travelDate, {
       ...(tripId ? { tripId } : {}),
-      force: true,
+      watch: true,
+      force: opts?.forceRefresh === true,
       origin: leg?.origin,
       dest: leg?.dest,
     });
     if (!flight) {
-      return { status: null, unavailable: true };
+      return { status: null, unavailable: true, detail: { fromCache } };
     }
-    return { status: toFlightStatus(flight), unavailable: false };
+    return {
+      status: toFlightStatus(flight),
+      unavailable: false,
+      detail: detailFromFlight(flight, fromCache),
+    };
   }
 
   /** Uses the includes on the cached status response — never a second call. */
@@ -245,6 +299,7 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
     const { flight } = await fetchFlightStatus(flightNumber, travelDate, {
       origin: leg?.origin,
       dest: leg?.dest,
+      watch: true,
     });
     if (!flight?.aircraft?.reg && !flight?.aircraft?.model) return null;
     return {
@@ -256,22 +311,18 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
   async getEarlierRouteCancellations(
     origin: string,
     dest: string,
-
     travelDate: string,
     carrier: string,
     beforeLocalTime: string,
   ): Promise<RouteCancelSummary | null> {
-    // AeroDataBox caps a board request at 12 hours; look back from the departure.
-    const endMinutes = Number(beforeLocalTime.slice(0, 2)) * 60 + Number(beforeLocalTime.slice(3, 5));
-    const startMinutes = Math.max(0, endMinutes - 11 * 60);
-    const hhmm = (m: number) =>
-      `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    const window = preferredBoardWindow(travelDate, beforeLocalTime);
+    const windowKey = fidsCacheKey(origin, travelDate, window.start, window.end);
 
     const { departures, budgetBlocked } = await fetchDepartureBoard(
       origin,
       travelDate,
-      `${travelDate}T${hhmm(startMinutes)}`,
-      `${travelDate}T${hhmm(Math.max(startMinutes + 60, endMinutes))}`,
+      window.start,
+      window.end,
     );
     if (budgetBlocked && departures.length === 0) return null;
 
@@ -296,10 +347,20 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
       return (slip ?? 0) >= 15 || (f.status ?? "").toLowerCase().includes("delay");
     });
 
+    const cancelledFlightNumbers = [
+      ...new Set(
+        cancelled
+          .map((f) => (f.number ?? "").replace(/\s+/g, "").toUpperCase())
+          .filter(Boolean),
+      ),
+    ].sort();
+
     return {
       cancelledFlights: cancelled.length,
       delayedFlights: delayed.length,
       window: "earlier today",
+      cancelledFlightNumbers,
+      windowKey,
     };
   }
 }

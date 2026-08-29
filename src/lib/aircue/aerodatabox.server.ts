@@ -1,24 +1,27 @@
 /**
- * AeroDataBox (RapidAPI Basic, $0) client.
+ * AeroDataBox (RapidAPI) client.
  *
- * Budget: 600 API units / month, 2400 requests / month, 1 request / second.
- * Every call here is Tier 2 (2 units). Tier 3/4 endpoints are deliberately unused.
+ * Budget / rate / TTLs are env-driven (see watch-config.server.ts).
  * Never import this from client code — it reads the RapidAPI key from the server env.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  adbFidsTtlSeconds,
+  adbMinIntervalMs,
+  adbMonthlyUnitBudget,
+  adbSoftStopRemaining,
+  resolveStatusTtlSeconds,
+  watchStatusTtlSeconds,
+} from "@/lib/aircue/watch-config.server";
+import { fidsCacheKey } from "@/lib/aircue/fids-cache-key";
 
 const HOST = "aerodatabox.p.rapidapi.com";
-const MONTHLY_UNIT_BUDGET = 600;
-/** Below this many remaining units we stop calling and fall back to manual entry. */
-const SOFT_STOP_REMAINING = 50;
 /** Per-device guard so one visitor cannot drain the month in an afternoon. */
 const DEVICE_RESOLVES_PER_DAY = 20;
 const TIER2_UNITS = 2;
 
-const STATUS_TTL_SECONDS = 24 * 3600;
-/** Watch rechecks need fresher status than initial resolve; 20 min keeps the 30-min loop honest. */
+/** @deprecated Prefer watchStatusTtlSeconds(); kept for existing imports. */
 export const WATCH_STATUS_TTL_SECONDS = 20 * 60;
-const FIDS_TTL_SECONDS = 3600;
 
 export interface AdbFlight {
   number?: string;
@@ -50,24 +53,25 @@ export function aeroDataBoxEnabled(): boolean {
 /* ------------------------------ unit budget ------------------------------ */
 
 async function unitsUsedThisMonth(): Promise<number> {
+  const budget = adbMonthlyUnitBudget();
   const { data, error } = await supabaseAdmin.rpc("api_units_this_month", {
     _provider: "aerodatabox",
   });
   if (error) {
     console.error("api_units_this_month failed", error);
     // Fail closed: assume the budget is spent rather than risk overspending.
-    return MONTHLY_UNIT_BUDGET;
+    return budget;
   }
   return typeof data === "number" ? data : 0;
 }
 
 export async function unitsRemaining(): Promise<number> {
-  return Math.max(0, MONTHLY_UNIT_BUDGET - (await unitsUsedThisMonth()));
+  return Math.max(0, adbMonthlyUnitBudget() - (await unitsUsedThisMonth()));
 }
 
 async function budgetAllows(units: number): Promise<boolean> {
   const remaining = await unitsRemaining();
-  return remaining - units >= SOFT_STOP_REMAINING;
+  return remaining - units >= adbSoftStopRemaining();
 }
 
 async function logUsage(endpoint: string, units: number, tripId?: string): Promise<void> {
@@ -107,7 +111,8 @@ async function noteDeviceResolve(deviceId: string | undefined): Promise<void> {
 let lastCallAt = 0;
 
 async function rateLimited<T>(fn: () => Promise<T>): Promise<T> {
-  const wait = Math.max(0, 1000 - (Date.now() - lastCallAt));
+  const interval = adbMinIntervalMs();
+  const wait = Math.max(0, interval - (Date.now() - lastCallAt));
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   lastCallAt = Date.now();
   return fn();
@@ -182,22 +187,33 @@ async function cachedCall<T>(
 
 /* -------------------------------- endpoints ------------------------------- */
 
+export type FlightStatusCacheScope = "resolve" | "watch";
+
 /**
- * Tier 2: every leg flown under this flight number on that local date. Cached 24h.
- * A number like UA1448 can operate RDU→ORD and then ORD→IAH, so callers must
- * pick the leg the traveller means instead of assuming the first one.
+ * Tier 2: every leg flown under this flight number on that local date.
+ * - resolve scope: 24h cache (initial resolve)
+ * - watch scope: shorter TTL, shared across Watch cycles
+ * `force` only bypasses a fresh cache entry — it does not select the scope.
  */
 export async function fetchFlightLegs(
   flightNumber: string,
   travelDate: string,
-  opts: { tripId?: string | undefined; deviceId?: string | undefined; force?: boolean | undefined } = {},
-): Promise<{ flights: AdbFlight[]; budgetBlocked: boolean }> {
-  if (!aeroDataBoxEnabled()) return { flights: [], budgetBlocked: true };
+  opts: {
+    tripId?: string | undefined;
+    deviceId?: string | undefined;
+    force?: boolean | undefined;
+    /** Cache scope. Defaults: force⇒watch (legacy), else resolve. Prefer explicit `watch`. */
+    watch?: boolean | undefined;
+  } = {},
+): Promise<{ flights: AdbFlight[]; budgetBlocked: boolean; fromCache: boolean }> {
+  if (!aeroDataBoxEnabled()) return { flights: [], budgetBlocked: true, fromCache: false };
 
   const number = flightNumber.replace(/\s+/g, "").toUpperCase();
   const resolveKey = `adb:status:${number}:${travelDate}`;
-  const cacheKey = opts.force ? `${resolveKey}:watch` : resolveKey;
-  const ttl = opts.force ? WATCH_STATUS_TTL_SECONDS : STATUS_TTL_SECONDS;
+  const useWatch = opts.watch === true || (opts.watch !== false && opts.force === true);
+  const cacheKey = useWatch ? `${resolveKey}:watch` : resolveKey;
+  const ttl = useWatch ? watchStatusTtlSeconds() : resolveStatusTtlSeconds();
+  const endpoint = opts.force ? "flight-status:force" : "flight-status";
 
   const cachedRow = await supabaseAdmin
     .from("source_cache")
@@ -206,22 +222,22 @@ export async function fetchFlightLegs(
     .maybeSingle();
 
   // Only a cache miss on the resolve key counts against the per-device daily cap.
-  if (!opts.force && !cachedRow.data && !(await deviceResolveAllowed(opts.deviceId))) {
-    return { flights: [], budgetBlocked: true };
+  if (!useWatch && !cachedRow.data && !(await deviceResolveAllowed(opts.deviceId))) {
+    return { flights: [], budgetBlocked: true, fromCache: false };
   }
 
   const result = await cachedCall<AdbFlight[]>(
     cacheKey,
     ttl,
-    "flight-status",
+    endpoint,
     `/flights/number/${encodeURIComponent(number)}/${travelDate}?withAircraftImage=false&withLocation=false`,
     { tripId: opts.tripId, force: opts.force },
   );
 
-  if (!result.fromCache && result.data) await noteDeviceResolve(opts.deviceId);
+  if (!result.fromCache && result.data && !useWatch) await noteDeviceResolve(opts.deviceId);
 
   const list = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
-  return { flights: list, budgetBlocked: result.budgetBlocked };
+  return { flights: list, budgetBlocked: result.budgetBlocked, fromCache: result.fromCache };
 }
 
 /** One leg: the one departing `origin` when given, otherwise the first of the day. */
@@ -232,12 +248,13 @@ export async function fetchFlightStatus(
     tripId?: string | undefined;
     deviceId?: string | undefined;
     force?: boolean | undefined;
+    watch?: boolean | undefined;
     origin?: string | undefined;
     dest?: string | undefined;
   } = {},
-): Promise<{ flight: AdbFlight | null; budgetBlocked: boolean }> {
-  const { flights, budgetBlocked } = await fetchFlightLegs(flightNumber, travelDate, opts);
-  return { flight: pickLeg(flights, opts.origin, opts.dest), budgetBlocked };
+): Promise<{ flight: AdbFlight | null; budgetBlocked: boolean; fromCache: boolean }> {
+  const { flights, budgetBlocked, fromCache } = await fetchFlightLegs(flightNumber, travelDate, opts);
+  return { flight: pickLeg(flights, opts.origin, opts.dest), budgetBlocked, fromCache };
 }
 
 /** Match on origin (and destination when known); fall back to the first leg. */
@@ -262,22 +279,20 @@ export function pickLeg(
   return flights[0] ?? null;
 }
 
-
-/** Tier 2: departures board for one airport/day, shared across every watch. Cached 1h. */
+/** Tier 2: departures board for one airport/day/window. Cached ~1h. Key includes exact window. */
 export async function fetchDepartureBoard(
   iata: string,
   travelDate: string,
   windowStartLocal: string,
   windowEndLocal: string,
-  cacheSuffix = "departures",
-): Promise<{ departures: AdbFlight[]; budgetBlocked: boolean }> {
-  if (!aeroDataBoxEnabled()) return { departures: [], budgetBlocked: true };
+): Promise<{ departures: AdbFlight[]; budgetBlocked: boolean; fromCache: boolean }> {
+  if (!aeroDataBoxEnabled()) return { departures: [], budgetBlocked: true, fromCache: false };
 
-  const cacheKey = `adb:fids:v2:${iata}:${travelDate}:${cacheSuffix}`;
+  const cacheKey = fidsCacheKey(iata, travelDate, windowStartLocal, windowEndLocal);
 
   const result = await cachedCall<{ departures?: AdbFlight[] }>(
     cacheKey,
-    FIDS_TTL_SECONDS,
+    adbFidsTtlSeconds(),
     "fids-departures",
     `/flights/airports/iata/${iata}/${windowStartLocal}/${windowEndLocal}?withLeg=true&direction=Departure&withCancelled=true&withCodeshared=false&withCargo=false&withPrivate=false&withLocation=false`,
   );
@@ -285,5 +300,6 @@ export async function fetchDepartureBoard(
   return {
     departures: result.data?.departures ?? [],
     budgetBlocked: result.budgetBlocked,
+    fromCache: result.fromCache,
   };
 }

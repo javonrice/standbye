@@ -47,6 +47,8 @@ export interface OptionSegment {
   arrivalDayOffset?: number | null;
   /** Provisional access from marketing carrier (pre-verify) or operator (post-verify). */
   access?: import("@/lib/aircue/travel-access").AccessType | null;
+  /** Raw provider/board status when known (e.g. Cancelled). */
+  status?: string | null;
 }
 
 export type StaffEligibility = import("@/lib/aircue/staff-eligibility").StaffEligibility;

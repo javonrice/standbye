@@ -51,7 +51,9 @@ export async function verifyOperatorForFlight(input: {
 
   try {
     const { flight, budgetBlocked } = await fetchFlightStatus(input.flightNumber, input.travelDate, {
-      force: input.force ?? true,
+      // Prefer Watch-scope TTL reuse; force only when callers explicitly request it.
+      watch: true,
+      force: input.force === true,
       origin: input.origin,
       dest: input.dest,
     });

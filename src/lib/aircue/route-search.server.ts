@@ -21,6 +21,8 @@ export interface RouteLeg {
   airlineName?: string;
   airlineCode?: string;
   flightNumber?: string;
+  /** Raw AeroDataBox status when present on the board/status payload. */
+  status?: string;
 }
 
 /** AeroDataBox caps a board request at 12 hours, so a full day is two windows. */
@@ -76,6 +78,7 @@ async function toRouteLeg(flight: AdbFlight, boardOrigin: string): Promise<Route
     ...(flight.airline?.name ? { airlineName: flight.airline.name } : {}),
     ...(flight.airline?.iata ? { airlineCode: flight.airline.iata } : {}),
     ...(digits ? { flightNumber: digits } : {}),
+    ...(flight.status ? { status: flight.status } : {}),
   };
 }
 
@@ -95,13 +98,7 @@ export async function findOriginDepartures(
 
   const boards = await Promise.all(
     windows.map(([start, end]) =>
-      fetchDepartureBoard(
-        from,
-        travelDate,
-        `${travelDate}T${start}`,
-        `${travelDate}T${end}`,
-        `departures:${start}`,
-      ),
+      fetchDepartureBoard(from, travelDate, `${travelDate}T${start}`, `${travelDate}T${end}`),
     ),
   );
 
