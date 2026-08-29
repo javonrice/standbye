@@ -534,6 +534,7 @@ export type Database = {
           id: string
           origin_iata: string
           prefs: Json
+          primary_option_id: string | null
           travel_date: string
           travelers: number
           user_id: string
@@ -545,6 +546,7 @@ export type Database = {
           id?: string
           origin_iata: string
           prefs?: Json
+          primary_option_id?: string | null
           travel_date: string
           travelers?: number
           user_id: string
@@ -556,11 +558,20 @@ export type Database = {
           id?: string
           origin_iata?: string
           prefs?: Json
+          primary_option_id?: string | null
           travel_date?: string
           travelers?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "plans_primary_option_id_fkey"
+            columns: ["primary_option_id"]
+            isOneToOne: false
+            referencedRelation: "plan_options"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
