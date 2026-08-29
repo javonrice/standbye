@@ -174,11 +174,8 @@ function EscapeHome() {
           Widen my plan →
         </Button>
 
-        {run.isError && (
-          <p className="mt-3 text-[14px] text-rough-foreground">
-            {planBuildErrorMessage(run.error)}
-          </p>
-        )}
+        {run.isError && <PlanBuildError error={run.error} />}
+
       </form>
     </main>
   );
