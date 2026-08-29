@@ -68,6 +68,16 @@ function makeRankedOption(overrides: Partial<RankedOption> = {}): RankedOption {
       history: null,
       holiday: null,
     },
+    access: "home",
+    staffEligibility: "uncertain",
+    operatorVerification: {
+      status: "unverified",
+      checkedAt: null,
+      source: null,
+      note: null,
+    },
+    standbyClears: 1,
+    commercialFare: null,
     ...overrides,
   };
 }

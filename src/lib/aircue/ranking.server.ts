@@ -40,7 +40,23 @@ import type {
   GatewayOption,
   RoutingMode,
   Shot,
+  CommercialFare,
+  StaffEligibility,
+  OperatorVerification,
 } from "@/lib/aircue/standby";
+import type { AccessType, AirlineAccessMeta } from "@/lib/aircue/travel-access";
+import { accessTypeForCarrier } from "@/lib/aircue/travel-access";
+import {
+  applyAccessAwareScore,
+  classifyHistoryLoadFactor,
+  worstAccess,
+} from "@/lib/aircue/access-scoring";
+import { preVerifyEligibility } from "@/lib/aircue/staff-eligibility";
+import {
+  filterCandidatesByAccess,
+  searchItineraryCandidates,
+  type Gf8ItineraryCandidate,
+} from "@/lib/aircue/gf8-itineraries.server";
 
 export interface RankInput {
   origin: string;
@@ -58,6 +74,8 @@ export interface RankInput {
   routingMode?: RoutingMode;
   /** Earliest local departure time "HH:MM" — Escape's "choose another time". */
   depTime?: string;
+  /** Immutable access meta snapshot for friction / segment typing. */
+  accessMeta?: AirlineAccessMeta;
 }
 
 /** Why a search came back with nothing, so the UI can say something honest. */
@@ -103,6 +121,13 @@ export interface RankedOption {
     history: HistoryEvidence | null;
     holiday: HolidayEvidence | null;
   };
+  /** Itinerary-level access (worst segment), provisional from marketing pre-verify. */
+  access: AccessType | null;
+  staffEligibility: StaffEligibility;
+  operatorVerification: OperatorVerification;
+  /** Segment count = clears required. */
+  standbyClears: number;
+  commercialFare: CommercialFare | null;
 }
 
 /* ------------------------------ small helpers ----------------------------- */
@@ -435,8 +460,8 @@ async function historyFor(
   if (!history) {
     return {
       state: "unknown",
-      label: "No history",
-      detail: "We do not have comparable historical data for this route yet.",
+      label: "Historical pattern unavailable",
+      detail: "Historical pattern unavailable for this route and date window.",
       evidence: null,
     };
   }
@@ -445,17 +470,14 @@ async function historyFor(
   const cancelRate = history.typical?.cancelRate ?? 0;
   const dep15 = history.typical?.dep15Rate ?? 0;
 
-  let state: PillarState = "good";
-  let label = "Typical";
+  const band = classifyHistoryLoadFactor(lf);
+  let state: PillarState = band.state;
+  let label = band.label;
   let detail = `${history.monthName} usually runs about normal on this route.`;
-  if (lf !== null && lf >= 0.87) {
-    state = "fair";
-    label = "Tighter";
-    detail = `${history.monthName} historically runs fuller than usual on this route.`;
-  } else if (lf !== null && lf >= 0.93) {
-    state = "poor";
-    label = "Very tight";
+  if (band.detailSuffix === "very_full") {
     detail = `${history.monthName} historically runs very full on this route.`;
+  } else if (band.detailSuffix === "fuller") {
+    detail = `${history.monthName} historically runs fuller than usual on this route.`;
   }
 
   const evidence: HistoryEvidence = {
@@ -466,6 +488,7 @@ async function historyFor(
     cancelPattern: cancelRate >= 0.03 ? "Elevated" : cancelRate >= 0.015 ? "Moderate" : "Low",
     delayPattern: dep15 >= 0.3 ? "Elevated" : dep15 >= 0.18 ? "Moderate" : "Low",
     sourcePeriod: history.load?.sourcePeriod ?? history.typical?.sourcePeriod ?? null,
+    historyCoverage: "available",
   };
 
   return { state, label, detail, evidence };
@@ -608,14 +631,44 @@ function judgeScore(score: number, availability: PillarState, recovery: PillarSt
   return "riskier";
 }
 
-function confidenceFor(pillars: Pillar[], hasLoad: boolean): Confidence {
+function confidenceFor(
+  pillars: Pillar[],
+  hasLoad: boolean,
+  staffEligibility: StaffEligibility = "uncertain",
+): Confidence {
   const unknowns = pillars.filter((p) => p.state === "unknown").length;
-  if (hasLoad && unknowns <= 1) return "high";
+  // Modest haircut while operator is unverified — never treat as ineligible.
+  if (staffEligibility === "uncertain" && unknowns >= 1) return "low";
+  if (hasLoad && unknowns <= 1 && staffEligibility === "eligible") return "high";
+  if (hasLoad && unknowns <= 1) return "medium";
   if (unknowns >= 2) return "low";
-  return "medium";
+  return staffEligibility === "uncertain" ? "medium" : "medium";
 }
 
-/* ------------------------------- entry point ------------------------------ */
+function scoreOf(
+  pillars: Pillar[],
+  access: AccessType | null = null,
+  standbyClears = 1,
+): number {
+  const at = (key: string) => pillars.find((p) => p.key === key)?.state ?? "unknown";
+  const raw =
+    stateScore[at("availability")] * 1.2 +
+    stateScore[at("operations")] * 1.0 +
+    stateScore[at("recovery")] * 0.8 +
+    stateScore[at("history")] * 0.4;
+  const base = Math.round((raw / (30 * 3.4)) * 100);
+  return applyAccessAwareScore(base, access, standbyClears);
+}
+
+function attachAccess(
+  input: RankInput,
+  carrier: string | null | undefined,
+): AccessType | null {
+  if (!input.accessMeta) return null;
+  return accessTypeForCarrier(input.accessMeta, carrier);
+}
+
+/* ---------------------------- score helpers board ------------------------- */
 
 type Board = Awaited<ReturnType<typeof availabilityBoard>>;
 
@@ -687,7 +740,10 @@ async function scoreLeg(
     { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
   ];
 
-  const normalized = scoreOf(pillars);
+  const access = attachAccess(input, carrier);
+  const standbyClears = 1;
+  const { staffEligibility, operatorVerification } = preVerifyEligibility();
+  const normalized = scoreOf(pillars, access, standbyClears);
   const judgment = judgeScore(normalized, availability.state, recovery.state);
 
   const segments: OptionSegment[] = [
@@ -700,6 +756,7 @@ async function scoreLeg(
       depLocal,
       arrLocal,
       schedDepUtc: leg.schedDepUtc,
+      access,
     },
   ];
 
@@ -707,7 +764,7 @@ async function scoreLeg(
     rank: 0,
     kind: "nonstop",
     judgment,
-    confidence: confidenceFor(pillars, false),
+    confidence: confidenceFor(pillars, false, staffEligibility),
     score: normalized,
     headline: headlineFor(judgment, pillars),
     carrier,
@@ -730,17 +787,12 @@ async function scoreLeg(
       history: history.evidence,
       holiday,
     },
+    access,
+    staffEligibility,
+    operatorVerification,
+    standbyClears,
+    commercialFare: null,
   };
-}
-
-function scoreOf(pillars: Pillar[]): number {
-  const at = (key: string) => pillars.find((p) => p.key === key)?.state ?? "unknown";
-  const raw =
-    stateScore[at("availability")] * 1.2 +
-    stateScore[at("operations")] * 1.0 +
-    stateScore[at("recovery")] * 0.8 +
-    stateScore[at("history")] * 0.4;
-  return Math.round((raw / (30 * 3.4)) * 100);
 }
 
 function reasonsOf(pillars: Pillar[]): Reason[] {
@@ -1054,14 +1106,10 @@ async function scoreConnection(
     { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
   ];
 
-  // Failure domains: a connection needs two clears, so it starts behind an
-  // otherwise equal nonstop and only wins on materially better recovery.
-  const normalized = Math.max(0, scoreOf(pillars) - 12);
-  const judgment = judgeScore(normalized, availabilityState, recovery.state);
-
   const segments: OptionSegment[] = await Promise.all(
     [first, second].map(async (l) => {
       const legBoard = boards.get(`${l.origin}-${l.dest}`) ?? EMPTY_BOARD;
+      const segAccess = attachAccess(input, l.airlineCode);
       return {
         carrier: l.airlineCode ?? "",
         flightNumber: l.flightNumber ?? "",
@@ -1071,16 +1119,24 @@ async function scoreConnection(
         depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
         arrLocal: await arrivalClock(l, legBoard.map.get(legLabel(l))?.arrLocal ?? null),
         schedDepUtc: l.schedDepUtc,
+        access: segAccess,
       };
     }),
   );
+
+  const access = worstAccess(segments.map((s) => s.access));
+  const standbyClears = segments.length;
+  const { staffEligibility, operatorVerification } = preVerifyEligibility();
+  // Clears-aware soft friction replaces the former flat connection −12.
+  const normalized = scoreOf(pillars, access, standbyClears);
+  const judgment = judgeScore(normalized, availabilityState, recovery.state);
 
   return {
     rank: 0,
     kind: "connection",
     hub,
     judgment,
-    confidence: "low",
+    confidence: confidenceFor(pillars, false, staffEligibility),
     score: normalized,
     headline:
       build.recoveryState === "good"
@@ -1106,7 +1162,156 @@ async function scoreConnection(
       history: history.evidence,
       holiday,
     },
+    access,
+    staffEligibility,
+    operatorVerification,
+    standbyClears,
+    commercialFare: null,
   };
+}
+
+/* ------------------------------- GF8 merge -------------------------------- */
+
+/**
+ * Score a GF8 multi-segment (or nonstop) itinerary after access filter.
+ * Pre-verify: uncertain + unverified. Incomplete times already rejected upstream.
+ */
+async function scoreGf8Candidate(
+  input: RankInput,
+  candidate: Gf8ItineraryCandidate,
+  board: Board,
+  holiday: HolidayEvidence | null,
+): Promise<RankedOption> {
+  const first = candidate.segments[0]!;
+  const last = candidate.segments[candidate.segments.length - 1]!;
+  const boardEntry =
+    candidate.kind === "nonstop" ? board.map.get(first.flightLabel.replace(/\s+/g, "")) : undefined;
+
+  const availability = availabilityFor(boardEntry, board.ok, board.checkedAt, board.reason);
+  const localHourMatch = first.depLocal.match(/(\d{1,2}):/);
+  const localHour = localHourMatch ? Number(localHourMatch[1]) % 24 : null;
+
+  const [operations, history] = await Promise.all([
+    operationsFor(first.origin, last.dest, input.travelDate, first.depLocal),
+    historyFor(first.origin, last.dest, input.travelDate, localHour, first.carrier),
+  ]);
+
+  const standbyClears = candidate.standbyClears;
+  const recovery: RecoveryEvidence =
+    standbyClears <= 1
+      ? {
+          state: "fair",
+          label: "Fair",
+          summary: "Later nonstops on this board were not attached for this GF8 candidate.",
+          hoursRemaining: null,
+          laterNonstops: [],
+          alternates: [],
+        }
+      : {
+          state: "fair",
+          label: "Fair",
+          summary: `This routing needs ${standbyClears} clears across ${candidate.segments.length} segments.`,
+          hoursRemaining: null,
+          laterNonstops: [],
+          alternates: [],
+        };
+
+  const pillars: Pillar[] = [
+    {
+      key: "availability",
+      state: availability.state,
+      label: availability.label,
+      detail: availability.detail,
+    },
+    {
+      key: "operations",
+      state: operations.state,
+      label: operations.state === "good" ? "Normal" : operations.label,
+      detail: operations.detail,
+    },
+    { key: "history", state: history.state, label: history.label, detail: history.detail },
+    { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
+  ];
+
+  const segments: OptionSegment[] = candidate.segments.map((s) => ({
+    carrier: s.carrier,
+    flightNumber: s.flightNumber,
+    flightLabel: s.flightLabel,
+    origin: s.origin,
+    dest: s.dest,
+    depLocal: s.depLocal,
+    arrLocal: s.arrLocal,
+    schedDepUtc: s.schedDepUtc || `${input.travelDate}T00:00:00Z`,
+    access: attachAccess(input, s.carrier),
+  }));
+
+  const access = worstAccess(segments.map((s) => s.access));
+  const { staffEligibility, operatorVerification } = preVerifyEligibility();
+  const normalized = scoreOf(pillars, access, standbyClears);
+  const judgment = judgeScore(normalized, availability.state, recovery.state);
+
+  return {
+    rank: 0,
+    kind: candidate.kind,
+    hub: candidate.hub,
+    judgment,
+    confidence: confidenceFor(pillars, false, staffEligibility),
+    score: normalized,
+    headline: headlineFor(judgment, pillars),
+    carrier: first.carrier,
+    flightNumber: candidate.kind === "nonstop" ? first.flightNumber : null,
+    flightLabel: candidate.flightLabel,
+    optionKey: candidate.optionKey,
+    origin: candidate.origin,
+    dest: candidate.dest,
+    depLocal: candidate.depLocal,
+    arrLocal: candidate.arrLocal,
+    schedDepUtc: candidate.schedDepUtc,
+    schedArrUtc: candidate.schedArrUtc,
+    segments,
+    pillars,
+    reasons: reasonsOf(pillars),
+    recovery,
+    evidence: {
+      availability: availability.evidence,
+      conditions: operations.evidence,
+      history: history.evidence,
+      holiday,
+    },
+    access,
+    staffEligibility,
+    operatorVerification,
+    standbyClears,
+    commercialFare: candidate.commercialFare,
+  };
+}
+
+/** Merge schedule/gateway options with GF8 candidates by option_key. */
+function mergeByOptionKey(existing: RankedOption[], gf8Options: RankedOption[]): RankedOption[] {
+  const byKey = new Map<string, RankedOption>();
+  for (const opt of existing) {
+    byKey.set(opt.optionKey, opt);
+  }
+  for (const opt of gf8Options) {
+    const prior = byKey.get(opt.optionKey);
+    if (!prior) {
+      byKey.set(opt.optionKey, opt);
+      continue;
+    }
+    // Prefer board-backed availability; retain GF8 fare metadata when present.
+    if (opt.commercialFare && !prior.commercialFare) {
+      prior.commercialFare = opt.commercialFare;
+    }
+    if (prior.access == null && opt.access != null) prior.access = opt.access;
+    for (let i = 0; i < prior.segments.length; i++) {
+      const seg = prior.segments[i];
+      const other = opt.segments[i];
+      if (seg && other && seg.access == null && other.access != null) {
+        seg.access = other.access;
+      }
+    }
+  }
+  return [...byKey.values()];
 }
 
 /* ------------------------------- entry point ------------------------------ */
@@ -1221,16 +1426,46 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     }
   }
 
-  results.sort(
+  // One broad GF8 discovery; local access filter; merge by option_key.
+  // Do not fan out per carrier. Incomplete GF8 must not blank schedule results.
+  if (!(outOfTime() && results.length > 0)) {
+    const primaryBoard = boards.get(`${input.origin}-${input.dest}`) ?? EMPTY_BOARD;
+    const gf8 = await searchItineraryCandidates({
+      origin: input.origin,
+      dest: input.dest,
+      date: input.travelDate,
+      adults: Math.min(4, Math.max(1, input.travelers)),
+    });
+    if (gf8.ok && gf8.candidates.length > 0) {
+      const allowedList = input.carriers && input.carriers.length > 0 ? input.carriers : [];
+      const filtered = filterCandidatesByAccess(gf8.candidates, allowedList);
+      const connectionOk = maxStops >= 1;
+      const usable = filtered.filter((c) => connectionOk || c.kind === "nonstop");
+      const scoredGf8 = await mapWithConcurrency(
+        usable.slice(0, wide ? 12 : 8),
+        LEG_CONCURRENCY,
+        (cand) => scoreGf8Candidate(input, cand, primaryBoard, holiday),
+      );
+      const merged = mergeByOptionKey(results, scoredGf8);
+      results.length = 0;
+      results.push(...merged);
+    }
+  }
+
+  // Ineligible (post-verify) stays out of preferred staff-travel ranking.
+  const preferred = results.filter((o) => o.staffEligibility !== "ineligible");
+  const rankedPool = preferred.length > 0 ? preferred : results;
+
+  rankedPool.sort(
     (a, b) =>
       b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""),
   );
-  results.forEach((r, i) => {
+  rankedPool.forEach((r, i) => {
     r.rank = i + 1;
   });
 
   let reason: RankReason | null = null;
-  if (results.length === 0) {
+  if (rankedPool.length === 0) {
     if (anyBoardBlocked) reason = "data_unavailable";
     else if (anyLegsBeforeCarrierFilter > 0 && anyLegsAtAll === 0) reason = "carrier_filter";
     else if (isLateInDay(input.travelDate)) reason = "day_over";
@@ -1238,7 +1473,7 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
   }
 
   return {
-    options: results,
+    options: rankedPool,
     reason,
     scanned: { origins, dests },
     gateways,
@@ -1260,7 +1495,7 @@ function reasonTitle(p: Pillar): string {
     return p.state === "good" ? "Operations look normal" : `Operations: ${p.label.toLowerCase()}`;
   if (p.key === "history")
     return p.state === "unknown"
-      ? "No historical pattern yet"
+      ? "Historical pattern unavailable"
       : `Historically ${p.label.toLowerCase()}`;
   return `${p.label} recovery room`;
 }

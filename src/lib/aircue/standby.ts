@@ -41,6 +41,17 @@ export interface OptionSegment {
   depLocal: string;
   arrLocal: string;
   schedDepUtc: string;
+  /** Provisional access from marketing carrier (pre-verify) or operator (post-verify). */
+  access?: import("@/lib/aircue/travel-access").AccessType | null;
+}
+
+export type StaffEligibility = import("@/lib/aircue/staff-eligibility").StaffEligibility;
+export type OperatorVerification = import("@/lib/aircue/staff-eligibility").OperatorVerification;
+
+export interface CommercialFare {
+  amount: number;
+  currency: string;
+  bookingUrl?: string | null;
 }
 
 export interface AvailabilityEvidence {
@@ -73,6 +84,8 @@ export interface HistoryEvidence {
   cancelPattern: string;
   delayPattern: string;
   sourcePeriod: string | null;
+  /** History source coverage for this route/carrier window. */
+  historyCoverage?: import("@/lib/aircue/coverage").CoverageState;
 }
 
 export interface HolidayEvidence {
@@ -187,9 +200,20 @@ export interface StandbyOption {
     history: HistoryEvidence | null;
     holiday: HolidayEvidence | null;
     recovery: RecoveryEvidence;
+    /** Itinerary-level access (worst segment), when known. */
+    access?: import("@/lib/aircue/travel-access").AccessType | null;
+    staffEligibility?: StaffEligibility;
+    operatorVerification?: OperatorVerification;
+    commercialFare?: CommercialFare | null;
+    standbyClears?: number;
   };
   load: ReportedLoad | null;
   refreshedAt: string;
+  access?: import("@/lib/aircue/travel-access").AccessType | null;
+  staffEligibility?: StaffEligibility;
+  operatorVerification?: OperatorVerification;
+  commercialFare?: CommercialFare | null;
+  standbyClears?: number;
 }
 
 export interface StandbyPlan {

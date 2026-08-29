@@ -150,7 +150,14 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
     reasons: option.reasons,
     segments: option.segments,
     recovery: option.recovery,
-    evidence: option.evidence,
+    evidence: {
+      ...option.evidence,
+      access: option.access,
+      staffEligibility: option.staffEligibility,
+      operatorVerification: option.operatorVerification,
+      commercialFare: option.commercialFare,
+      standbyClears: option.standbyClears,
+    },
     refreshed_at: new Date().toISOString(),
     is_current: true,
   };
@@ -183,7 +190,7 @@ export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOptio
     },
   };
 
-  return {
+  const standby: StandbyOption = {
     id: String(row["id"]),
     planId: String(row["plan_id"]),
     rank: Number(row["rank"] ?? 1),
@@ -210,6 +217,13 @@ export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOptio
     load,
     refreshedAt: String(row["refreshed_at"] ?? new Date().toISOString()),
   };
+  const ev = evidence as StandbyOption["evidence"];
+  if (ev.access !== undefined) standby.access = ev.access;
+  if (ev.staffEligibility) standby.staffEligibility = ev.staffEligibility;
+  if (ev.operatorVerification) standby.operatorVerification = ev.operatorVerification;
+  if (ev.commercialFare !== undefined) standby.commercialFare = ev.commercialFare;
+  if (typeof ev.standbyClears === "number") standby.standbyClears = ev.standbyClears;
+  return standby;
 }
 
 export async function buildPlan(
@@ -277,6 +291,7 @@ export async function buildPlan(
     maxStops: input.maxStops ?? 1,
     nearby: input.nearby ?? false,
     routingMode: (input.routingMode ?? "best") as RoutingMode,
+    accessMeta: saved.meta,
   });
 
   await db(client)
@@ -393,6 +408,7 @@ export async function buildEscapePlan(
     maxStops: 1,
     nearby: false,
     routingMode: "wide",
+    accessMeta: saved.meta,
     ...(input.depTime ? { depTime: input.depTime } : {}),
   });
 
@@ -1235,6 +1251,11 @@ export async function recheckWatch(
     }
   }
 
+  const accessMeta =
+    (prefs["accessMetaSnapshot"] as import("@/lib/aircue/travel-access").AirlineAccessMeta | undefined) ??
+    (prefs["travelAccessSnapshot"] as { meta?: import("@/lib/aircue/travel-access").AirlineAccessMeta } | undefined)
+      ?.meta;
+
   const ranked = await rankStandbyOptions({
     origin: String(planRow["origin_iata"]),
     dest: String(planRow["dest_iata"]),
@@ -1250,6 +1271,7 @@ export async function recheckWatch(
     maxStops: Number(prefs["maxStops"] ?? 1),
     nearby: Boolean(prefs["nearby"] ?? false),
     routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
+    ...(accessMeta ? { accessMeta } : {}),
   });
 
   const rerankTrusted = !ranked.incomplete && ranked.reason !== "data_unavailable";
