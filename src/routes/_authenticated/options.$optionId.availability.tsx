@@ -68,8 +68,16 @@ function AvailabilityDetail() {
             <p className="mt-1.5 text-sm font-medium">
               {largest === null
                 ? "Largest party still bookable is unclear"
-                : `Still bookable for a party of ${largest >= 4 ? "4 or more" : largest}`}
+                : largest >= 4
+                  ? "Still bookable for a party of 4 or more"
+                  : `Still bookable for a party of ${largest}`}
             </p>
+            {largest !== null && largest >= 4 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                4+ is the most we can verify — the airline stops confirming exact space beyond a
+                party of 4, so it could be wide open.
+              </p>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">
               Checked {agoLabel(availability.checkedAt)}
             </p>
