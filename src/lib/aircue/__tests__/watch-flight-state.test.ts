@@ -15,12 +15,6 @@ import {
 function status(state: FlightStatus["state"], label?: string): FlightStatus {
   return { state, label: label ?? state };
 }
-function unused_removed(): never {
-  throw new Error("unused");
-}
-function statusLegacy(state: FlightStatus["state"], label = state): FlightStatus {
-  return { state, label };
-}
 
 const BASE_OPTION: StandbyOption = {
   id: "opt-1",
