@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight } from "lucide-react";
 
+import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { EmptyState, Screen, StatusLine } from "@/components/aircue/Layout";
+
 import { Button } from "@/components/ui/button";
 import { listCommittedPlans, type PlanSummary } from "@/lib/aircue/plan.functions";
 
@@ -101,13 +103,17 @@ function CommittedPlanCard({ plan: p }: { plan: PlanSummary }) {
             {friendlyDate(p.travelDate)}
           </p>
           {p.primaryFlightLabel ? (
-            <p className="mt-2.5 break-words text-[15px] font-semibold">
-              {p.primaryFlightLabel}
-              <span className="ml-1.5 text-[13px] font-medium text-muted-foreground">
-                Your primary
-              </span>
-            </p>
+            <div className="mt-2.5 flex items-center gap-2.5">
+              <AirlineLogo code={carrierFromLabel(p.primaryFlightLabel)} size={30} />
+              <p className="min-w-0 break-words text-[15px] font-semibold">
+                {p.primaryFlightLabel}
+                <span className="ml-1.5 text-[13px] font-medium text-muted-foreground">
+                  Your primary
+                </span>
+              </p>
+            </div>
           ) : null}
+
         </div>
         <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
       </div>

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
+import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { CueBadge } from "@/components/aircue/CueBadge";
 import {
   pillarDot,
@@ -75,8 +76,12 @@ export function StandbyOptionRow({
         )}
       </div>
 
-      <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-        <div className="min-w-0">
+      <div className="mt-2.5 flex items-center gap-3">
+        <AirlineLogo
+          code={carrierFromLabel(option.flightLabel)}
+          size={emphasis === "primary" ? 40 : 34}
+        />
+        <div className="min-w-0 flex-1">
           <p
             className={cn(
               "break-words font-display font-bold leading-snug tracking-tight",
