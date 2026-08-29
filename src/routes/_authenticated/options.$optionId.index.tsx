@@ -156,10 +156,16 @@ function CueScreen() {
                 {seg.origin} → {seg.dest}
                 {" · "}
                 {seg.depLocal}
-                {seg.arrLocal ? ` → ${formatSegmentArrival(seg)}` : ""}
+                {seg.arrLocal ? (
+                  <>
+                    {" → "}
+                    <LocalTime value={formatSegmentArrival(seg)} />
+                  </>
+                ) : null}
               </li>
             ))}
           </ul>
+
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
