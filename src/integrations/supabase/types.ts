@@ -17,31 +17,43 @@ export type Database = {
       airports: {
         Row: {
           city: string | null
+          country: string | null
           iata: string
           icao: string | null
           lat: number
           lon: number
           name: string
+          region: string | null
+          resolved_at: string | null
+          source: string | null
           state: string | null
           tz: string
         }
         Insert: {
           city?: string | null
+          country?: string | null
           iata: string
           icao?: string | null
           lat: number
           lon: number
           name: string
+          region?: string | null
+          resolved_at?: string | null
+          source?: string | null
           state?: string | null
           tz: string
         }
         Update: {
           city?: string | null
+          country?: string | null
           iata?: string
           icao?: string | null
           lat?: number
           lon?: number
           name?: string
+          region?: string | null
+          resolved_at?: string | null
+          source?: string | null
           state?: string | null
           tz?: string
         }

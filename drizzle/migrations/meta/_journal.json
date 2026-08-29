@@ -43,6 +43,13 @@
       "when": 1788018085389,
       "tag": "0005_airline_access_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788018148629,
+      "tag": "0006_airports_global_columns",
+      "breakpoints": true
     }
   ]
 }
