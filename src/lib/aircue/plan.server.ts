@@ -46,6 +46,18 @@ import {
 import { requireCanonicalAirports, UnresolvedAirportError, ensureCanonicalAirports } from "@/lib/aircue/airports-canonical.server";
 import { matchExistingOptionRow } from "@/lib/aircue/sync-option-match";
 import { verifyOperatorForFlight } from "@/lib/aircue/operator-verify.server";
+import {
+  decideWatchOutcome,
+  gatherWatchSignals,
+  logWatchCycle,
+  stampOutcomeOnSignals,
+  stampRankOnSignals,
+  type WatchSignalState,
+} from "@/lib/aircue/watch-signals.server";
+import {
+  deltaProviderUsage,
+  snapshotProviderUsage,
+} from "@/lib/aircue/provider-usage.server";
 
 /** The generated Database type does not yet know the standby tables. */
 type Db = SupabaseClient;
@@ -1348,12 +1360,43 @@ export async function loadWatchTimeline(
   return { watch, option, changes };
 }
 
-/** Re-rank the watched plan and record only meaningful movement. */
+function reconciledToWatchFlightState(
+  state: WatchSignalState["primary"]["state"],
+): WatchFlightState {
+  if (state === "cancelled") return "cancelled";
+  if (state === "departed") return "departed";
+  if (state === "unknown") return "unknown";
+  return "operating";
+}
+
+function hoursUntilDep(schedDepUtc: string | null | undefined, travelDate: string, now: Date): number {
+  if (schedDepUtc) {
+    const t = new Date(schedDepUtc).getTime();
+    if (Number.isFinite(t)) return (t - now.getTime()) / 3600_000;
+  }
+  const day = new Date(`${travelDate}T12:00:00Z`).getTime();
+  return (day - now.getTime()) / 3600_000;
+}
+
+/** Re-check a Watch: gather cheap signals, gate, then rank only when needed. */
 export async function recheckWatch(
   client: unknown,
   userId: string,
   watchId: string,
-): Promise<{ changed: boolean }> {
+): Promise<{
+  changed: boolean;
+  outcome?: string;
+  metrics?: {
+    gf8Calls: number;
+    adbFidsUpstream: number;
+    adbStatusUpstream: number;
+    operatorVerifyAttempts: number;
+    rankingRan: boolean;
+    operatorVerifyRan: boolean;
+  };
+}> {
+  const started = Date.now();
+  const usageBefore = snapshotProviderUsage();
   const { data: watchRow } = await db(client)
     .from("watch_plans")
     .select("*, plan_options(*), plans(*)")
@@ -1379,41 +1422,169 @@ export async function recheckWatch(
     String(row["plan_option_id"]);
 
   const events: Array<{ kind: string; severity: string; headline: string; detail: string }> = [];
+  const now = new Date();
+  const hours = hoursUntilDep(anchorBefore.schedDepUtc, travelDate, now);
 
-  const identity = watchFlightIdentity(anchorBefore);
-  if (identity) {
-    const { getFlightProvider } = await import("@/lib/aircue/flight-provider.server");
-    const provider = getFlightProvider();
-    const { status, unavailable } = await provider.getWatchStatus(
-      identity.flightNumber,
-      travelDate,
-      planId,
-      { origin: identity.origin, dest: identity.dest },
-    );
-
-    if (!unavailable && status) {
-      const presence = classifyFlightStatus(status);
-      if (presence.presence === "confirmed") {
-        flightState = presence.state;
-        if (shouldEmitCancellation(prev.flightState, flightState)) {
-          events.push(
-            cancellationEvent(anchorBefore.flightLabel, anchorBefore.origin, anchorBefore.dest),
-          );
-        }
-      }
-    }
-  }
+  const cycleMetrics = (extra: { rankingRan: boolean; operatorVerifyRan: boolean }) => {
+    const d = deltaProviderUsage(usageBefore);
+    return {
+      gf8Calls: d.gf8Upstream,
+      adbFidsUpstream: d.adbFidsUpstream,
+      adbStatusUpstream: d.adbStatusUpstream,
+      operatorVerifyAttempts: d.operatorVerifyAttempts,
+      rankingRan: extra.rankingRan,
+      operatorVerifyRan: extra.operatorVerifyRan,
+    };
+  };
 
   const accessMeta =
     (prefs["accessMetaSnapshot"] as import("@/lib/aircue/travel-access").AirlineAccessMeta | undefined) ??
     (prefs["travelAccessSnapshot"] as { meta?: import("@/lib/aircue/travel-access").AirlineAccessMeta } | undefined)
       ?.meta;
 
+  let gather;
+  try {
+    gather = await gatherWatchSignals({
+      origin: String(planRow["origin_iata"]),
+      dest: String(planRow["dest_iata"]),
+      travelDate,
+      planId,
+      anchor: anchorBefore,
+      hoursUntilDeparture: hours,
+      prev: prev.signalState ?? null,
+    });
+  } catch (error) {
+    console.error("[recheckWatch] gatherWatchSignals", error);
+    gather = null;
+  }
+
+  if (gather) {
+    if (!gather.statusUnavailable) {
+      flightState = reconciledToWatchFlightState(gather.signals.primary.state);
+      if (shouldEmitCancellation(prev.flightState, flightState)) {
+        events.push(
+          cancellationEvent(anchorBefore.flightLabel, anchorBefore.origin, anchorBefore.dest),
+        );
+      }
+    } else if (gather.emitCancellationFromBoard) {
+      flightState = "cancelled";
+      if (shouldEmitCancellation(prev.flightState, "cancelled")) {
+        events.push(
+          cancellationEvent(anchorBefore.flightLabel, anchorBefore.origin, anchorBefore.dest),
+        );
+      }
+    }
+    // status unavailable without board cancel → keep previous flightState
+  } else {
+    // Fallback: legacy status-only path when gather fails entirely.
+    const identity = watchFlightIdentity(anchorBefore);
+    if (identity) {
+      const { getFlightProvider } = await import("@/lib/aircue/flight-provider.server");
+      const provider = getFlightProvider();
+      const { status, unavailable } = await provider.getWatchStatus(
+        identity.flightNumber,
+        travelDate,
+        planId,
+        { origin: identity.origin, dest: identity.dest },
+      );
+      if (!unavailable && status) {
+        const presence = classifyFlightStatus(status);
+        if (presence.presence === "confirmed") {
+          flightState = presence.state;
+          if (shouldEmitCancellation(prev.flightState, flightState)) {
+            events.push(
+              cancellationEvent(anchorBefore.flightLabel, anchorBefore.origin, anchorBefore.dest),
+            );
+          }
+        }
+      }
+    }
+  }
+
+  const decision = gather
+    ? decideWatchOutcome(prev.signalState, gather.signals, {
+        now,
+        primaryStillCurrent: true,
+      })
+    : {
+        outcome: "rerank" as const,
+        trigger: "gather_failed",
+        notifyEvents: [],
+        forceStatusRefresh: false,
+      };
+
+  // Cancellation of primary is always rerank-worthy even if fingerprints match somehow.
+  let outcome = decision.outcome;
+  let trigger = decision.trigger;
+  if (events.some((e) => e.kind === "flight_cancelled") && outcome === "skip") {
+    outcome = "rerank";
+    trigger = "primary_cancelled";
+  }
+
+  if (outcome === "skip" || outcome === "notify-only") {
+    const notifyEvents = decision.notifyEvents;
+    if (outcome === "notify-only") {
+      events.push(...notifyEvents);
+    }
+    if (events.length > 0) {
+      await db(client)
+        .from("plan_change_events")
+        .insert(
+          events.map((e) => ({
+            watch_id: watchId,
+            user_id: userId,
+            kind: e.kind,
+            severity: e.severity,
+            headline: e.headline,
+            detail: e.detail,
+          })),
+        );
+    }
+    const meaningful = events.filter((e) => e.severity === "meaningful").length;
+    const signalState = stampOutcomeOnSignals(
+      gather!.signals,
+      outcome,
+      trigger,
+    );
+    const nextSnapshot: WatchSnapshot = {
+      ...prev,
+      flightState,
+      signalState,
+    };
+    await db(client)
+      .from("watch_plans")
+      .update({
+        snapshot: nextSnapshot,
+        verdict: meaningful > 0 ? "changed" : String(row["verdict"] ?? "steady"),
+        unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
+        last_checked_at: now.toISOString(),
+        next_check_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
+      })
+      .eq("id", watchId);
+
+    logWatchCycle({
+      watchId,
+      planId,
+      outcome,
+      trigger,
+      adbUnits: gather?.metrics.adbUnitsEst ?? 0,
+      fidsCacheHit: gather?.metrics.fidsCacheHit ?? null,
+      statusCacheHit: gather?.metrics.statusCacheHit ?? null,
+      ...cycleMetrics({ rankingRan: false, operatorVerifyRan: false }),
+      durationMs: Date.now() - started,
+    });
+    return {
+      changed: meaningful > 0,
+      outcome,
+      metrics: cycleMetrics({ rankingRan: false, operatorVerifyRan: false }),
+    };
+  }
+
+  // --- rerank path ---
   const ranked = await rankStandbyOptions({
     origin: String(planRow["origin_iata"]),
     dest: String(planRow["dest_iata"]),
     travelDate,
-    // Prefer immutable Plan access snapshot; never broaden from live profile.
     carriers:
       (prefs["effectiveCarriers"] as string[] | null) ??
       (prefs["carriers"] as string[] | null) ??
@@ -1428,6 +1599,7 @@ export async function recheckWatch(
   });
 
   const rerankTrusted = !ranked.incomplete && ranked.reason !== "data_unavailable";
+  let operatorVerifyRan = false;
 
   if (rerankTrusted) {
     const syncedOptions = await syncPlanOptionsFromRanked(
@@ -1445,9 +1617,16 @@ export async function recheckWatch(
       syncedOptions.find((o) => o.flightLabel === anchorBefore.flightLabel) ??
       null;
 
-    // Lazy ADB operator verify on watched primary only.
     const verifyTarget = primary ?? anchorFresh;
-    if (verifyTarget) {
+    const needsVerify =
+      Boolean(verifyTarget) &&
+      (verifyTarget!.operatorVerification?.status === "unverified" ||
+        verifyTarget!.staffEligibility === "uncertain" ||
+        trigger === "safety_refresh" ||
+        trigger === "primary_cancelled" ||
+        trigger === "bootstrap");
+
+    if (verifyTarget && needsVerify) {
       const identity = watchFlightIdentity(verifyTarget);
       if (identity) {
         const allowed = effectiveCarriersFromPrefs(prefs);
@@ -1459,8 +1638,9 @@ export async function recheckWatch(
           dest: identity.dest,
           allowedAccess: allowed,
           ...(meta ? { accessMeta: meta } : {}),
-          force: true,
+          force: trigger === "safety_refresh" || trigger === "bootstrap",
         });
+        operatorVerifyRan = truth.attempted;
         const updated = await persistOperatorVerification(client, verifyTarget, truth);
         if (primary && primary.id === updated.id) primary = updated;
         if (anchorFresh && anchorFresh.id === updated.id) anchorFresh = updated;
@@ -1501,6 +1681,36 @@ export async function recheckWatch(
     }
 
     const meaningful = events.filter((e) => e.severity === "meaningful").length;
+    const baseSignals =
+      gather?.signals ??
+      ({
+        v: 1 as const,
+        checkedAt: now.toISOString(),
+        nextSafetyRefreshAt: now.toISOString(),
+        primary: {
+          flightNumber: anchorBefore.flightLabel,
+          origin: anchorBefore.origin,
+          dest: anchorBefore.dest,
+          state: flightState === "cancelled" ? "cancelled" : flightState === "departed" ? "departed" : flightState === "unknown" ? "unknown" : "operating",
+          source: "status" as const,
+        },
+        cancelPressure: {
+          origin: String(planRow["origin_iata"]),
+          date: travelDate,
+          windowKey: "",
+          byRoute: {},
+        },
+        environment: {
+          faaFingerprint: "na",
+          weatherBand: "clear" as const,
+          weatherFingerprint: "na",
+        },
+        lastRankAt: null,
+        lastRankTrigger: null,
+        lastOutcome: "rerank" as const,
+      } satisfies WatchSignalState);
+
+    const signalState = stampRankOnSignals(baseSignals, trigger, hours, now);
     const nextSnapshot = buildPlanWatchSnapshot({
       anchor: anchorFresh ?? anchorBefore,
       preferred,
@@ -1510,6 +1720,7 @@ export async function recheckWatch(
       spilloverCancelled: spillover,
       prev,
       primary,
+      signalState,
     });
 
     await db(client)
@@ -1518,16 +1729,31 @@ export async function recheckWatch(
         snapshot: nextSnapshot,
         verdict: meaningful > 0 ? "changed" : "steady",
         unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
-        last_checked_at: new Date().toISOString(),
-        next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        last_checked_at: now.toISOString(),
+        next_check_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
       })
       .eq("id", watchId);
 
-    return { changed: meaningful > 0 };
+    logWatchCycle({
+      watchId,
+      planId,
+      outcome: "rerank",
+      trigger,
+      adbUnits: gather?.metrics.adbUnitsEst ?? 0,
+      fidsCacheHit: gather?.metrics.fidsCacheHit ?? null,
+      statusCacheHit: gather?.metrics.statusCacheHit ?? null,
+      ...cycleMetrics({ rankingRan: true, operatorVerifyRan }),
+      durationMs: Date.now() - started,
+    });
+
+    return {
+      changed: meaningful > 0,
+      outcome: "rerank",
+      metrics: cycleMetrics({ rankingRan: true, operatorVerifyRan }),
+    };
   }
 
   // Failed / incomplete rerank: preserve last known-good plan + snapshot runway.
-  // Feature #1 cancellation events (already in `events`) still persist.
   if (events.length > 0) {
     await db(client)
       .from("plan_change_events")
@@ -1544,6 +1770,9 @@ export async function recheckWatch(
   }
 
   const meaningful = events.filter((e) => e.severity === "meaningful").length;
+  const preservedSignals = gather
+    ? stampOutcomeOnSignals(gather.signals, "rerank", trigger)
+    : prev.signalState;
   const preservedSnapshot: WatchSnapshot = {
     judgment: prev.judgment,
     pillars: prev.pillars,
@@ -1552,6 +1781,7 @@ export async function recheckWatch(
     flightState,
     primaryOptionId: prev.primaryOptionId ?? primaryOptionId,
     preferredOptionId: prev.preferredOptionId ?? null,
+    ...(preservedSignals ? { signalState: preservedSignals } : {}),
   };
   if (prev.backupRunwayCount !== undefined) {
     preservedSnapshot.backupRunwayCount = prev.backupRunwayCount;
@@ -1572,12 +1802,28 @@ export async function recheckWatch(
       snapshot: preservedSnapshot,
       verdict: meaningful > 0 ? "changed" : String(row["verdict"] ?? "steady"),
       unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
-      last_checked_at: new Date().toISOString(),
-      next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      last_checked_at: now.toISOString(),
+      next_check_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
     })
     .eq("id", watchId);
 
-  return { changed: meaningful > 0 };
+  logWatchCycle({
+    watchId,
+    planId,
+    outcome: "rerank",
+    trigger: trigger ?? "incomplete",
+    adbUnits: gather?.metrics.adbUnitsEst ?? 0,
+    fidsCacheHit: gather?.metrics.fidsCacheHit ?? null,
+    statusCacheHit: gather?.metrics.statusCacheHit ?? null,
+    ...cycleMetrics({ rankingRan: true, operatorVerifyRan: false }),
+    durationMs: Date.now() - started,
+  });
+
+  return {
+    changed: meaningful > 0,
+    outcome: "rerank",
+    metrics: cycleMetrics({ rankingRan: true, operatorVerifyRan: false }),
+  };
 }
 
 /** Most recent reported load for one flight on one date, if any. */

@@ -66,6 +66,10 @@ export interface AirportMeta {
 /** A code with no row is cached as null; a failed read is never cached. */
 const metaCache = new Map<string, AirportMeta | null>();
 
+/** Test-only: clear the process-wide metadata cache between suites. */
+export function resetAirportMetaCacheForTests(): void {
+  metaCache.clear();
+}
 
 /** Lightweight instrumentation: batched reads issued against `airports`. */
 export const airportLookupStats = { metadataReads: 0, metadataRowsFetched: 0 };

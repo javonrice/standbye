@@ -2,6 +2,7 @@
 
 import type { FlightStatus } from "@/lib/aircue/flight-provider.server";
 import type { StandbyOption } from "@/lib/aircue/standby";
+import type { WatchSignalState } from "@/lib/aircue/watch-signal-gate";
 
 export type WatchFlightState = "operating" | "cancelled" | "departed" | "unknown";
 
@@ -17,6 +18,8 @@ export type WatchSnapshot = {
   backupNonstopCount?: number;
   backupConnectionCount?: number;
   spilloverCancelled?: number;
+  /** Cheap-Watch gate snapshot (jsonb embedded). */
+  signalState?: WatchSignalState;
 };
 
 export type FlightPresence =

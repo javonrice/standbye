@@ -779,6 +779,7 @@ async function scoreLeg(
       schedArrUtc: leg.schedArrUtc,
       arrivalDayOffset,
       access,
+      ...(leg.status ? { status: leg.status } : {}),
     },
   ];
 

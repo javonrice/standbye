@@ -270,6 +270,89 @@ await mockModuleIsolated("@/lib/aircue/flight-provider.server", () => ({
   }),
 }));
 
+// Capture pure gate helpers before mocking the server module (Bun can link re-exports).
+const gate = await import("@/lib/aircue/watch-signal-gate");
+
+await mockModuleIsolated("@/lib/aircue/watch-signals.server", () => {
+  return {
+    gatherWatchSignals: async (input: {
+      travelDate: string;
+      planId?: string;
+      anchor: { flightLabel: string; origin: string; dest: string; carrier?: string | null };
+      hoursUntilDeparture: number;
+      prev?: Record<string, unknown> | null;
+    }) => {
+      const { getFlightProvider } = await import("@/lib/aircue/flight-provider.server");
+      const label = input.anchor.flightLabel;
+      const flightNumber = /^[A-Z0-9]{2}\d+/.test(label)
+        ? label
+        : `${input.anchor.carrier ?? "UA"}${label.replace(/\D/g, "") || "782"}`;
+      const result = await getFlightProvider().getWatchStatus(
+        flightNumber,
+        input.travelDate,
+        input.planId,
+        { origin: input.anchor.origin, dest: input.anchor.dest },
+      );
+      let state: "operating" | "delayed" | "cancelled" | "departed" | "unknown" = "unknown";
+      if (!result.unavailable && result.status) {
+        if (result.status.state === "cancelled") state = "cancelled";
+        else if (result.status.state === "departed" || result.status.state === "diverted")
+          state = "departed";
+        else if (result.status.state === "delayed") state = "delayed";
+        else state = "operating";
+      }
+      const now = new Date().toISOString();
+      const signals = {
+        v: 1 as const,
+        checkedAt: now,
+        nextSafetyRefreshAt: new Date(Date.now() + 12 * 3600_000).toISOString(),
+        primary: {
+          flightNumber,
+          origin: input.anchor.origin,
+          dest: input.anchor.dest,
+          state,
+          schedDepLocal: "17:10",
+          revisedDepLocal: null,
+          gate: null,
+          terminal: null,
+          boardConflict: false,
+          source: "status" as const,
+        },
+        cancelPressure: {
+          origin: input.anchor.origin,
+          date: input.travelDate,
+          windowKey: "adb:fids:v2:ORD:2026-08-29:12:00-23:59",
+          byRoute: {
+            [`${input.anchor.carrier ?? "UA"}:${input.anchor.dest}`]: {
+              count: 0,
+              flightNumbers: [],
+            },
+          },
+        },
+        environment: {
+          faaFingerprint: "test",
+          weatherBand: "clear" as const,
+          weatherFingerprint: "test",
+        },
+        lastRankAt: (input.prev?.["lastRankAt"] as string | null) ?? null,
+        lastRankTrigger: (input.prev?.["lastRankTrigger"] as string | null) ?? null,
+        lastOutcome: (input.prev?.["lastOutcome"] as "skip" | "notify-only" | "rerank") ?? "rerank",
+      };
+      return {
+        signals,
+        status: result.status,
+        statusUnavailable: result.unavailable,
+        emitCancellationFromBoard: false,
+        metrics: { fidsCacheHit: true, statusCacheHit: null, adbUnitsEst: 0 },
+      };
+    },
+    decideWatchOutcome: gate.decideWatchOutcome,
+    stampRankOnSignals: gate.stampRankOnSignals,
+    stampOutcomeOnSignals: gate.stampOutcomeOnSignals,
+    logWatchCycle: () => {},
+  };
+});
+
 await mockModuleIsolated("@/lib/aircue/ranking.server", () => ({
   rankStandbyOptions: async (input: Record<string, unknown>) => {
     lastRankInput = input;
@@ -415,6 +498,7 @@ describe("recheckWatch cancellation integration", () => {
 
     insertedEvents.length = 0;
     optionUpdateCount = 0;
+    lastRankInput = null;
     watchStatusResult = { status: { state: "scheduled", label: "On schedule" }, unavailable: false };
     rankedOptions = [makeRankedOption()];
     const result = await recheckWatch(client, USER_ID, WATCH_ID);
@@ -422,7 +506,12 @@ describe("recheckWatch cancellation integration", () => {
     expect(result.changed).toBe(false);
     expect(cancelKinds()).toHaveLength(0);
     expect((lastWatchUpdate?.["snapshot"] as { flightState: string }).flightState).toBe("operating");
-    expect(optionUpdateCount).toBeGreaterThanOrEqual(1);
+    // Quiet second cycle after bootstrap may skip ranking when signals are unchanged.
+    if (result.outcome === "rerank") {
+      expect(optionUpdateCount).toBeGreaterThanOrEqual(1);
+    } else {
+      expect(result.outcome === "skip" || result.outcome === "notify-only").toBe(true);
+    }
   });
 
   it("12. cancellation increments unseen_changes once and sets verdict to changed", async () => {
