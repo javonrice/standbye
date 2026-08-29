@@ -1,6 +1,8 @@
 import { ArrowRight } from "lucide-react";
 
+import { LocalTime } from "@/components/aircue/LocalTime";
 import { cn } from "@/lib/utils";
+
 
 /**
  * Flighty-style flight header: small metadata, very large airport codes and
