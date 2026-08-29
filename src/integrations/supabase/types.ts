@@ -447,6 +447,7 @@ export type Database = {
           flight_number: string | null
           headline: string
           id: string
+          is_current: boolean
           kind: string
           label: string
           origin_iata: string
@@ -474,6 +475,7 @@ export type Database = {
           flight_number?: string | null
           headline?: string
           id?: string
+          is_current?: boolean
           kind?: string
           label?: string
           origin_iata: string
@@ -501,6 +503,7 @@ export type Database = {
           flight_number?: string | null
           headline?: string
           id?: string
+          is_current?: boolean
           kind?: string
           label?: string
           origin_iata?: string
