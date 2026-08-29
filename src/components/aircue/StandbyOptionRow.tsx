@@ -124,13 +124,17 @@ export function StandbyOptionRow({
               emphasis === "primary" ? "text-[23px]" : "text-[19px]",
             )}
           >
-            {timing}
+            {option.depLocal ? <>{option.depLocal} → </> : null}
+            <LocalTime value={arrival} />
           </p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {option.origin} &nbsp;·&nbsp; {option.dest}
-            {disambiguation ? ` · ${disambiguation}` : ""}
             {laterShots > 0 ? ` · ${laterShots} later shot${laterShots === 1 ? "" : "s"}` : ""}
           </p>
+          {disambiguation && (
+            <p className="mt-0.5 text-[12px] text-muted-foreground">{disambiguation}</p>
+          )}
+
         </div>
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
       </div>
