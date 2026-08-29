@@ -402,17 +402,69 @@ function Question({
   );
 }
 
+function AccessAirlinePicker({
+  selected,
+  onToggle,
+}: {
+  selected: string[];
+  onToggle: (code: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const matches = q
+      ? ALL_AIRLINE_OPTIONS.filter(
+          (a) => a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q),
+        ).slice(0, 40)
+      : ALL_AIRLINE_OPTIONS.filter((a) => popularAirlines.includes(a.code));
+    const picked = ALL_AIRLINE_OPTIONS.filter((a) => selected.includes(a.code));
+    const seen = new Set(picked.map((a) => a.code));
+    return [...picked, ...matches.filter((a) => !seen.has(a.code))];
+  }, [query, selected]);
+
+  return (
+    <div className="mt-4">
+      <Input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search airline"
+        className="h-12"
+        aria-label="Search airline to add access"
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        {list.map((a) => {
+          const on = selected.includes(a.code);
+          return (
+            <button
+              key={a.code}
+              type="button"
+              onClick={() => onToggle(a.code)}
+              className={`flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-sm font-semibold ${
+                on
+                  ? "border-primary bg-accent text-accent-foreground"
+                  : "border-border bg-card text-muted-foreground"
+              }`}
+            >
+              <AirlineLogo code={a.code} size={24} className="rounded-full" />
+              <span>{a.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) => void }) {
   const [query, setQuery] = useState("");
   const list = useMemo(() => {
-    const all = AIRLINES.filter((a) => a.code !== ALL_AIRLINES);
     const q = query.trim().toLowerCase();
     if (q) {
-      return all.filter(
+      return ALL_AIRLINE_OPTIONS.filter(
         (a) => a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q),
-      );
+      ).slice(0, 40);
     }
-    return all.filter((a) => popularAirlines.includes(a.code));
+    return ALL_AIRLINE_OPTIONS.filter((a) => popularAirlines.includes(a.code));
   }, [query]);
 
   return (
