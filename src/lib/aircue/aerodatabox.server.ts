@@ -14,6 +14,7 @@ import {
   watchStatusTtlSeconds,
 } from "@/lib/aircue/watch-config.server";
 import { fidsCacheKey } from "@/lib/aircue/fids-cache-key";
+import { noteAdbFidsUpstream, noteAdbStatusUpstream } from "@/lib/aircue/provider-usage.server";
 
 const HOST = "aerodatabox.p.rapidapi.com";
 /** Per-device guard so one visitor cannot drain the month in an afternoon. */
@@ -170,6 +171,8 @@ async function cachedCall<T>(
 
   try {
     const payload = await callApi<T>(path);
+    if (endpoint === "fids-departures") noteAdbFidsUpstream(1);
+    else if (endpoint.startsWith("flight-status")) noteAdbStatusUpstream(1);
     await logUsage(endpoint, TIER2_UNITS, opts.tripId);
     await supabaseAdmin.from("source_cache").upsert({
       cache_key: cacheKey,
@@ -180,6 +183,12 @@ async function cachedCall<T>(
     return { data: payload, fromCache: false, budgetBlocked: false };
   } catch (error) {
     console.error("aerodatabox call failed", endpoint, error);
+    // Attempted upstream even on error — still counts against economics.
+    if (endpoint === "fids-departures" || endpoint.startsWith("fids-departures")) {
+      noteAdbFidsUpstream(1);
+    } else if (endpoint.startsWith("flight-status")) {
+      noteAdbStatusUpstream(1);
+    }
     await logUsage(`${endpoint}:error`, TIER2_UNITS, opts.tripId);
     return { data: (row?.payload as T) ?? null, fromCache: Boolean(row), budgetBlocked: false };
   }

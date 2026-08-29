@@ -3,7 +3,7 @@
  * holiday lookup. These assert the batched path returns what the per-code
  * queries returned, and that a missing code still behaves as before.
  */
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, describe, expect, it, mock } from "bun:test";
 
 import { mockModuleIsolated } from "./mock-module-isolated";
 
@@ -65,6 +65,24 @@ const ROWS = [
 let selects: string[] = [];
 let inCalls: string[][] = [];
 
+function installAirportSupabaseMock() {
+  mock.module("@/integrations/supabase/client.server", () => ({
+    supabaseAdmin: {
+      from: () => ({
+        select: (cols: string) => {
+          selects.push(cols);
+          return {
+            in: (_col: string, codes: string[]) => {
+              inCalls.push(codes);
+              return Promise.resolve({ data: ROWS.filter((r) => codes.includes(r.iata)) });
+            },
+          };
+        },
+      }),
+    },
+  }));
+}
+
 await mockModuleIsolated("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     from: () => ({
@@ -81,8 +99,16 @@ await mockModuleIsolated("@/integrations/supabase/client.server", () => ({
   },
 }));
 
-const { airportGeo, airportMeta, airportTimezone, icaoForAirport, airportLookupStats } =
+const { airportGeo, airportMeta, airportTimezone, icaoForAirport, airportLookupStats, resetAirportMetaCacheForTests } =
   await import("@/lib/aircue/airport-lookup.server");
+
+beforeAll(() => {
+  // Re-assert this file's supabase mock in case a later-loading test file overwrote it.
+  installAirportSupabaseMock();
+  resetAirportMetaCacheForTests();
+  airportLookupStats.metadataReads = 0;
+  airportLookupStats.metadataRowsFetched = 0;
+});
 
 afterEach(() => {
   selects = [];

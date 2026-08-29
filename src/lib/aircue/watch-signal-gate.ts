@@ -275,6 +275,9 @@ export function logWatchCycle(entry: {
   gf8Calls: number;
   rankingRan: boolean;
   operatorVerifyRan: boolean;
+  adbFidsUpstream?: number;
+  adbStatusUpstream?: number;
+  operatorVerifyAttempts?: number;
   durationMs: number;
 }): void {
   console.info(JSON.stringify({ type: "watch_cycle", ...entry }));

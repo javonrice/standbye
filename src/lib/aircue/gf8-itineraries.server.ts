@@ -12,6 +12,7 @@ import { buildOptionKey } from "@/lib/aircue/option-key";
 import { airportTimezone } from "@/lib/aircue/airport-lookup.server";
 import { zonedToUtc } from "@/lib/aircue/tz";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { noteGf8Upstream } from "@/lib/aircue/provider-usage.server";
 
 const API_HOST = "google-flights8.p.rapidapi.com";
 const MIN_LAYOVER_MIN = 45;
@@ -327,6 +328,7 @@ export async function searchItineraryCandidates(input: {
       const res = await fetch(`https://${API_HOST}/api/v1/search?${qs}`, {
         headers: { "x-rapidapi-host": API_HOST, "x-rapidapi-key": apiKey },
       });
+      noteGf8Upstream(1);
       if (!res.ok) return { ok: false, candidates: [], reason: "error" };
       body = (await res.json()) as Gf8Response;
       await writeCache(key, body, 120);

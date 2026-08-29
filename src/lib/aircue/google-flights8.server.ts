@@ -9,6 +9,7 @@
  * serpapi_usage_log (kept as the shared provider usage table).
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { noteGf8Upstream } from "@/lib/aircue/provider-usage.server";
 
 const DEFAULT_TTL_MIN = 120;
 const NEAR_DEP_TTL_MIN = 60;
@@ -138,6 +139,7 @@ async function routeSearchCached(params: {
   const res = await fetch(`https://${API_HOST}/api/v1/search?${qs}`, {
     headers: { "x-rapidapi-host": API_HOST, "x-rapidapi-key": apiKey },
   });
+  noteGf8Upstream(1);
   if (!res.ok) throw new Error(`google-flights8 responded ${res.status}`);
   const body = (await res.json()) as Gf8Response;
   await writeCache(key, body, params.ttlMinutes);

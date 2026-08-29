@@ -54,6 +54,10 @@ import {
   stampRankOnSignals,
   type WatchSignalState,
 } from "@/lib/aircue/watch-signals.server";
+import {
+  deltaProviderUsage,
+  snapshotProviderUsage,
+} from "@/lib/aircue/provider-usage.server";
 
 /** The generated Database type does not yet know the standby tables. */
 type Db = SupabaseClient;
@@ -1379,8 +1383,20 @@ export async function recheckWatch(
   client: unknown,
   userId: string,
   watchId: string,
-): Promise<{ changed: boolean; outcome?: string }> {
+): Promise<{
+  changed: boolean;
+  outcome?: string;
+  metrics?: {
+    gf8Calls: number;
+    adbFidsUpstream: number;
+    adbStatusUpstream: number;
+    operatorVerifyAttempts: number;
+    rankingRan: boolean;
+    operatorVerifyRan: boolean;
+  };
+}> {
   const started = Date.now();
+  const usageBefore = snapshotProviderUsage();
   const { data: watchRow } = await db(client)
     .from("watch_plans")
     .select("*, plan_options(*), plans(*)")
@@ -1408,6 +1424,18 @@ export async function recheckWatch(
   const events: Array<{ kind: string; severity: string; headline: string; detail: string }> = [];
   const now = new Date();
   const hours = hoursUntilDep(anchorBefore.schedDepUtc, travelDate, now);
+
+  const cycleMetrics = (extra: { rankingRan: boolean; operatorVerifyRan: boolean }) => {
+    const d = deltaProviderUsage(usageBefore);
+    return {
+      gf8Calls: d.gf8Upstream,
+      adbFidsUpstream: d.adbFidsUpstream,
+      adbStatusUpstream: d.adbStatusUpstream,
+      operatorVerifyAttempts: d.operatorVerifyAttempts,
+      rankingRan: extra.rankingRan,
+      operatorVerifyRan: extra.operatorVerifyRan,
+    };
+  };
 
   const accessMeta =
     (prefs["accessMetaSnapshot"] as import("@/lib/aircue/travel-access").AirlineAccessMeta | undefined) ??
@@ -1542,12 +1570,14 @@ export async function recheckWatch(
       adbUnits: gather?.metrics.adbUnitsEst ?? 0,
       fidsCacheHit: gather?.metrics.fidsCacheHit ?? null,
       statusCacheHit: gather?.metrics.statusCacheHit ?? null,
-      gf8Calls: 0,
-      rankingRan: false,
-      operatorVerifyRan: false,
+      ...cycleMetrics({ rankingRan: false, operatorVerifyRan: false }),
       durationMs: Date.now() - started,
     });
-    return { changed: meaningful > 0, outcome };
+    return {
+      changed: meaningful > 0,
+      outcome,
+      metrics: cycleMetrics({ rankingRan: false, operatorVerifyRan: false }),
+    };
   }
 
   // --- rerank path ---
@@ -1712,13 +1742,15 @@ export async function recheckWatch(
       adbUnits: gather?.metrics.adbUnitsEst ?? 0,
       fidsCacheHit: gather?.metrics.fidsCacheHit ?? null,
       statusCacheHit: gather?.metrics.statusCacheHit ?? null,
-      gf8Calls: 1,
-      rankingRan: true,
-      operatorVerifyRan,
+      ...cycleMetrics({ rankingRan: true, operatorVerifyRan }),
       durationMs: Date.now() - started,
     });
 
-    return { changed: meaningful > 0, outcome: "rerank" };
+    return {
+      changed: meaningful > 0,
+      outcome: "rerank",
+      metrics: cycleMetrics({ rankingRan: true, operatorVerifyRan }),
+    };
   }
 
   // Failed / incomplete rerank: preserve last known-good plan + snapshot runway.
@@ -1783,13 +1815,15 @@ export async function recheckWatch(
     adbUnits: gather?.metrics.adbUnitsEst ?? 0,
     fidsCacheHit: gather?.metrics.fidsCacheHit ?? null,
     statusCacheHit: gather?.metrics.statusCacheHit ?? null,
-    gf8Calls: 0,
-    rankingRan: true,
-    operatorVerifyRan: false,
+    ...cycleMetrics({ rankingRan: true, operatorVerifyRan: false }),
     durationMs: Date.now() - started,
   });
 
-  return { changed: meaningful > 0, outcome: "rerank" };
+  return {
+    changed: meaningful > 0,
+    outcome: "rerank",
+    metrics: cycleMetrics({ rankingRan: true, operatorVerifyRan: false }),
+  };
 }
 
 /** Most recent reported load for one flight on one date, if any. */

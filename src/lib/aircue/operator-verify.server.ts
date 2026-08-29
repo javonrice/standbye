@@ -3,6 +3,7 @@
  * Called only on primary set / watched-primary recheck — never verify-all.
  */
 import { fetchFlightStatus, type AdbFlight } from "@/lib/aircue/aerodatabox.server";
+import { noteOperatorVerifyAttempt } from "@/lib/aircue/provider-usage.server";
 import {
   resolveStaffEligibility,
   type OperatorVerification,
@@ -50,6 +51,7 @@ export async function verifyOperatorForFlight(input: {
   const source = "aerodatabox";
 
   try {
+    noteOperatorVerifyAttempt(1);
     const { flight, budgetBlocked } = await fetchFlightStatus(input.flightNumber, input.travelDate, {
       // Prefer Watch-scope TTL reuse; force only when callers explicitly request it.
       watch: true,
