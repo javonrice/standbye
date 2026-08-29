@@ -1,6 +1,8 @@
 import { ArrowRight } from "lucide-react";
 
+import { LocalTime } from "@/components/aircue/LocalTime";
 import { cn } from "@/lib/utils";
+
 
 /**
  * Flighty-style flight header: small metadata, very large airport codes and
@@ -56,7 +58,10 @@ function Endpoint({
   return (
     <div className={cn("min-w-0 flex-1", align === "right" && "text-right")}>
       <p className="font-display text-[40px] font-bold leading-none tracking-tight">{code}</p>
-      <p className="mt-2 text-[17px] font-semibold leading-none">{time ?? "—"}</p>
+      <p className="mt-2 text-[17px] font-semibold leading-none">
+        <LocalTime value={time} />
+      </p>
+
       <p className="mt-1 text-[12px] text-muted-foreground">{label}</p>
     </div>
   );

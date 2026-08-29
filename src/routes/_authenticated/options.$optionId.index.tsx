@@ -17,7 +17,9 @@ import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/Signa
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
 import { setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
+import { LocalTime } from "@/components/aircue/LocalTime";
 import { formatOptionArrival, formatSegmentArrival } from "@/lib/aircue/option-display";
+
 import {
   agoLabel,
   confidenceLabel,
@@ -156,10 +158,16 @@ function CueScreen() {
                 {seg.origin} → {seg.dest}
                 {" · "}
                 {seg.depLocal}
-                {seg.arrLocal ? ` → ${formatSegmentArrival(seg)}` : ""}
+                {seg.arrLocal ? (
+                  <>
+                    {" → "}
+                    <LocalTime value={formatSegmentArrival(seg)} />
+                  </>
+                ) : null}
               </li>
             ))}
           </ul>
+
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">

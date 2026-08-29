@@ -4,7 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ChevronRight, Star } from "lucide-react";
 
 import { getPlan, setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
+import { LocalTime } from "@/components/aircue/LocalTime";
 import { formatOptionArrival } from "@/lib/aircue/option-display";
+
 import {
   judgmentFace,
   judgmentShort,
@@ -33,7 +35,10 @@ export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
 interface Cell {
   text: string;
   state?: PillarState;
+  /** Render as a local clock so a +1 day marker stays secondary. */
+  time?: boolean;
 }
+
 
 /** One comparison row: a label plus one short cell per option. */
 function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell[] }> {
@@ -44,11 +49,12 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
       label: "Judgment",
       cells: options.map((o) => ({ text: `${judgmentFace[o.judgment]} ${judgmentShort[o.judgment]}` })),
     },
-    { label: "Depart", cells: options.map((o) => ({ text: o.depLocal || "—" })) },
+    { label: "Depart", cells: options.map((o) => ({ text: o.depLocal || "—", time: true })) },
     {
       label: "Arrive",
-      cells: options.map((o) => ({ text: formatOptionArrival(o) || "—" })),
+      cells: options.map((o) => ({ text: formatOptionArrival(o) || "—", time: true })),
     },
+
     {
       label: "Clears",
       cells: options.map((o) => {
@@ -195,7 +201,12 @@ function ComparePage() {
                           className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pillarDot[cell.state])}
                         />
                       )}
-                      <span className="truncate">{cell.text}</span>
+                      {cell.time ? (
+                        <LocalTime value={cell.text} className="truncate" />
+                      ) : (
+                        <span className="truncate">{cell.text}</span>
+                      )}
+
                     </div>
                   ))}
                 </div>

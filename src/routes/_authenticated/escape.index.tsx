@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@tanstack/react-router";
 import { createEscapePlan, getStandbyProfile } from "@/lib/aircue/plan.functions";
-import { planBuildErrorMessage } from "@/lib/aircue/plan-build-errors";
+import { PlanBuildError } from "@/components/aircue/PlanBuildError";
 import { cn } from "@/lib/utils";
 
 /** Local calendar date, not UTC — otherwise evening users lose "today". */
@@ -174,11 +174,8 @@ function EscapeHome() {
           Widen my plan →
         </Button>
 
-        {run.isError && (
-          <p className="mt-3 text-[14px] text-rough-foreground">
-            {planBuildErrorMessage(run.error)}
-          </p>
-        )}
+        {run.isError && <PlanBuildError error={run.error} />}
+
       </form>
     </main>
   );

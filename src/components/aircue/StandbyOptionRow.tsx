@@ -3,10 +3,12 @@ import { ChevronRight } from "lucide-react";
 
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { CueBadge } from "@/components/aircue/CueBadge";
+import { LocalTime } from "@/components/aircue/LocalTime";
 import {
-  formatOptionTimingRange,
+  formatOptionArrival,
   optionDisambiguationNote,
 } from "@/lib/aircue/option-display";
+
 import {
   pillarDot,
   pillarTitle,
@@ -51,8 +53,9 @@ export function StandbyOptionRow({
   const laterShots = option.evidence.recovery.laterNonstops.length;
   const isTop = rank === 1;
   const strong = emphasis === "primary" || (emphasis === "default" && isTop);
-  const timing = formatOptionTimingRange(option);
+  const arrival = formatOptionArrival(option);
   const disambiguation = optionDisambiguationNote(option, peers);
+
 
   return (
     <Link
@@ -124,13 +127,17 @@ export function StandbyOptionRow({
               emphasis === "primary" ? "text-[23px]" : "text-[19px]",
             )}
           >
-            {timing}
+            {option.depLocal ? <>{option.depLocal} → </> : null}
+            <LocalTime value={arrival} />
           </p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {option.origin} &nbsp;·&nbsp; {option.dest}
-            {disambiguation ? ` · ${disambiguation}` : ""}
             {laterShots > 0 ? ` · ${laterShots} later shot${laterShots === 1 ? "" : "s"}` : ""}
           </p>
+          {disambiguation && (
+            <p className="mt-0.5 text-[12px] text-muted-foreground">{disambiguation}</p>
+          )}
+
         </div>
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
       </div>

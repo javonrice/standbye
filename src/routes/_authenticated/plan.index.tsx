@@ -33,7 +33,7 @@ import {
   listRecentSearches,
   type PlanSummary,
 } from "@/lib/aircue/plan.functions";
-import { planBuildErrorMessage } from "@/lib/aircue/plan-build-errors";
+import { PlanBuildError } from "@/components/aircue/PlanBuildError";
 import { routingModeHint, routingModeLabel, type RoutingMode } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plan/")({
@@ -272,11 +272,8 @@ function HomePage() {
           Build my plan
         </Button>
 
-        {run.isError && (
-          <p className="mt-3 text-[14px] text-rough-foreground">
-            {planBuildErrorMessage(run.error)}
-          </p>
-        )}
+        {run.isError && <PlanBuildError error={run.error} />}
+
       </form>
 
       <div className="mt-5 space-y-2.5 text-[14px]">
