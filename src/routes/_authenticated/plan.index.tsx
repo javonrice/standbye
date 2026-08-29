@@ -14,6 +14,8 @@ import {
 
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { AirportField } from "@/components/aircue/AirportField";
+import { Screen, SectionHeading } from "@/components/aircue/Layout";
+
 import { SearchingOverlay } from "@/components/aircue/SearchingOverlay";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -109,7 +111,7 @@ function HomePage() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-16 pt-6 md:max-w-2xl md:px-10 md:pt-12">
+    <Screen>
       {run.isPending && <SearchingOverlay phase="building" origin={origin} dest={dest} />}
 
       <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain md:hidden" />
@@ -274,30 +276,29 @@ function HomePage() {
         )}
       </form>
 
-      <p className="mt-4 text-center text-[14px] text-muted-foreground">
-        Stuck right now?{" "}
-        <Link to="/escape" className="font-semibold text-primary">
-          Widen a plan
-        </Link>
-      </p>
-
-      <Link
-        to="/known-flight"
-        className="mt-3 flex items-center justify-between gap-3 rounded-xl px-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <span className="text-[14px] font-medium">
-          Already have a flight in mind? <span className="text-primary">Start with it</span>
-        </span>
-        <ChevronRight className="h-4 w-4" />
-      </Link>
+      <div className="mt-5 space-y-2.5 text-[14px]">
+        <p className="text-muted-foreground">
+          Stuck right now?{" "}
+          <Link to="/escape" className="font-semibold text-primary">
+            Widen a plan
+          </Link>
+        </p>
+        <p className="text-muted-foreground">
+          Already have a flight in mind?{" "}
+          <Link to="/known-flight" className="font-semibold text-primary">
+            Start with it
+          </Link>
+        </p>
+      </div>
 
       {(recent ?? []).length > 0 && (
         <section className="mt-10">
-          <h2 className="font-display text-[17px] font-semibold tracking-tight">Recent searches</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Exploration only — pick a primary or watch a plan to save it under Plans.
-          </p>
-          <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+          <SectionHeading
+            title="Recent searches"
+            tone="quiet"
+            hint="Exploration only — pick a primary or watch a plan to save it under Plans."
+          />
+          <ul className="mt-2 divide-y divide-border/70">
             {(recent ?? []).map((p) => (
               <li key={p.id}>
                 <RecentSearchRow plan={p} />
@@ -306,12 +307,13 @@ function HomePage() {
           </ul>
         </section>
       )}
-    </main>
+    </Screen>
+
   );
 }
 
 function RecentSearchRow({ plan: p }: { plan: PlanSummary }) {
-  const className = "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50";
+  const className = "flex items-center gap-3 py-3 transition-colors hover:opacity-80";
   const body = (
     <>
       <span className="min-w-0 flex-1">

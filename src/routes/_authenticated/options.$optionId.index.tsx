@@ -8,6 +8,7 @@ import {
   Star,
 } from "lucide-react";
 
+import { Screen } from "@/components/aircue/Layout";
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { FlightHero } from "@/components/aircue/FlightHero";
 import { StandbyeTake } from "@/components/aircue/StandbyeTake";
@@ -113,7 +114,7 @@ function CueScreen() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-3xl md:px-10 md:pt-12">
+    <Screen width="lg">
       {data?.planId && (
         <Link
           to="/plans/$planId"
@@ -240,7 +241,7 @@ function CueScreen() {
         Standbye reads public availability and operating conditions. It is not airline load data and
         never predicts whether you will clear.
       </p>
-    </main>
+    </Screen>
   );
 }
 
