@@ -3,10 +3,12 @@ import { ChevronRight } from "lucide-react";
 
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { CueBadge } from "@/components/aircue/CueBadge";
+import { LocalTime } from "@/components/aircue/LocalTime";
 import {
-  formatOptionTimingRange,
+  formatOptionArrival,
   optionDisambiguationNote,
 } from "@/lib/aircue/option-display";
+
 import {
   pillarDot,
   pillarTitle,
