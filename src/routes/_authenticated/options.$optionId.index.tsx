@@ -43,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/")({
 function CueScreen() {
   const { optionId } = Route.useParams();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useOption(optionId);
+  const { data, isLoading, isError } = useOption(optionId);
   const setPrimary = useServerFn(setPrimaryOptionFn);
 
   const makePrimary = useMutation({
@@ -57,6 +57,20 @@ function CueScreen() {
 
   if (isLoading) {
     return <p className="p-6 text-sm text-muted-foreground">Loading this cue…</p>;
+  }
+
+  if (isError) {
+    return (
+      <main className="mx-auto max-w-md px-5 py-10">
+        <p className="font-display text-lg font-semibold">Could not load this option</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Something went wrong on our side. Try again in a moment — your plan is still there.
+        </p>
+        <Button asChild className="mt-4 h-11" variant="outline">
+          <Link to="/plan">Back to plans</Link>
+        </Button>
+      </main>
+    );
   }
 
   const option = data?.option;

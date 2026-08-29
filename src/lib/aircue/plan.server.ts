@@ -535,14 +535,19 @@ export async function loadPlan(
 }
 
 export async function loadPlanSummaries(client: unknown, userId: string): Promise<PlanSummary[]> {
-  const { data } = await db(client)
+  const { data, error } = await db(client)
     .from("plans")
     .select(
-      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options(label,rank,flight_label,id,is_current),watch_plans(state,verdict,last_checked_at)",
+      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options!plan_options_plan_id_fkey(label,rank,flight_label,id,is_current),watch_plans(state,verdict,last_checked_at)",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
+
+  if (error) {
+    console.error("[loadPlanSummaries] plans query failed", error.message);
+    throw new Error(`Could not load plans right now: ${error.message}`);
+  }
 
   return ((data ?? []) as Row[]).map((row) => {
     const opts = ((row["plan_options"] as Row[]) ?? [])
@@ -648,12 +653,16 @@ export async function attachLoad(
     source: string;
   },
 ): Promise<{ optionId: string; judgment: string }> {
-  const { data: optionRow } = await db(client)
+  const { data: optionRow, error: optionError } = await db(client)
     .from("plan_options")
-    .select("*, plans(travel_date)")
+    .select("*, plans!plan_options_plan_id_fkey(travel_date)")
     .eq("id", input.optionId)
     .eq("user_id", userId)
     .maybeSingle();
+  if (optionError) {
+    console.error("[attachLoad] plan_options query failed", optionError.message);
+    throw new Error(`Could not attach load right now: ${optionError.message}`);
+  }
   if (!optionRow) throw new Error("That option is no longer available.");
   const row = optionRow as Row;
   const travelDate = String(((row["plans"] as Row) ?? {})["travel_date"] ?? "");
