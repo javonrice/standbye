@@ -17,6 +17,7 @@ import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/Signa
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
 import { setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
+import { formatOptionArrival, formatSegmentArrival } from "@/lib/aircue/option-display";
 import {
   agoLabel,
   confidenceLabel,
@@ -142,9 +143,24 @@ function CueScreen() {
           origin={option.origin}
           dest={option.dest}
           depLocal={option.depLocal}
-          arrLocal={option.arrLocal}
+          arrLocal={formatOptionArrival(option)}
           footnote={`${stops} · all times local · checked ${agoLabel(option.refreshedAt)}`}
         />
+
+        {option.kind === "connection" && option.segments.length > 1 && (
+          <ul className="mt-4 space-y-2 text-[14px] text-muted-foreground">
+            {option.segments.map((seg, idx) => (
+              <li key={`${seg.flightLabel}-${seg.schedDepUtc}-${idx}`}>
+                <span className="font-semibold text-foreground">{seg.flightLabel}</span>
+                {" · "}
+                {seg.origin} → {seg.dest}
+                {" · "}
+                {seg.depLocal}
+                {seg.arrLocal ? ` → ${formatSegmentArrival(seg)}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <CueBadge judgment={option.judgment} />

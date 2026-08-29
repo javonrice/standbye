@@ -174,7 +174,12 @@ export function PrimaryOptionSection({ plan }: PrimaryOptionSectionProps) {
             Your primary option
           </p>
           <div className="mt-2">
-            <StandbyOptionRow option={primary} rank={primary.rank} emphasis="primary" />
+            <StandbyOptionRow
+              option={primary}
+              rank={primary.rank}
+              emphasis="primary"
+              peers={plan.options}
+            />
           </div>
           {preferred && preferred.id !== primary.id && (
             <div className="mt-3 px-1">
@@ -204,7 +209,7 @@ export function PrimaryOptionSection({ plan }: PrimaryOptionSectionProps) {
             Best move right now
           </h2>
           <div className="mt-2.5">
-            <StandbyOptionRow option={preferred} rank={preferred.rank} />
+            <StandbyOptionRow option={preferred} rank={preferred.rank} peers={plan.options} />
           </div>
           <Button
             variant="outline"

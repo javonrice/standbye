@@ -4,6 +4,10 @@ import { ChevronRight } from "lucide-react";
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { CueBadge } from "@/components/aircue/CueBadge";
 import {
+  formatOptionTimingRange,
+  optionDisambiguationNote,
+} from "@/lib/aircue/option-display";
+import {
   pillarDot,
   pillarTitle,
   type Pillar,
@@ -35,15 +39,20 @@ export function StandbyOptionRow({
   option,
   rank,
   emphasis = "default",
+  peers = [],
 }: {
   option: StandbyOption;
   rank: number;
   emphasis?: Emphasis;
+  /** Other options on the same plan — used only to disambiguate identical labels. */
+  peers?: StandbyOption[];
 }) {
   const signals = scanSignals(option.pillars);
   const laterShots = option.evidence.recovery.laterNonstops.length;
   const isTop = rank === 1;
   const strong = emphasis === "primary" || (emphasis === "default" && isTop);
+  const timing = formatOptionTimingRange(option);
+  const disambiguation = optionDisambiguationNote(option, peers);
 
   return (
     <Link
@@ -115,11 +124,11 @@ export function StandbyOptionRow({
               emphasis === "primary" ? "text-[23px]" : "text-[19px]",
             )}
           >
-            {option.depLocal}
-            {option.arrLocal ? ` → ${option.arrLocal}` : ""}
+            {timing}
           </p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             {option.origin} &nbsp;·&nbsp; {option.dest}
+            {disambiguation ? ` · ${disambiguation}` : ""}
             {laterShots > 0 ? ` · ${laterShots} later shot${laterShots === 1 ? "" : "s"}` : ""}
           </p>
         </div>

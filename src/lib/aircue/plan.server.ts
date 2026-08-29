@@ -44,6 +44,7 @@ import {
   type AirlineAccessMeta,
 } from "@/lib/aircue/travel-access";
 import { requireCanonicalAirports, UnresolvedAirportError, ensureCanonicalAirports } from "@/lib/aircue/airports-canonical.server";
+import { matchExistingOptionRow } from "@/lib/aircue/sync-option-match";
 import { verifyOperatorForFlight } from "@/lib/aircue/operator-verify.server";
 
 /** The generated Database type does not yet know the standby tables. */
@@ -299,6 +300,7 @@ export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOptio
     depLocal: String(row["dep_local"] ?? ""),
     arrLocal: String(row["arr_local"] ?? ""),
     schedDepUtc: (row["sched_dep_utc"] as string | null) ?? null,
+    schedArrUtc: (row["sched_arr_utc"] as string | null) ?? null,
     segments: (row["segments"] as StandbyOption["segments"]) ?? [],
     pillars: effective,
     reasons: (row["reasons"] as Reason[]) ?? [],
@@ -945,13 +947,7 @@ async function syncPlanOptionsFromRanked(
     .eq("plan_id", planId);
 
   const existing = (existingRows ?? []) as Row[];
-  const byKey = new Map<string, Row>();
-  const byLabel = new Map<string, Row>();
-  for (const r of existing) {
-    const key = r["option_key"] ? String(r["option_key"]) : "";
-    if (key) byKey.set(key, r);
-    byLabel.set(String(r["flight_label"]), r);
-  }
+  const claimedIds = new Set<string>();
 
   const loads = await loadsFor(
     client,
@@ -968,14 +964,24 @@ async function syncPlanOptionsFromRanked(
   for (const option of persistable) {
     const payload = optionInsert(planId, userId, option);
     const optionKey = String(payload.option_key ?? option.optionKey ?? "");
-    const prior = (optionKey && byKey.get(optionKey)) || byLabel.get(option.flightLabel);
-    if (prior) {
-      const id = String(prior["id"]);
+    const available = existing.filter((r) => !claimedIds.has(String(r["id"])));
+    const prior = matchExistingOptionRow(
+      available.map((r) => ({
+        id: String(r["id"]),
+        option_key: (r["option_key"] as string | null) ?? null,
+        flight_label: String(r["flight_label"] ?? ""),
+      })),
+      { optionKey, flightLabel: option.flightLabel },
+    );
+    const priorRow = prior ? existing.find((r) => String(r["id"]) === prior.id) : null;
+    if (priorRow) {
+      const id = String(priorRow["id"]);
+      claimedIds.add(id);
       await db(client).from("plan_options").update(payload).eq("id", id);
       syncedIds.add(id);
       synced.push(
         optionFromRow(
-          { ...prior, ...payload, id, recovery: payload.recovery },
+          { ...priorRow, ...payload, id, recovery: payload.recovery },
           loads.get(option.flightLabel) ?? null,
         ),
       );
