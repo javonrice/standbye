@@ -37,16 +37,108 @@ import {
 } from "@/lib/aircue/plan-watch-events.server";
 import { buildOptionKey } from "@/lib/aircue/option-key";
 import {
+  accessTypeForCarrier,
   effectiveStaffTravelCarriers,
   resolveTravelAccess,
   travelAccessSnapshot,
   type AirlineAccessMeta,
 } from "@/lib/aircue/travel-access";
-import { requireCanonicalAirports, UnresolvedAirportError } from "@/lib/aircue/airports-canonical.server";
+import { requireCanonicalAirports, UnresolvedAirportError, ensureCanonicalAirports } from "@/lib/aircue/airports-canonical.server";
+import { verifyOperatorForFlight } from "@/lib/aircue/operator-verify.server";
 
 /** The generated Database type does not yet know the standby tables. */
 type Db = SupabaseClient;
 const db = (client: unknown) => client as Db;
+
+function homeAirlineFromPrefs(prefs: Record<string, unknown>): string | null {
+  const snap = prefs["travelAccessSnapshot"] as { homeAirline?: string | null } | undefined;
+  return snap?.homeAirline ?? null;
+}
+
+function accessMetaFromPrefs(prefs: Record<string, unknown>): AirlineAccessMeta | undefined {
+  return (
+    (prefs["accessMetaSnapshot"] as AirlineAccessMeta | undefined) ??
+    (prefs["travelAccessSnapshot"] as { meta?: AirlineAccessMeta } | undefined)?.meta
+  );
+}
+
+function effectiveCarriersFromPrefs(prefs: Record<string, unknown>): string[] {
+  const effective = prefs["effectiveCarriers"] as string[] | null | undefined;
+  if (effective && effective.length > 0) return effective.map((c) => c.toUpperCase());
+  const carriers = prefs["carriers"] as string[] | null | undefined;
+  return (carriers ?? []).map((c) => c.toUpperCase());
+}
+
+/** Drop options whose segment airports are not yet canonical — never invent rows. */
+async function retainCanonicalSegmentOptions(
+  client: unknown,
+  options: RankedOption[],
+): Promise<RankedOption[]> {
+  if (options.length === 0) return options;
+  const codes = new Set<string>();
+  for (const o of options) {
+    for (const s of o.segments) {
+      if (s.origin) codes.add(s.origin.toUpperCase());
+      if (s.dest) codes.add(s.dest.toUpperCase());
+    }
+  }
+  const ensured = await ensureCanonicalAirports(client, [...codes]);
+  if (ensured.ok) return options;
+  // Lookup unavailable — do not wipe an otherwise valid Plan/sync.
+  if (ensured.queryFailed) return options;
+  const missing = new Set(ensured.missing.map((c) => c.toUpperCase()));
+  return options.filter((o) =>
+    o.segments.every(
+      (s) => !missing.has(s.origin.toUpperCase()) && !missing.has(s.dest.toUpperCase()),
+    ),
+  );
+}
+
+async function persistOperatorVerification(
+  client: unknown,
+  option: StandbyOption,
+  result: Awaited<ReturnType<typeof verifyOperatorForFlight>>,
+): Promise<StandbyOption> {
+  const nextAccess = result.accessFromOperator ?? option.access ?? null;
+  const evidence: StandbyOption["evidence"] = {
+    ...option.evidence,
+    access: nextAccess,
+    staffEligibility: result.staffEligibility,
+    operatorVerification: result.operatorVerification,
+    commercialFare: option.commercialFare ?? option.evidence.commercialFare ?? null,
+  };
+  const clears = option.standbyClears ?? option.evidence.standbyClears;
+  if (typeof clears === "number") evidence.standbyClears = clears;
+  const segments = option.segments.map((s) => ({
+    ...s,
+    access: result.accessFromOperator ?? s.access ?? null,
+  }));
+
+  await db(client)
+    .from("plan_options")
+    .update({
+      evidence,
+      segments,
+      confidence:
+        result.staffEligibility === "eligible"
+          ? option.confidence === "low"
+            ? "medium"
+            : option.confidence
+          : result.staffEligibility === "ineligible"
+            ? "low"
+            : option.confidence,
+    })
+    .eq("id", option.id);
+
+  return {
+    ...option,
+    access: nextAccess,
+    staffEligibility: result.staffEligibility,
+    operatorVerification: result.operatorVerification,
+    evidence,
+    segments,
+  };
+}
 
 type Row = Record<string, unknown>;
 
@@ -311,9 +403,12 @@ export async function buildPlan(
     .eq("id", planId);
 
   if (ranked.options.length > 0) {
-    await db(client)
-      .from("plan_options")
-      .insert(ranked.options.map((o) => optionInsert(planId, userId, o)));
+    const persistable = await retainCanonicalSegmentOptions(client, ranked.options);
+    if (persistable.length > 0) {
+      await db(client)
+        .from("plan_options")
+        .insert(persistable.map((o) => optionInsert(planId, userId, o)));
+    }
   }
 
   return { planId, optionCount: ranked.options.length, reason: ranked.reason };
@@ -425,9 +520,12 @@ export async function buildEscapePlan(
     .eq("id", planId);
 
   if (ranked.options.length > 0) {
-    await db(client)
-      .from("plan_options")
-      .insert(ranked.options.map((o) => optionInsert(planId, userId, o)));
+    const persistable = await retainCanonicalSegmentOptions(client, ranked.options);
+    if (persistable.length > 0) {
+      await db(client)
+        .from("plan_options")
+        .insert(persistable.map((o) => optionInsert(planId, userId, o)));
+    }
   }
 
   return { planId, optionCount: ranked.options.length, reason: ranked.reason };
@@ -579,7 +677,9 @@ export async function loadPlan(
     .eq("state", "active")
     .maybeSingle();
 
-  const backupRunway = computeBackupRunway(options, primaryOptionId);
+  const backupRunway = computeBackupRunway(options, primaryOptionId, {
+    homeAirline: homeAirlineFromPrefs(prefs) ?? null,
+  });
 
   return {
     id: planId,
@@ -863,7 +963,9 @@ async function syncPlanOptionsFromRanked(
   const syncedIds = new Set<string>();
   const synced: StandbyOption[] = [];
 
-  for (const option of ranked.options) {
+  const persistable = await retainCanonicalSegmentOptions(client, ranked.options);
+
+  for (const option of persistable) {
     const payload = optionInsert(planId, userId, option);
     const optionKey = String(payload.option_key ?? option.optionKey ?? "");
     const prior = (optionKey && byKey.get(optionKey)) || byLabel.get(option.flightLabel);
@@ -925,7 +1027,7 @@ export async function setPrimaryOption(
 ): Promise<{ ok: true }> {
   const { data: optionRow } = await db(client)
     .from("plan_options")
-    .select("id,plan_id,is_current")
+    .select("*")
     .eq("id", optionId)
     .eq("user_id", userId)
     .eq("plan_id", planId)
@@ -956,6 +1058,38 @@ export async function setPrimaryOption(
       .eq("id", String((watch as Row)["id"]));
   }
 
+  // Lazy ADB operator verify on primary — never verify-all.
+  try {
+    const { data: planRow } = await db(client)
+      .from("plans")
+      .select("travel_date,prefs")
+      .eq("id", planId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (planRow) {
+      const prefs = ((planRow as Row)["prefs"] ?? {}) as Record<string, unknown>;
+      const option = optionFromRow(optionRow as Row, null);
+      const identity = watchFlightIdentity(option);
+      if (identity) {
+        const allowed = effectiveCarriersFromPrefs(prefs);
+        const meta = accessMetaFromPrefs(prefs);
+        const truth = await verifyOperatorForFlight({
+          flightNumber: identity.flightNumber,
+          travelDate: String((planRow as Row)["travel_date"]),
+          origin: identity.origin,
+          dest: identity.dest,
+          allowedAccess: allowed,
+          ...(meta ? { accessMeta: meta } : {}),
+          force: true,
+        });
+        await persistOperatorVerification(client, option, truth);
+      }
+    }
+  } catch (error) {
+    // Primary is set; verification is best-effort and must not undo intent.
+    console.error("[setPrimaryOption] operator verify", error);
+  }
+
   return { ok: true };
 }
 
@@ -963,8 +1097,14 @@ function initialWatchSnapshot(
   anchor: StandbyOption,
   primaryOptionId: string | null,
   options: StandbyOption[],
+  homeAirline?: string | null,
 ): WatchSnapshot {
-  const backup = computeBackupRunway(options, primaryOptionId);
+  const primary = options.find((o) => o.id === primaryOptionId) ?? null;
+  const backup = computeBackupRunway(
+    options,
+    primaryOptionId,
+    homeAirline !== undefined ? { homeAirline } : undefined,
+  );
   return buildPlanWatchSnapshot({
     anchor,
     preferred: options[0] ?? null,
@@ -972,6 +1112,7 @@ function initialWatchSnapshot(
     flightState: "unknown",
     backup,
     spilloverCancelled: spilloverFromOption(anchor),
+    primary,
   });
 }
 
@@ -1021,11 +1162,12 @@ export async function beginWatch(
 
   const { data: planRow } = await db(client)
     .from("plans")
-    .select("primary_option_id")
+    .select("primary_option_id,prefs")
     .eq("id", planId)
     .maybeSingle();
   const primaryOptionId =
     ((planRow as Row | null)?.["primary_option_id"] as string | null) ?? anchorOptionId;
+  const prefs = ((planRow as Row | null)?.["prefs"] ?? {}) as Record<string, unknown>;
 
   const { data, error } = await db(client)
     .from("watch_plans")
@@ -1036,7 +1178,12 @@ export async function beginWatch(
       mode: input.mode,
       state: "active",
       verdict: "steady",
-      snapshot: initialWatchSnapshot(anchorOption, primaryOptionId, allOptions),
+      snapshot: initialWatchSnapshot(
+        anchorOption,
+        primaryOptionId,
+        allOptions,
+        homeAirlineFromPrefs(prefs),
+      ),
       last_checked_at: new Date().toISOString(),
       next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     })
@@ -1286,13 +1433,39 @@ export async function recheckWatch(
       travelDate,
     );
     const preferred = syncedOptions[0] ?? null;
-    const primary = syncedOptions.find((o) => o.id === primaryOptionId) ?? null;
-    const anchorFresh =
+    let primary = syncedOptions.find((o) => o.id === primaryOptionId) ?? null;
+    let anchorFresh =
       syncedOptions.find((o) => o.id === String(row["plan_option_id"])) ??
       syncedOptions.find((o) => o.flightLabel === anchorBefore.flightLabel) ??
       null;
 
-    const backup = computeBackupRunway(syncedOptions, primaryOptionId);
+    // Lazy ADB operator verify on watched primary only.
+    const verifyTarget = primary ?? anchorFresh;
+    if (verifyTarget) {
+      const identity = watchFlightIdentity(verifyTarget);
+      if (identity) {
+        const allowed = effectiveCarriersFromPrefs(prefs);
+        const meta = accessMetaFromPrefs(prefs);
+        const truth = await verifyOperatorForFlight({
+          flightNumber: identity.flightNumber,
+          travelDate,
+          origin: identity.origin,
+          dest: identity.dest,
+          allowedAccess: allowed,
+          ...(meta ? { accessMeta: meta } : {}),
+          force: true,
+        });
+        const updated = await persistOperatorVerification(client, verifyTarget, truth);
+        if (primary && primary.id === updated.id) primary = updated;
+        if (anchorFresh && anchorFresh.id === updated.id) anchorFresh = updated;
+        const idx = syncedOptions.findIndex((o) => o.id === updated.id);
+        if (idx >= 0) syncedOptions[idx] = updated;
+      }
+    }
+
+    const backup = computeBackupRunway(syncedOptions, primaryOptionId, {
+      homeAirline: homeAirlineFromPrefs(prefs) ?? null,
+    });
     const spillover = spilloverFromOption(anchorFresh ?? primary ?? preferred);
 
     events.push(
@@ -1330,6 +1503,7 @@ export async function recheckWatch(
       backup,
       spilloverCancelled: spillover,
       prev,
+      primary,
     });
 
     await db(client)

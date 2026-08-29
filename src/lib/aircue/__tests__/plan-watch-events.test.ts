@@ -58,7 +58,7 @@ describe("computeBackupRunway", () => {
     expect(runway.backupAlternatives).toBe(2);
     expect(runway.nonstops).toBe(2);
     expect(runway.connections).toBe(1);
-    expect(runway.summary).toContain("3 realistic ways remain");
+    expect(runway.summary).toContain("3 realistic way");
     expect(runway.total).toBe(3);
   });
 

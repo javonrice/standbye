@@ -24,7 +24,10 @@ export class UnresolvedAirportError extends Error {
 export async function ensureCanonicalAirports(
   client: unknown,
   iatas: string[],
-): Promise<{ ok: true } | { ok: false; missing: string[] }> {
+): Promise<
+  | { ok: true; found: string[] }
+  | { ok: false; missing: string[]; queryFailed?: boolean }
+> {
   const codes = [
     ...new Set(
       iatas
@@ -32,18 +35,19 @@ export async function ensureCanonicalAirports(
         .filter((c) => /^[A-Z]{3}$/.test(c)),
     ),
   ];
-  if (codes.length === 0) return { ok: false, missing: [] };
+  if (codes.length === 0) return { ok: false, missing: [], queryFailed: true };
 
   const db = client as Db;
   const { data, error } = await db.from("airports").select("iata").in("iata", codes);
   if (error) {
     console.error("[ensureCanonicalAirports]", error.message);
-    return { ok: false, missing: codes };
+    return { ok: false, missing: codes, queryFailed: true };
   }
-  const found = new Set(((data ?? []) as Array<{ iata: string }>).map((r) => r.iata.toUpperCase()));
-  const missing = codes.filter((c) => !found.has(c));
+  const found = ((data ?? []) as Array<{ iata: string }>).map((r) => r.iata.toUpperCase());
+  const foundSet = new Set(found);
+  const missing = codes.filter((c) => !foundSet.has(c));
   if (missing.length) return { ok: false, missing };
-  return { ok: true };
+  return { ok: true, found };
 }
 
 export async function requireCanonicalAirports(client: unknown, iatas: string[]): Promise<void> {

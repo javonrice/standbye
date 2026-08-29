@@ -59,7 +59,7 @@ export function StandbyOptionRow({
             : "border-border",
       )}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {emphasis !== "primary" && (
           <span
             className={cn(
@@ -73,6 +73,25 @@ export function StandbyOptionRow({
         <CueBadge judgment={option.judgment} size="sm" short />
         {option.kind === "connection" && (
           <span className="text-[12px] font-medium text-muted-foreground">One stop</span>
+        )}
+        {option.access === "home" && (
+          <span className="text-[12px] font-medium text-muted-foreground">Home</span>
+        )}
+        {option.access === "zed" && (
+          <span className="text-[12px] font-medium text-muted-foreground">ZED</span>
+        )}
+        {option.access === "other" && (
+          <span className="text-[12px] font-medium text-muted-foreground">Other access</span>
+        )}
+        {option.staffEligibility === "uncertain" &&
+          option.operatorVerification?.status === "unverified" && (
+            <span className="text-[12px] font-medium text-muted-foreground">Access unchecked</span>
+          )}
+        {option.staffEligibility === "eligible" && (
+          <span className="text-[12px] font-medium text-muted-foreground">Staff access OK</span>
+        )}
+        {option.staffEligibility === "ineligible" && (
+          <span className="text-[12px] font-semibold text-rough-foreground">Not staff-eligible</span>
         )}
       </div>
 

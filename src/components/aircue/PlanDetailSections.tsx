@@ -225,6 +225,23 @@ export function PrimaryOptionSection({ plan }: PrimaryOptionSectionProps) {
           </p>
         </section>
       )}
+      {primary?.staffEligibility === "ineligible" && (
+        <section className="mt-4 rounded-2xl border border-rough/40 bg-rough/5 px-4 py-3">
+          <p className="text-[14px] font-semibold text-rough-foreground">
+            Primary may not be valid staff travel
+          </p>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            The operating carrier looks outside your declared travel access. Standbye will not
+            silently swap your primary.
+          </p>
+        </section>
+      )}
+      {primary?.evidence.conditions?.faaCoverage === "not_covered" && (
+        <p className="mt-4 px-1 text-[12px] leading-relaxed text-muted-foreground">
+          Live airport disruption coverage unavailable for this region. Weather may still be
+          checked.
+        </p>
+      )}
     </>
   );
 }

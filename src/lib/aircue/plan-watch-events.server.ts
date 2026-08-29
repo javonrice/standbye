@@ -1,6 +1,8 @@
 /** Plan-level watch snapshot helpers and meaningful change detection. */
 
+import { airlineName } from "@/lib/aircue/airlines";
 import type { StandbyOption } from "@/lib/aircue/standby";
+import type { AccessType } from "@/lib/aircue/travel-access";
 import type { WatchFlightState } from "@/lib/aircue/watch-flight-state.server";
 
 export type PlanWatchSnapshot = {
@@ -17,46 +19,108 @@ export type PlanWatchSnapshot = {
   backupConnectionCount?: number;
   totalRealisticWays?: number;
   spilloverCancelled?: number;
+  /** Access composition on the staff-travel runway (excludes ineligible). */
+  accessHomeCount?: number;
+  accessZedCount?: number;
+  accessOtherCount?: number;
+  primaryStaffEligibility?: string | null;
 };
 
 export type BackupRunway = {
-  /** All current realistic options, including primary. */
+  /** All current realistic staff-travel options, including primary (excludes ineligible). */
   totalRealisticWays: number;
   /** Current options excluding the primary. */
   backupAlternatives: number;
   nonstops: number;
   connections: number;
-  /** UI copy: "X realistic ways remain · …" based on totalRealisticWays. */
+  homeCount: number;
+  zedCount: number;
+  otherCount: number;
+  /** UI copy: access-aware runway summary. */
   summary: string;
   /** @deprecated Prefer totalRealisticWays; kept for callers expecting `.total`. */
   total: number;
 };
 
+export interface RunwayCopyContext {
+  /** Home airline IATA for "your airline" phrasing. */
+  homeAirline?: string | null;
+}
+
+/** Staff-travel runway options — ineligible never counts as a preferred way. */
+export function staffTravelOptions(options: StandbyOption[]): StandbyOption[] {
+  return options.filter((o) => o.staffEligibility !== "ineligible");
+}
+
+function accessCounts(options: StandbyOption[]): {
+  homeCount: number;
+  zedCount: number;
+  otherCount: number;
+} {
+  let homeCount = 0;
+  let zedCount = 0;
+  let otherCount = 0;
+  for (const o of options) {
+    const a: AccessType | null | undefined = o.access;
+    if (a === "home") homeCount += 1;
+    else if (a === "zed") zedCount += 1;
+    else if (a === "other") otherCount += 1;
+  }
+  return { homeCount, zedCount, otherCount };
+}
+
+function accessMixParts(counts: {
+  homeCount: number;
+  zedCount: number;
+  otherCount: number;
+}): string[] {
+  const parts: string[] = [];
+  if (counts.homeCount > 0) parts.push(`${counts.homeCount} Home`);
+  if (counts.zedCount > 0) parts.push(`${counts.zedCount} ZED`);
+  if (counts.otherCount > 0) parts.push(`${counts.otherCount} other access`);
+  return parts;
+}
+
 export function computeBackupRunway(
   options: StandbyOption[],
   primaryOptionId?: string | null,
+  copy?: RunwayCopyContext,
 ): BackupRunway {
-  const totalRealisticWays = options.length;
-  // When no primary is set, treat rank-1 as the implicit primary for backup count.
+  const staff = staffTravelOptions(options);
+  const totalRealisticWays = staff.length;
   const alternatives = primaryOptionId
-    ? options.filter((o) => o.id !== primaryOptionId)
-    : options.slice(1);
+    ? staff.filter((o) => o.id !== primaryOptionId)
+    : staff.slice(1);
 
-  const nonstops = options.filter((o) => o.kind === "nonstop").length;
-  const connections = options.filter((o) => o.kind === "connection").length;
-  const parts: string[] = [];
-  if (nonstops > 0) parts.push(`${nonstops} nonstop${nonstops === 1 ? "" : "s"}`);
-  if (connections > 0) parts.push(`${connections} connection${connections === 1 ? "" : "s"}`);
+  const nonstops = staff.filter((o) => o.kind === "nonstop").length;
+  const connections = staff.filter((o) => o.kind === "connection").length;
+  const counts = accessCounts(staff);
+
+  const kindParts: string[] = [];
+  if (nonstops > 0) kindParts.push(`${nonstops} nonstop${nonstops === 1 ? "" : "s"}`);
+  if (connections > 0) kindParts.push(`${connections} connection${connections === 1 ? "" : "s"}`);
+  const mixParts = accessMixParts(counts);
+
+  const home = (copy?.homeAirline ?? "").trim().toUpperCase();
+  const airlinePhrase = home ? `on your ${airlineName(home)} access` : "on your airlines";
+
   const summary =
     totalRealisticWays === 0
-      ? "No realistic ways remain"
-      : `${totalRealisticWays} realistic way${totalRealisticWays === 1 ? "" : "s"} remain${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
+      ? `No realistic staff-travel ways remain ${airlinePhrase}`
+      : [
+          `${totalRealisticWays} realistic way${totalRealisticWays === 1 ? "" : "s"} remain ${airlinePhrase}`,
+          ...kindParts,
+          ...mixParts,
+        ].join(" · ");
 
   return {
     totalRealisticWays,
     backupAlternatives: alternatives.length,
     nonstops,
     connections,
+    homeCount: counts.homeCount,
+    zedCount: counts.zedCount,
+    otherCount: counts.otherCount,
     summary,
     total: totalRealisticWays,
   };
@@ -73,7 +137,6 @@ function isMateriallyBetter(preferred: StandbyOption, primary: StandbyOption): b
   const pj = judgmentRank(preferred.judgment);
   const pr = judgmentRank(primary.judgment);
   if (pj - pr >= 1) return true;
-  // Prefer an earlier ranked option when judgment is otherwise tied.
   return preferred.rank < primary.rank && pj >= pr;
 }
 
@@ -104,15 +167,13 @@ export function detectPlanChangeEvents(input: {
     }
   }
 
-  // Shrink thresholds use backup alternatives excluding primary.
   const prevBackup = prev.backupRunwayCount ?? backup.backupAlternatives;
   const nextBackup = backup.backupAlternatives;
   if (prevBackup >= 3 && nextBackup <= 1) {
     events.push({
       kind: "backup_runway_shrunk",
       severity: "meaningful",
-      headline:
-        nextBackup === 0 ? "You are out of backup options" : "Backup runway thinned out",
+      headline: nextBackup === 0 ? "You are out of backup options" : "Backup runway thinned out",
       detail: backup.summary,
     });
   } else if (prevBackup >= 1 && nextBackup === 0) {
@@ -134,12 +195,66 @@ export function detectPlanChangeEvents(input: {
     });
   }
 
-  if (preferred && !prev.preferredOptionId && preferred.rank <= 2 && judgmentRank(preferred.judgment) >= 3) {
+  if (
+    preferred &&
+    !prev.preferredOptionId &&
+    preferred.rank <= 2 &&
+    judgmentRank(preferred.judgment) >= 3
+  ) {
     events.push({
       kind: "strong_alternate_appeared",
       severity: "context",
       headline: "A strong alternate appeared",
       detail: `${preferred.flightLabel} is now among the best options in this plan.`,
+    });
+  }
+
+  // Access composition — never emit solely for coverage gaps.
+  const prevHome = prev.accessHomeCount ?? 0;
+  const prevZed = prev.accessZedCount ?? 0;
+  const prevOther = prev.accessOtherCount ?? 0;
+  const hadPriorComposition =
+    prev.accessHomeCount !== undefined ||
+    prev.accessZedCount !== undefined ||
+    prev.accessOtherCount !== undefined;
+  if (hadPriorComposition) {
+    const homeLost = prevHome > 0 && backup.homeCount === 0 && backup.totalRealisticWays > 0;
+    const zedCollapsed = prevZed >= 2 && backup.zedCount === 0;
+    const mixCollapsed =
+      prevHome + prevZed + prevOther >= 3 &&
+      backup.homeCount + backup.zedCount + backup.otherCount <= 1 &&
+      backup.totalRealisticWays > 0;
+    if (homeLost || zedCollapsed || mixCollapsed) {
+      events.push({
+        kind: "access_composition_changed",
+        severity: "meaningful",
+        headline: homeLost
+          ? "Home airline options left the runway"
+          : "Your access mix on this plan changed",
+        detail: backup.summary,
+      });
+    }
+  }
+
+  const prevElig = prev.primaryStaffEligibility ?? null;
+  const nextElig = primary?.staffEligibility ?? null;
+  if (
+    prevElig &&
+    nextElig &&
+    prevElig !== nextElig &&
+    (nextElig === "ineligible" || nextElig === "eligible")
+  ) {
+    events.push({
+      kind: "primary_eligibility_changed",
+      severity: nextElig === "ineligible" ? "meaningful" : "context",
+      headline:
+        nextElig === "ineligible"
+          ? "Primary may not be valid staff travel"
+          : "Primary staff-travel access confirmed",
+      detail:
+        nextElig === "ineligible"
+          ? `${primary?.flightLabel ?? "Primary"}’s operating carrier is outside your declared travel access.`
+          : `${primary?.flightLabel ?? "Primary"} operator verification is now eligible.`,
     });
   }
 
@@ -154,8 +269,10 @@ export function buildPlanWatchSnapshot(input: {
   backup: BackupRunway;
   spilloverCancelled: number;
   prev?: PlanWatchSnapshot;
+  primary?: StandbyOption | null;
 }): PlanWatchSnapshot {
   const anchor = input.anchor;
+  const primary = input.primary ?? null;
   return {
     judgment: anchor?.judgment ?? input.prev?.judgment ?? "mixed",
     pillars: Object.fromEntries((anchor?.pillars ?? []).map((p) => [p.key, p.state])),
@@ -169,6 +286,10 @@ export function buildPlanWatchSnapshot(input: {
     backupConnectionCount: input.backup.connections,
     totalRealisticWays: input.backup.totalRealisticWays,
     spilloverCancelled: input.spilloverCancelled,
+    accessHomeCount: input.backup.homeCount,
+    accessZedCount: input.backup.zedCount,
+    accessOtherCount: input.backup.otherCount,
+    primaryStaffEligibility: primary?.staffEligibility ?? input.prev?.primaryStaffEligibility ?? null,
   };
 }
 
@@ -217,6 +338,7 @@ export function detectAnchorOptionEvents(
     });
   }
 
+  // Coverage gaps alone never produce events (faa/history not_covered/unavailable).
   const laterNow = fresh.evidence?.recovery?.laterNonstops?.length ?? 0;
   if (laterNow < (prev.laterCount ?? 0)) {
     events.push({

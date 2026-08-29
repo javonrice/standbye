@@ -29,6 +29,8 @@ export interface AdbFlight {
   /** Airport boards return the *other* endpoint here, not departure/arrival. */
   movement?: AdbMovement;
   aircraft?: { reg?: string; model?: string };
+  /** Present on some payloads; Unknown → operator not determinable. */
+  codeshareStatus?: string;
 }
 
 interface AdbMovement {

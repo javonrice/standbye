@@ -254,6 +254,9 @@ export interface StandbyPlan {
     summary: string;
     /** Alias of totalRealisticWays for older callers. */
     total: number;
+    homeCount?: number;
+    zedCount?: number;
+    otherCount?: number;
   };
 }
 
