@@ -39,6 +39,9 @@ describe("canonical airport persistence", () => {
     }
     expect(threw instanceof UnresolvedAirportError).toBe(true);
     expect((threw as UnresolvedAirportError).codes).toContain("ZZZ");
+    expect((threw as UnresolvedAirportError).message).toBe(
+      "We don't recognize ZZZ yet. Check the airport code and try again.",
+    );
   });
 
   it("reports missing connection hubs so callers can skip those options", async () => {

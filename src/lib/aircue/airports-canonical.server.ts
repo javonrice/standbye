@@ -3,20 +3,17 @@
  * Uses local airports DB only — does not call AeroDataBox.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unresolvedAirportUserMessage } from "@/lib/aircue/plan-build-errors";
 
 type Db = SupabaseClient;
 
 export class UnresolvedAirportError extends Error {
   readonly codes: string[];
   constructor(codes: string[]) {
-    const list = codes.join(", ");
-    super(
-      codes.length === 1
-        ? `We don't recognize airport ${list} yet.`
-        : `We don't recognize airports ${list} yet.`,
-    );
+    const unique = [...new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean))];
+    super(unresolvedAirportUserMessage(unique));
     this.name = "UnresolvedAirportError";
-    this.codes = codes;
+    this.codes = unique;
   }
 }
 

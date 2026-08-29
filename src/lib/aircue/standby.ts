@@ -41,6 +41,10 @@ export interface OptionSegment {
   depLocal: string;
   arrLocal: string;
   schedDepUtc: string;
+  /** Scheduled arrival ISO-ish when known (local-naive or absolute). */
+  schedArrUtc?: string | null;
+  /** Arrival local calendar day minus departure local calendar day, when known. */
+  arrivalDayOffset?: number | null;
   /** Provisional access from marketing carrier (pre-verify) or operator (post-verify). */
   access?: import("@/lib/aircue/travel-access").AccessType | null;
 }
@@ -191,6 +195,8 @@ export interface StandbyOption {
   depLocal: string;
   arrLocal: string;
   schedDepUtc: string | null;
+  /** Scheduled arrival ISO when persisted; used for local day-offset display. */
+  schedArrUtc?: string | null;
   segments: OptionSegment[];
   pillars: Pillar[];
   reasons: Reason[];
@@ -200,6 +206,8 @@ export interface StandbyOption {
     history: HistoryEvidence | null;
     holiday: HolidayEvidence | null;
     recovery: RecoveryEvidence;
+    /** Arrival local calendar days after departure local calendar day. */
+    arrivalDayOffset?: number | null;
     /** Itinerary-level access (worst segment), when known. */
     access?: import("@/lib/aircue/travel-access").AccessType | null;
     staffEligibility?: StaffEligibility;

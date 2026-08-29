@@ -2,8 +2,15 @@
  * GF8 multi-segment itinerary candidate discovery.
  * One broad search; local access filter; reject malformed provider data.
  * Does not fabricate missing times.
+ *
+ * Provider datetimes are local-naive wall clocks. When airport IANA zones are
+ * available we convert to UTC for sched* / option_key so identity aligns with
+ * schedule-board legs (true UTC). Without a timezone we keep the naive minute
+ * token rather than inventing an offset.
  */
 import { buildOptionKey } from "@/lib/aircue/option-key";
+import { airportTimezone } from "@/lib/aircue/airport-lookup.server";
+import { zonedToUtc } from "@/lib/aircue/tz";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const API_HOST = "google-flights8.p.rapidapi.com";
@@ -18,7 +25,7 @@ export interface Gf8ItinerarySegment {
   dest: string;
   depLocal: string;
   arrLocal: string;
-  /** ISO-ish UTC when parseable from provider; may be empty if only local known. */
+  /** ISO UTC when timezone known; otherwise local-naive minute token. */
   schedDepUtc: string;
   schedArrUtc: string;
 }
@@ -95,6 +102,38 @@ function toIsoMinute(raw: string | undefined): string {
   return "";
 }
 
+/** True when the ISO-ish string is an absolute instant (Z or numeric offset). */
+function isAbsoluteInstant(iso: string): boolean {
+  return /[zZ]$|[+-]\d{2}:?\d{2}$/.test(iso.trim());
+}
+
+/**
+ * Convert a provider datetime into a UTC minute token for identity.
+ * Local-naive values use the airport timezone when known; otherwise unchanged.
+ */
+export function schedInstantForKey(
+  raw: string | undefined,
+  timeZone: string | null | undefined,
+): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  if (isAbsoluteInstant(trimmed)) {
+    const d = new Date(trimmed);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 16);
+    return toIsoMinute(trimmed);
+  }
+  const minute = toIsoMinute(trimmed);
+  if (!minute || !timeZone) return minute;
+  const date = minute.slice(0, 10);
+  const hhmm = minute.slice(11, 16);
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) return minute;
+  try {
+    return zonedToUtc(date, hhmm, timeZone).toISOString().slice(0, 16);
+  } catch {
+    return minute;
+  }
+}
+
 function parsePrice(raw: string | number | undefined): number | null {
   if (raw === undefined || raw === null || raw === "") return null;
   const n = typeof raw === "number" ? raw : Number(String(raw).replace(/[^0-9.]/g, ""));
@@ -148,7 +187,10 @@ export function validateItinerarySegments(
   return { ok: true };
 }
 
-function normalizeFlight(f: Gf8Flight): Gf8ItineraryCandidate | null {
+function normalizeFlight(
+  f: Gf8Flight,
+  tzByIata?: Map<string, string | null>,
+): Gf8ItineraryCandidate | null {
   const rawSegs = f.segments ?? [];
   if (rawSegs.length === 0) return null;
 
@@ -164,6 +206,8 @@ function normalizeFlight(f: Gf8Flight): Gf8ItineraryCandidate | null {
     const depLocal = to12h(depRaw);
     const arrLocal = to12h(arrRaw);
     if (!carrier || !flightNumber || origin.length !== 3 || dest.length !== 3) return null;
+    const depTz = tzByIata?.get(origin) ?? null;
+    const arrTz = tzByIata?.get(dest) ?? null;
     segments.push({
       carrier,
       flightNumber,
@@ -172,8 +216,8 @@ function normalizeFlight(f: Gf8Flight): Gf8ItineraryCandidate | null {
       dest,
       depLocal,
       arrLocal,
-      schedDepUtc: toIsoMinute(depRaw),
-      schedArrUtc: toIsoMinute(arrRaw),
+      schedDepUtc: schedInstantForKey(depRaw, depTz),
+      schedArrUtc: schedInstantForKey(arrRaw, arrTz),
     });
   }
 
@@ -289,8 +333,22 @@ export async function searchItineraryCandidates(input: {
     }
 
     const byKey = new Map<string, Gf8ItineraryCandidate>();
+    const codes = new Set<string>();
     for (const f of body.flights ?? []) {
-      const normalized = normalizeFlight(f);
+      for (const seg of f.segments ?? []) {
+        if (seg.from) codes.add(seg.from.toUpperCase());
+        if (seg.to) codes.add(seg.to.toUpperCase());
+      }
+    }
+    const tzByIata = new Map<string, string | null>();
+    await Promise.all(
+      [...codes].map(async (code) => {
+        tzByIata.set(code, await airportTimezone(code));
+      }),
+    );
+
+    for (const f of body.flights ?? []) {
+      const normalized = normalizeFlight(f, tzByIata);
       if (!normalized) continue;
       if (
         normalized.origin !== input.origin.toUpperCase() ||
@@ -308,6 +366,9 @@ export async function searchItineraryCandidates(input: {
 }
 
 /** Test helper: normalize + validate a raw GF8 flight shape. */
-export function normalizeGf8FlightForTest(f: Gf8Flight): Gf8ItineraryCandidate | null {
-  return normalizeFlight(f);
+export function normalizeGf8FlightForTest(
+  f: Gf8Flight,
+  tzByIata?: Map<string, string | null>,
+): Gf8ItineraryCandidate | null {
+  return normalizeFlight(f, tzByIata);
 }

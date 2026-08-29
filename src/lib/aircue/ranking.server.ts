@@ -15,6 +15,7 @@ import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
 import {
   airportGeo,
   airportMeta,
+  airportTimezone,
   icaoForAirport,
   localClockAt,
   milesBetween,
@@ -24,6 +25,7 @@ import { getRouteHistory } from "@/lib/aircue/history.server";
 import { getFaaPrograms, getMetar, getTaf } from "@/lib/aircue/sources.server";
 import { ALL_AIRLINES, airlineName } from "@/lib/aircue/airlines";
 import { buildOptionKey } from "@/lib/aircue/option-key";
+import { localArrivalDayOffset } from "@/lib/aircue/local-day-offset";
 import { isFaaCoverageCountry, type CoverageState } from "@/lib/aircue/coverage";
 import type {
   AvailabilityEvidence,
@@ -120,6 +122,7 @@ export interface RankedOption {
     conditions: ConditionsEvidence | null;
     history: HistoryEvidence | null;
     holiday: HolidayEvidence | null;
+    arrivalDayOffset?: number | null;
   };
   /** Itinerary-level access (worst segment), provisional from marketing pre-verify. */
   access: AccessType | null;
@@ -182,6 +185,22 @@ async function arrivalClock(leg: RouteLeg, boardArrLocal: string | null): Promis
   if (leg.arrLocalTime) return to12h(leg.arrLocalTime);
   if (leg.arrUtcKnown) return await localClockAt(leg.dest, leg.schedArrUtc);
   return "";
+}
+
+/** Local calendar-day offset for an O&D pair; null when either local date is unknown. */
+async function dayOffsetForLeg(
+  origin: string,
+  dest: string,
+  schedDep: string | null | undefined,
+  schedArr: string | null | undefined,
+): Promise<number | null> {
+  const [depTz, arrTz] = await Promise.all([airportTimezone(origin), airportTimezone(dest)]);
+  return localArrivalDayOffset({
+    schedDep,
+    schedArr,
+    depTimeZone: depTz,
+    arrTimeZone: arrTz,
+  });
 }
 
 function minutesOfDay(iso: string): number {
@@ -694,7 +713,7 @@ async function scoreLeg(
   const localHour = leg.depLocalTime ? Number(leg.depLocalTime.slice(0, 2)) : null;
 
   const availability = availabilityFor(boardEntry, board.ok, board.checkedAt, board.reason);
-  const [operations, history, cancels] = await Promise.all([
+  const [operations, history, cancels, arrivalDayOffset] = await Promise.all([
     operationsFor(leg.origin, leg.dest, input.travelDate, depLocal),
     historyFor(leg.origin, leg.dest, input.travelDate, localHour, carrier),
     carrier && leg.depLocalTime
@@ -706,6 +725,7 @@ async function scoreLeg(
           leg.depLocalTime,
         )
       : Promise.resolve(null),
+    dayOffsetForLeg(leg.origin, leg.dest, leg.schedDepUtc, leg.schedArrUtc),
   ]);
 
   const later = siblings.filter(
@@ -756,6 +776,8 @@ async function scoreLeg(
       depLocal,
       arrLocal,
       schedDepUtc: leg.schedDepUtc,
+      schedArrUtc: leg.schedArrUtc,
+      arrivalDayOffset,
       access,
     },
   ];
@@ -786,6 +808,7 @@ async function scoreLeg(
       conditions: operations.evidence,
       history: history.evidence,
       holiday,
+      arrivalDayOffset,
     },
     access,
     staffEligibility,
@@ -1110,6 +1133,7 @@ async function scoreConnection(
     [first, second].map(async (l) => {
       const legBoard = boards.get(`${l.origin}-${l.dest}`) ?? EMPTY_BOARD;
       const segAccess = attachAccess(input, l.airlineCode);
+      const segOffset = await dayOffsetForLeg(l.origin, l.dest, l.schedDepUtc, l.schedArrUtc);
       return {
         carrier: l.airlineCode ?? "",
         flightNumber: l.flightNumber ?? "",
@@ -1119,6 +1143,8 @@ async function scoreConnection(
         depLocal: hhmm(l.schedDepUtc, l.depLocalTime),
         arrLocal: await arrivalClock(l, legBoard.map.get(legLabel(l))?.arrLocal ?? null),
         schedDepUtc: l.schedDepUtc,
+        schedArrUtc: l.schedArrUtc,
+        arrivalDayOffset: segOffset,
         access: segAccess,
       };
     }),
@@ -1130,6 +1156,12 @@ async function scoreConnection(
   // Clears-aware soft friction replaces the former flat connection −12.
   const normalized = scoreOf(pillars, access, standbyClears);
   const judgment = judgeScore(normalized, availabilityState, recovery.state);
+  const arrivalDayOffset = await dayOffsetForLeg(
+    first.origin,
+    second.dest,
+    first.schedDepUtc,
+    second.schedArrUtc,
+  );
 
   return {
     rank: 0,
@@ -1161,6 +1193,7 @@ async function scoreConnection(
       conditions: operations.evidence,
       history: history.evidence,
       holiday,
+      arrivalDayOffset,
     },
     access,
     staffEligibility,
@@ -1233,22 +1266,37 @@ async function scoreGf8Candidate(
     { key: "recovery", state: recovery.state, label: recovery.label, detail: recovery.summary },
   ];
 
-  const segments: OptionSegment[] = candidate.segments.map((s) => ({
-    carrier: s.carrier,
-    flightNumber: s.flightNumber,
-    flightLabel: s.flightLabel,
-    origin: s.origin,
-    dest: s.dest,
-    depLocal: s.depLocal,
-    arrLocal: s.arrLocal,
-    schedDepUtc: s.schedDepUtc || `${input.travelDate}T00:00:00Z`,
-    access: attachAccess(input, s.carrier),
-  }));
+  const segments: OptionSegment[] = await Promise.all(
+    candidate.segments.map(async (s) => {
+      const schedDep = s.schedDepUtc || `${input.travelDate}T00:00:00Z`;
+      const schedArr = s.schedArrUtc || null;
+      const arrivalDayOffset = await dayOffsetForLeg(s.origin, s.dest, schedDep, schedArr);
+      return {
+        carrier: s.carrier,
+        flightNumber: s.flightNumber,
+        flightLabel: s.flightLabel,
+        origin: s.origin,
+        dest: s.dest,
+        depLocal: s.depLocal,
+        arrLocal: s.arrLocal,
+        schedDepUtc: schedDep,
+        schedArrUtc: schedArr,
+        arrivalDayOffset,
+        access: attachAccess(input, s.carrier),
+      };
+    }),
+  );
 
   const access = worstAccess(segments.map((s) => s.access));
   const { staffEligibility, operatorVerification } = preVerifyEligibility();
   const normalized = scoreOf(pillars, access, standbyClears);
   const judgment = judgeScore(normalized, availability.state, recovery.state);
+  const arrivalDayOffset = await dayOffsetForLeg(
+    candidate.origin,
+    candidate.dest,
+    candidate.schedDepUtc,
+    candidate.schedArrUtc,
+  );
 
   return {
     rank: 0,
@@ -1277,6 +1325,7 @@ async function scoreGf8Candidate(
       conditions: operations.evidence,
       history: history.evidence,
       holiday,
+      arrivalDayOffset,
     },
     access,
     staffEligibility,

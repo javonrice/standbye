@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ChevronRight, Star } from "lucide-react";
 
 import { getPlan, setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
+import { formatOptionArrival } from "@/lib/aircue/option-display";
 import {
   judgmentFace,
   judgmentShort,
@@ -44,7 +45,10 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
       cells: options.map((o) => ({ text: `${judgmentFace[o.judgment]} ${judgmentShort[o.judgment]}` })),
     },
     { label: "Depart", cells: options.map((o) => ({ text: o.depLocal || "—" })) },
-    { label: "Arrive", cells: options.map((o) => ({ text: o.arrLocal || "—" })) },
+    {
+      label: "Arrive",
+      cells: options.map((o) => ({ text: formatOptionArrival(o) || "—" })),
+    },
     {
       label: "Clears",
       cells: options.map((o) => {

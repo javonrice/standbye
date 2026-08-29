@@ -33,6 +33,7 @@ import {
   listRecentSearches,
   type PlanSummary,
 } from "@/lib/aircue/plan.functions";
+import { planBuildErrorMessage } from "@/lib/aircue/plan-build-errors";
 import { routingModeHint, routingModeLabel, type RoutingMode } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plan/")({
@@ -273,7 +274,7 @@ function HomePage() {
 
         {run.isError && (
           <p className="mt-3 text-[14px] text-rough-foreground">
-            We could not build that plan. Try again in a moment.
+            {planBuildErrorMessage(run.error)}
           </p>
         )}
       </form>

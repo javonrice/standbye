@@ -106,7 +106,12 @@ function PlanDetailScreen() {
                   <ul className="mt-3 space-y-2.5">
                     {otherOptions.map((option) => (
                       <li key={option.id}>
-                        <StandbyOptionRow option={option} rank={option.rank} emphasis="secondary" />
+                        <StandbyOptionRow
+                          option={option}
+                          rank={option.rank}
+                          emphasis="secondary"
+                          peers={plan.options}
+                        />
                       </li>
                     ))}
                   </ul>

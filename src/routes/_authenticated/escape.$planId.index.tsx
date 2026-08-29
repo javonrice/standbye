@@ -169,7 +169,11 @@ function EscapeResults() {
                 <ul className="mt-3 space-y-2.5">
                   {nonstops.map((option) => (
                     <li key={option.id}>
-                      <StandbyOptionRow option={option} rank={option.rank} />
+                      <StandbyOptionRow
+                        option={option}
+                        rank={option.rank}
+                        peers={nonstops}
+                      />
                     </li>
                   ))}
                 </ul>
