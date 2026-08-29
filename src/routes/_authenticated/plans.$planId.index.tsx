@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, CalendarRange, GitCompareArrows } from "lucide-react";
 
+import { Screen } from "@/components/aircue/Layout";
 import { PlanWatchBlock, PrimaryOptionSection } from "@/components/aircue/PlanDetailSections";
 import { RouteOptionRow } from "@/components/aircue/RouteOptionRow";
 import { StandbyOptionRow } from "@/components/aircue/StandbyOptionRow";
@@ -39,7 +40,7 @@ function PlanDetailScreen() {
     ) ?? [];
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-12 pt-8 md:max-w-3xl md:px-10 md:pt-12">
+    <Screen width="lg">
       <Link
         to={plan && (plan.primaryOptionId || plan.watching) ? "/plans" : "/plan"}
         className="flex items-center gap-1.5 text-sm text-muted-foreground"
@@ -105,7 +106,7 @@ function PlanDetailScreen() {
                   <ul className="mt-3 space-y-2.5">
                     {otherOptions.map((option) => (
                       <li key={option.id}>
-                        <StandbyOptionRow option={option} rank={option.rank} />
+                        <StandbyOptionRow option={option} rank={option.rank} emphasis="secondary" />
                       </li>
                     ))}
                   </ul>
@@ -176,7 +177,7 @@ function PlanDetailScreen() {
           </p>
         </>
       )}
-    </main>
+    </Screen>
   );
 }
 

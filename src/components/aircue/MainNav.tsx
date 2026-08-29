@@ -40,19 +40,20 @@ export function MainNav() {
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
-        <ul className="mx-auto flex max-w-md justify-around px-2 py-1.5">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+        <ul className="mx-auto flex max-w-md justify-around px-2 py-1">
           {items.map(({ to, label, icon: Icon, match }) => {
             const active = match(location.pathname);
             return (
-              <li key={to}>
+              <li key={to} className="flex-1">
                 <Link
                   to={to}
-                  className={`flex min-w-[72px] flex-col items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-semibold ${
-                    active ? "text-primary" : "text-muted-foreground"
+                  aria-current={active ? "page" : undefined}
+                  className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                    active ? "bg-accent/70 text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.4 : 1.9} />
+                  <Icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.5 : 1.8} />
                   {label}
                 </Link>
               </li>
@@ -60,6 +61,7 @@ export function MainNav() {
           })}
         </ul>
       </nav>
+
 
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-card px-4 py-6 md:block">
         <Link to="/plan" className="mb-9 block px-1">

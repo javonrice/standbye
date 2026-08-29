@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight, LogOut } from "lucide-react";
 
+import { Screen } from "@/components/aircue/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { getStandbyProfile, listCommittedPlans } from "@/lib/aircue/plan.functions";
 import { travelerTypes } from "@/lib/aircue/standby";
@@ -40,9 +41,9 @@ function YouPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
-      <h1 className="font-display text-2xl font-bold tracking-tight">You</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
+    <Screen>
+      <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight">You</h1>
+      <p className="mt-1.5 text-[15px] text-muted-foreground">
         Standbye reads your options through your travel setup, so keep this current.
       </p>
 
@@ -135,7 +136,7 @@ function YouPage() {
       >
         <LogOut className="h-4 w-4" /> Sign out
       </button>
-    </main>
+    </Screen>
   );
 }
 
