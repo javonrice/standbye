@@ -17,43 +17,31 @@ export type Database = {
       airports: {
         Row: {
           city: string | null
-          country: string | null
           iata: string
           icao: string | null
           lat: number
           lon: number
           name: string
-          region: string | null
-          resolved_at: string | null
-          source: string | null
           state: string | null
           tz: string
         }
         Insert: {
           city?: string | null
-          country?: string | null
           iata: string
           icao?: string | null
           lat: number
           lon: number
           name: string
-          region?: string | null
-          resolved_at?: string | null
-          source?: string | null
           state?: string | null
           tz: string
         }
         Update: {
           city?: string | null
-          country?: string | null
           iata?: string
           icao?: string | null
           lat?: number
           lon?: number
           name?: string
-          region?: string | null
-          resolved_at?: string | null
-          source?: string | null
           state?: string | null
           tz?: string
         }
@@ -463,7 +451,6 @@ export type Database = {
           kind: string
           label: string
           origin_iata: string
-          option_key: string | null
           pillars: Json
           plan_id: string
           rank: number
@@ -492,7 +479,6 @@ export type Database = {
           kind?: string
           label?: string
           origin_iata: string
-          option_key?: string | null
           pillars?: Json
           plan_id: string
           rank?: number
@@ -521,7 +507,6 @@ export type Database = {
           kind?: string
           label?: string
           origin_iata?: string
-          option_key?: string | null
           pillars?: Json
           plan_id?: string
           rank?: number
@@ -782,7 +767,6 @@ export type Database = {
         Row: {
           access_mode: string
           airline_access: string[]
-          airline_access_meta: Json
           coach_seen: string[]
           free_day_used: boolean
           home_airline: string
@@ -798,7 +782,6 @@ export type Database = {
         Insert: {
           access_mode?: string
           airline_access?: string[]
-          airline_access_meta?: Json
           coach_seen?: string[]
           free_day_used?: boolean
           home_airline?: string
@@ -814,7 +797,6 @@ export type Database = {
         Update: {
           access_mode?: string
           airline_access?: string[]
-          airline_access_meta?: Json
           coach_seen?: string[]
           free_day_used?: boolean
           home_airline?: string
