@@ -1,9 +1,9 @@
 # Cheap Watch Redesign
 
-> Plan only — do not treat this as implemented.
-> Branch: `cursor/cheap-watch-redesign-plan-98c4`
-> Baseline: live architecture probes against current `main` (2026-08-29).
-> Revised: separate notify vs rerank; distance-aware safety refresh; no cohort orchestration in v1; **stop after S0–S4 and measure**.
+> Implemented on `cursor/cheap-watch-implement-98c4` (S0–S4 + verify sparingly + acceptance tests).
+> Cohort orchestration (S5+) remains deferred — see staged order below.
+> Baseline: live architecture probes against then-`main` (2026-08-29).
+> Revised: separate notify vs rerank; distance-aware safety refresh; no cohort orchestration in v1.
 
 ## Goal
 
