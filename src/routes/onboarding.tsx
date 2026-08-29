@@ -487,12 +487,20 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
       </p>
       <div className="mt-2 space-y-2">
         {list.map((a) => (
-          <ChoiceButton
+          <button
             key={a.code}
-            label={a.name}
-            selected={value === a.code}
+            type="button"
             onClick={() => onPick(a.code)}
-          />
+            className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-[15px] font-semibold ${
+              value === a.code
+                ? "border-primary bg-accent text-accent-foreground"
+                : "border-border bg-card"
+            }`}
+          >
+            <AirlineLogo code={a.code} size={32} />
+            <span className="min-w-0 flex-1 break-words">{a.name}</span>
+            <span className="text-xs font-bold text-muted-foreground">{a.code}</span>
+          </button>
         ))}
         {list.length === 0 && (
           <p className="text-sm text-muted-foreground">No airline matches that.</p>
