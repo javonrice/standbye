@@ -47,11 +47,12 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
       label: "Judgment",
       cells: options.map((o) => ({ text: `${judgmentFace[o.judgment]} ${judgmentShort[o.judgment]}` })),
     },
-    { label: "Depart", cells: options.map((o) => ({ text: o.depLocal || "—" })) },
+    { label: "Depart", cells: options.map((o) => ({ text: o.depLocal || "—", time: true })) },
     {
       label: "Arrive",
-      cells: options.map((o) => ({ text: formatOptionArrival(o) || "—" })),
+      cells: options.map((o) => ({ text: formatOptionArrival(o) || "—", time: true })),
     },
+
     {
       label: "Clears",
       cells: options.map((o) => {
