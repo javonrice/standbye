@@ -4,7 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 
 import { CueBadge } from "@/components/aircue/CueBadge";
+import { LocalTime } from "@/components/aircue/LocalTime";
+import { formatOptionArrival } from "@/lib/aircue/option-display";
 import { getPlan } from "@/lib/aircue/plan.functions";
+
 import { gatewayDot, type GatewayOption, type StandbyOption } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plans/$planId/ways")({
