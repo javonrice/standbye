@@ -167,7 +167,7 @@ export function PrimaryOptionSection({ plan }: PrimaryOptionSectionProps) {
         </section>
       ) : null}
 
-      {plan.backupRunway.total > 0 && (
+      {plan.backupRunway.totalRealisticWays > 0 && (
         <section className="mt-5 rounded-xl border border-border bg-card px-4 py-3">
           <p className="text-sm font-semibold">Backup runway</p>
           <p className="mt-0.5 text-sm text-muted-foreground">{plan.backupRunway.summary}</p>

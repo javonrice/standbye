@@ -123,6 +123,7 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
     recovery: option.recovery,
     evidence: option.evidence,
     refreshed_at: new Date().toISOString(),
+    is_current: true,
   };
 }
 
@@ -473,6 +474,7 @@ export async function loadPlan(
     .from("plan_options")
     .select("*")
     .eq("plan_id", planId)
+    .eq("is_current", true)
     .order("rank");
 
   const rows = (optionRows ?? []) as Row[];
@@ -499,7 +501,7 @@ export async function loadPlan(
     .eq("state", "active")
     .maybeSingle();
 
-  const backupRunway = computeBackupRunway(options);
+  const backupRunway = computeBackupRunway(options, primaryOptionId);
 
   return {
     id: planId,
@@ -536,16 +538,17 @@ export async function loadPlanSummaries(client: unknown, userId: string): Promis
   const { data } = await db(client)
     .from("plans")
     .select(
-      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options(label,rank,flight_label,id),watch_plans(state,verdict,last_checked_at)",
+      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options(label,rank,flight_label,id,is_current),watch_plans(state,verdict,last_checked_at)",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
 
   return ((data ?? []) as Row[]).map((row) => {
-    const opts = ((row["plan_options"] as Row[]) ?? []).slice().sort(
-      (a, b) => Number(a["rank"]) - Number(b["rank"]),
-    );
+    const opts = ((row["plan_options"] as Row[]) ?? [])
+      .filter((o) => o["is_current"] !== false)
+      .slice()
+      .sort((a, b) => Number(a["rank"]) - Number(b["rank"]));
     const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
     const watches = ((row["watch_plans"] as Row[]) ?? []).filter((w) => w["state"] === "active");
     const watch = watches[0];
@@ -696,30 +699,37 @@ async function syncPlanOptionsFromRanked(
   userId: string,
   ranked: Awaited<ReturnType<typeof rankStandbyOptions>>,
   prefs: Record<string, unknown>,
+  travelDate: string,
 ): Promise<StandbyOption[]> {
   const { data: existingRows } = await db(client)
     .from("plan_options")
     .select("*")
     .eq("plan_id", planId);
 
-  const byLabel = new Map(
-    ((existingRows ?? []) as Row[]).map((r) => [String(r["flight_label"]), r]),
+  const existing = (existingRows ?? []) as Row[];
+  const byLabel = new Map(existing.map((r) => [String(r["flight_label"]), r]));
+
+  const loads = await loadsFor(
+    client,
+    userId,
+    ranked.options.map((o) => o.flightLabel),
+    travelDate,
   );
 
+  const syncedIds = new Set<string>();
   const synced: StandbyOption[] = [];
 
   for (const option of ranked.options) {
     const payload = optionInsert(planId, userId, option);
-    const existing = byLabel.get(option.flightLabel);
-    if (existing) {
-      await db(client)
-        .from("plan_options")
-        .update(payload)
-        .eq("id", String(existing["id"]));
+    const prior = byLabel.get(option.flightLabel);
+    if (prior) {
+      const id = String(prior["id"]);
+      await db(client).from("plan_options").update(payload).eq("id", id);
+      syncedIds.add(id);
       synced.push(
         optionFromRow(
-          { ...existing, ...payload, id: existing["id"], recovery: payload.recovery },
-          null,
+          { ...prior, ...payload, id, recovery: payload.recovery },
+          loads.get(option.flightLabel) ?? null,
         ),
       );
     } else {
@@ -728,8 +738,22 @@ async function syncPlanOptionsFromRanked(
         .insert(payload)
         .select("*")
         .single();
-      if (inserted) synced.push(optionFromRow(inserted as Row, null));
+      if (inserted) {
+        const row = inserted as Row;
+        syncedIds.add(String(row["id"]));
+        synced.push(optionFromRow(row, loads.get(option.flightLabel) ?? null));
+      }
     }
+  }
+
+  const staleIds = existing
+    .map((r) => String(r["id"]))
+    .filter((id) => !syncedIds.has(id));
+  if (staleIds.length > 0) {
+    await db(client)
+      .from("plan_options")
+      .update({ is_current: false })
+      .in("id", staleIds);
   }
 
   await db(client)
@@ -756,12 +780,15 @@ export async function setPrimaryOption(
 ): Promise<{ ok: true }> {
   const { data: optionRow } = await db(client)
     .from("plan_options")
-    .select("id,plan_id")
+    .select("id,plan_id,is_current")
     .eq("id", optionId)
     .eq("user_id", userId)
     .eq("plan_id", planId)
     .maybeSingle();
   if (!optionRow) throw new Error("That option is not part of this plan.");
+  if ((optionRow as Row)["is_current"] === false) {
+    throw new Error("That option is no longer current on this plan.");
+  }
 
   await db(client)
     .from("plans")
@@ -792,7 +819,7 @@ function initialWatchSnapshot(
   primaryOptionId: string | null,
   options: StandbyOption[],
 ): WatchSnapshot {
-  const backup = computeBackupRunway(options);
+  const backup = computeBackupRunway(options, primaryOptionId);
   return buildPlanWatchSnapshot({
     anchor,
     preferred: options[0] ?? null,
@@ -1068,11 +1095,13 @@ export async function recheckWatch(
 
     if (!unavailable && status) {
       const presence = classifyFlightStatus(status);
-      flightState = presence.state;
-      if (shouldEmitCancellation(prev.flightState, flightState)) {
-        events.push(
-          cancellationEvent(anchorBefore.flightLabel, anchorBefore.origin, anchorBefore.dest),
-        );
+      if (presence.presence === "confirmed") {
+        flightState = presence.state;
+        if (shouldEmitCancellation(prev.flightState, flightState)) {
+          events.push(
+            cancellationEvent(anchorBefore.flightLabel, anchorBefore.origin, anchorBefore.dest),
+          );
+        }
       }
     }
   }
@@ -1090,28 +1119,80 @@ export async function recheckWatch(
     routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
   });
 
-  const syncedOptions = await syncPlanOptionsFromRanked(client, planId, userId, ranked, prefs);
-  const preferred = syncedOptions[0] ?? null;
-  const primary = syncedOptions.find((o) => o.id === primaryOptionId) ?? null;
-  const anchorFresh =
-    syncedOptions.find((o) => o.id === String(row["plan_option_id"])) ??
-    syncedOptions.find((o) => o.flightLabel === anchorBefore.flightLabel) ??
-    null;
+  const rerankTrusted = !ranked.incomplete && ranked.reason !== "data_unavailable";
 
-  const backup = computeBackupRunway(syncedOptions);
-  const spillover = spilloverFromOption(anchorFresh ?? primary ?? preferred);
+  if (rerankTrusted) {
+    const syncedOptions = await syncPlanOptionsFromRanked(
+      client,
+      planId,
+      userId,
+      ranked,
+      prefs,
+      travelDate,
+    );
+    const preferred = syncedOptions[0] ?? null;
+    const primary = syncedOptions.find((o) => o.id === primaryOptionId) ?? null;
+    const anchorFresh =
+      syncedOptions.find((o) => o.id === String(row["plan_option_id"])) ??
+      syncedOptions.find((o) => o.flightLabel === anchorBefore.flightLabel) ??
+      null;
 
-  events.push(
-    ...detectPlanChangeEvents({
-      prev,
+    const backup = computeBackupRunway(syncedOptions, primaryOptionId);
+    const spillover = spilloverFromOption(anchorFresh ?? primary ?? preferred);
+
+    events.push(
+      ...detectPlanChangeEvents({
+        prev,
+        preferred,
+        primary,
+        backup,
+        spilloverCancelled: spillover,
+      }),
+    );
+    events.push(...detectAnchorOptionEvents(prev, anchorFresh));
+
+    if (events.length > 0) {
+      await db(client)
+        .from("plan_change_events")
+        .insert(
+          events.map((e) => ({
+            watch_id: watchId,
+            user_id: userId,
+            kind: e.kind,
+            severity: e.severity,
+            headline: e.headline,
+            detail: e.detail,
+          })),
+        );
+    }
+
+    const meaningful = events.filter((e) => e.severity === "meaningful").length;
+    const nextSnapshot = buildPlanWatchSnapshot({
+      anchor: anchorFresh ?? anchorBefore,
       preferred,
-      primary,
+      primaryOptionId,
+      flightState,
       backup,
       spilloverCancelled: spillover,
-    }),
-  );
-  events.push(...detectAnchorOptionEvents(prev, anchorFresh));
+      prev,
+    });
 
+    await db(client)
+      .from("watch_plans")
+      .update({
+        snapshot: nextSnapshot,
+        verdict: meaningful > 0 ? "changed" : "steady",
+        unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
+        last_checked_at: new Date().toISOString(),
+        next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      })
+      .eq("id", watchId);
+
+    return { changed: meaningful > 0 };
+  }
+
+  // Failed / incomplete rerank: preserve last known-good plan + snapshot runway.
+  // Feature #1 cancellation events (already in `events`) still persist.
   if (events.length > 0) {
     await db(client)
       .from("plan_change_events")
@@ -1128,21 +1209,33 @@ export async function recheckWatch(
   }
 
   const meaningful = events.filter((e) => e.severity === "meaningful").length;
-  const nextSnapshot = buildPlanWatchSnapshot({
-    anchor: anchorFresh ?? anchorBefore,
-    preferred,
-    primaryOptionId,
+  const preservedSnapshot: WatchSnapshot = {
+    judgment: prev.judgment,
+    pillars: prev.pillars,
+    largestShowing: prev.largestShowing,
+    laterCount: prev.laterCount,
     flightState,
-    backup,
-    spilloverCancelled: spillover,
-    prev,
-  });
+    primaryOptionId: prev.primaryOptionId ?? primaryOptionId,
+    preferredOptionId: prev.preferredOptionId ?? null,
+  };
+  if (prev.backupRunwayCount !== undefined) {
+    preservedSnapshot.backupRunwayCount = prev.backupRunwayCount;
+  }
+  if (prev.backupNonstopCount !== undefined) {
+    preservedSnapshot.backupNonstopCount = prev.backupNonstopCount;
+  }
+  if (prev.backupConnectionCount !== undefined) {
+    preservedSnapshot.backupConnectionCount = prev.backupConnectionCount;
+  }
+  if (prev.spilloverCancelled !== undefined) {
+    preservedSnapshot.spilloverCancelled = prev.spilloverCancelled;
+  }
 
   await db(client)
     .from("watch_plans")
     .update({
-      snapshot: nextSnapshot,
-      verdict: meaningful > 0 ? "changed" : "steady",
+      snapshot: preservedSnapshot,
+      verdict: meaningful > 0 ? "changed" : String(row["verdict"] ?? "steady"),
       unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
       last_checked_at: new Date().toISOString(),
       next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),

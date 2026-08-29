@@ -218,10 +218,13 @@ export interface StandbyPlan {
   /** Rank-1 option after latest rank (Standbye's current preference). */
   preferredOptionId: string | null;
   backupRunway: {
-    total: number;
+    totalRealisticWays: number;
+    backupAlternatives: number;
     nonstops: number;
     connections: number;
     summary: string;
+    /** Alias of totalRealisticWays for older callers. */
+    total: number;
   };
 }
 

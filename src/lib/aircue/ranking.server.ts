@@ -67,6 +67,8 @@ export interface RankResult {
   scanned: { origins: string[]; dests: string[] };
   gateways: GatewayOption[];
   nonstopCount: number;
+  /** True when any board/source was blocked, even if some options were returned. */
+  incomplete: boolean;
 }
 
 export interface RankedOption {
@@ -1180,7 +1182,14 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     else reason = "no_service";
   }
 
-  return { options: results, reason, scanned: { origins, dests }, gateways, nonstopCount };
+  return {
+    options: results,
+    reason,
+    scanned: { origins, dests },
+    gateways,
+    nonstopCount,
+    incomplete: anyBoardBlocked,
+  };
 }
 
 /** Rough "the useful part of the day is behind you" test, in the origin's rough local time. */

@@ -275,7 +275,10 @@ export const startWatchPlan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ watchId: string }> => {
     const { beginWatch } = await import("@/lib/aircue/plan.server");
-    return beginWatch(context.supabase, context.userId, data);
+    const input: { planId?: string; optionId?: string; mode: string } = { mode: data.mode };
+    if (data.planId) input.planId = data.planId;
+    if (data.optionId) input.optionId = data.optionId;
+    return beginWatch(context.supabase, context.userId, input);
   });
 
 export const listWatchPlans = createServerFn({ method: "GET" })

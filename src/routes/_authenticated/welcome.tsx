@@ -104,7 +104,7 @@ function Welcome() {
         className="h-14 rounded-full text-base font-semibold"
         onClick={() => navigate({ to: "/plan" })}
       >
-        Plan my first plan
+        Build my first plan
       </Button>
     </main>
   );

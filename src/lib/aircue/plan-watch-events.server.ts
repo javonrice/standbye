@@ -11,31 +11,55 @@ export type PlanWatchSnapshot = {
   flightState?: WatchFlightState;
   primaryOptionId?: string | null;
   preferredOptionId?: string | null;
+  /** Backup alternatives excluding primary — used for shrink thresholds. */
   backupRunwayCount?: number;
   backupNonstopCount?: number;
   backupConnectionCount?: number;
+  totalRealisticWays?: number;
   spilloverCancelled?: number;
 };
 
 export type BackupRunway = {
-  total: number;
+  /** All current realistic options, including primary. */
+  totalRealisticWays: number;
+  /** Current options excluding the primary. */
+  backupAlternatives: number;
   nonstops: number;
   connections: number;
+  /** UI copy: "X realistic ways remain · …" based on totalRealisticWays. */
   summary: string;
+  /** @deprecated Prefer totalRealisticWays; kept for callers expecting `.total`. */
+  total: number;
 };
 
-export function computeBackupRunway(options: StandbyOption[]): BackupRunway {
+export function computeBackupRunway(
+  options: StandbyOption[],
+  primaryOptionId?: string | null,
+): BackupRunway {
+  const totalRealisticWays = options.length;
+  // When no primary is set, treat rank-1 as the implicit primary for backup count.
+  const alternatives = primaryOptionId
+    ? options.filter((o) => o.id !== primaryOptionId)
+    : options.slice(1);
+
   const nonstops = options.filter((o) => o.kind === "nonstop").length;
   const connections = options.filter((o) => o.kind === "connection").length;
-  const total = options.length;
   const parts: string[] = [];
   if (nonstops > 0) parts.push(`${nonstops} nonstop${nonstops === 1 ? "" : "s"}`);
   if (connections > 0) parts.push(`${connections} connection${connections === 1 ? "" : "s"}`);
   const summary =
-    total === 0
+    totalRealisticWays === 0
       ? "No realistic ways remain"
-      : `${total} realistic way${total === 1 ? "" : "s"} remain${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
-  return { total, nonstops, connections, summary };
+      : `${totalRealisticWays} realistic way${totalRealisticWays === 1 ? "" : "s"} remain${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
+
+  return {
+    totalRealisticWays,
+    backupAlternatives: alternatives.length,
+    nonstops,
+    connections,
+    summary,
+    total: totalRealisticWays,
+  };
 }
 
 function judgmentRank(j: string): number {
@@ -49,7 +73,8 @@ function isMateriallyBetter(preferred: StandbyOption, primary: StandbyOption): b
   const pj = judgmentRank(preferred.judgment);
   const pr = judgmentRank(primary.judgment);
   if (pj - pr >= 1) return true;
-  return preferred.score - primary.score >= 15;
+  // Prefer an earlier ranked option when judgment is otherwise tied.
+  return preferred.rank < primary.rank && pj >= pr;
 }
 
 export function detectPlanChangeEvents(input: {
@@ -79,16 +104,18 @@ export function detectPlanChangeEvents(input: {
     }
   }
 
-  const prevBackup = prev.backupRunwayCount ?? backup.total;
-  if (prevBackup >= 3 && backup.total <= 1) {
+  // Shrink thresholds use backup alternatives excluding primary.
+  const prevBackup = prev.backupRunwayCount ?? backup.backupAlternatives;
+  const nextBackup = backup.backupAlternatives;
+  if (prevBackup >= 3 && nextBackup <= 1) {
     events.push({
       kind: "backup_runway_shrunk",
-      severity: backup.total === 0 ? "meaningful" : "meaningful",
+      severity: "meaningful",
       headline:
-        backup.total === 0 ? "You are out of backup options" : "Backup runway thinned out",
+        nextBackup === 0 ? "You are out of backup options" : "Backup runway thinned out",
       detail: backup.summary,
     });
-  } else if (prevBackup >= 1 && backup.total === 0) {
+  } else if (prevBackup >= 1 && nextBackup === 0) {
     events.push({
       kind: "backup_runway_shrunk",
       severity: "meaningful",
@@ -137,9 +164,10 @@ export function buildPlanWatchSnapshot(input: {
     flightState: input.flightState,
     primaryOptionId: input.primaryOptionId,
     preferredOptionId: input.preferred?.id ?? null,
-    backupRunwayCount: input.backup.total,
+    backupRunwayCount: input.backup.backupAlternatives,
     backupNonstopCount: input.backup.nonstops,
     backupConnectionCount: input.backup.connections,
+    totalRealisticWays: input.backup.totalRealisticWays,
     spilloverCancelled: input.spilloverCancelled,
   };
 }
