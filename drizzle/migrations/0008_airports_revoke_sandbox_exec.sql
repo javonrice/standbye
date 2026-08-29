@@ -1,0 +1,1 @@
+REVOKE INSERT, UPDATE ON public.airports FROM sandbox_exec;

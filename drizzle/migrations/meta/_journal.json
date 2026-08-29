@@ -57,6 +57,13 @@
       "when": 1788018181429,
       "tag": "0007_airports_seed_grant_sandbox_exec",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788018210719,
+      "tag": "0008_airports_revoke_sandbox_exec",
+      "breakpoints": true
     }
   ]
 }
