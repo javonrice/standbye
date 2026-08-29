@@ -33,7 +33,10 @@ export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
 interface Cell {
   text: string;
   state?: PillarState;
+  /** Render as a local clock so a +1 day marker stays secondary. */
+  time?: boolean;
 }
+
 
 /** One comparison row: a label plus one short cell per option. */
 function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell[] }> {
