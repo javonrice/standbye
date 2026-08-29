@@ -29,8 +29,8 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/availabi
 
 function readSignal(largest: number | null): { state: PillarState; label: string } {
   if (largest === null) return { state: "unknown", label: "Public signal unclear" };
-  if (largest >= 9) return { state: "good", label: "Strong public signal" };
-  if (largest >= 4) return { state: "fair", label: "Softening public signal" };
+  if (largest >= 4) return { state: "good", label: "Strong public signal" };
+  if (largest >= 2) return { state: "fair", label: "Softening public signal" };
   if (largest >= 1) return { state: "poor", label: "Tight public signal" };
   return { state: "poor", label: "Nothing selling publicly" };
 }
