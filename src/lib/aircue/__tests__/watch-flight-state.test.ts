@@ -25,6 +25,7 @@ const BASE_OPTION: StandbyOption = {
   confidence: "medium",
   headline: "Test",
   flightLabel: "UA782",
+  optionKey: "UA782:ORD-SFO:2026-08-29T22:10",
   carrier: "UA",
   flightNumber: "782",
   origin: "ORD",

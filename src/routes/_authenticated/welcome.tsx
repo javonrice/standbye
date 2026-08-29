@@ -5,7 +5,7 @@ import { Check, Gift } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getStandbyProfile, saveStandbyProfile } from "@/lib/aircue/plan.functions";
-import { clearDraft, readDraft, resolvedAccess } from "@/lib/aircue/onboarding";
+import { clearDraft, readDraft, resolvedAccess, buildAccessMetaFromDraft } from "@/lib/aircue/onboarding";
 
 export const Route = createFileRoute("/_authenticated/welcome")({
   head: () => ({
@@ -42,6 +42,7 @@ function Welcome() {
               homeAirline: draft.homeAirline,
               travelerType: draft.travelerType,
               airlineAccess: resolvedAccess(draft),
+              airlineAccessMeta: buildAccessMetaFromDraft(draft),
               homeAirports: draft.homeAirport ? [draft.homeAirport.toUpperCase()] : [],
               notifyMode: "meaningful",
               onboarded: true,

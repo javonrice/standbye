@@ -24,6 +24,7 @@ mock.module("@/lib/aircue/plan.server", () => ({
     confidence: "medium",
     headline: String(row["headline"] ?? ""),
     flightLabel: String(row["flight_label"] ?? ""),
+    optionKey: (row["option_key"] as string | null) ?? null,
     carrier: row["carrier"] ?? null,
     flightNumber: row["flight_number"] ?? null,
     origin: String(row["origin_iata"] ?? ""),

@@ -15,6 +15,20 @@
       "when": 1787993730571,
       "tag": "0001_plan_options_is_current",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787994000000,
+      "tag": "0002_plan_options_option_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787994000001,
+      "tag": "0003_airline_access_meta",
+      "breakpoints": true
     }
   ]
 }

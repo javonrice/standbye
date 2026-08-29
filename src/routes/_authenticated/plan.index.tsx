@@ -33,7 +33,6 @@ import {
   listRecentSearches,
   type PlanSummary,
 } from "@/lib/aircue/plan.functions";
-import { AIRLINES } from "@/lib/aircue/airlines";
 import { routingModeHint, routingModeLabel, type RoutingMode } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plan/")({
@@ -85,12 +84,13 @@ function HomePage() {
     if (profile?.homeAirports?.[0] && !origin) setOrigin(profile.homeAirports[0]);
   }, [profile, navigate, origin]);
 
+  const accessCodes = profile ? profileCarriers(profile) : [];
   const carriers =
-    carrierMode === "all"
+    carrierMode === "profile"
       ? null
-      : carrierMode === "profile"
-        ? (profile ? profileCarriers(profile) : null)
-        : [carrierMode];
+      : accessCodes.includes(carrierMode)
+        ? [carrierMode]
+        : null;
 
   const run = useMutation({
     mutationFn: () =>
@@ -242,17 +242,19 @@ function HomePage() {
             </div>
 
             <div>
-              <Label className="text-[12px] font-medium text-muted-foreground">Airlines</Label>
+              <Label className="text-[12px] font-medium text-muted-foreground">Travel access</Label>
               <Select value={carrierMode} onValueChange={setCarrierMode}>
                 <SelectTrigger className="mt-1.5 h-12 rounded-xl bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="profile">Airlines I can travel on</SelectItem>
-                  <SelectItem value="all">Any airline</SelectItem>
-                  {AIRLINES.map((a) => (
-                    <SelectItem key={a.code} value={a.code}>
-                      {a.name} only
+                  <SelectItem value="profile">
+                    Using your travel access
+                    {accessCodes.length ? ` (${accessCodes.join(", ")})` : ""}
+                  </SelectItem>
+                  {accessCodes.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code} only
                     </SelectItem>
                   ))}
                 </SelectContent>

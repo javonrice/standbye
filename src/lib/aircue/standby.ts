@@ -60,6 +60,9 @@ export interface ConditionsEvidence {
   forecast: string | null;
   forecastState: PillarState;
   note: string;
+  /** FAA NAS coverage for this airport's country/region. */
+  faaCoverage?: import("@/lib/aircue/coverage").CoverageState;
+  weatherCoverage?: import("@/lib/aircue/coverage").CoverageState;
 }
 
 export interface HistoryEvidence {
@@ -166,6 +169,8 @@ export interface StandbyOption {
   confidence: Confidence;
   headline: string;
   flightLabel: string;
+  /** Deterministic itinerary identity; null on legacy rows until next sync. */
+  optionKey: string | null;
   carrier: string | null;
   flightNumber: string | null;
   origin: string;

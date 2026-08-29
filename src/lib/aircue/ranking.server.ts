@@ -23,6 +23,8 @@ import { getFlightProvider } from "@/lib/aircue/flight-provider.server";
 import { getRouteHistory } from "@/lib/aircue/history.server";
 import { getFaaPrograms, getMetar, getTaf } from "@/lib/aircue/sources.server";
 import { ALL_AIRLINES, airlineName } from "@/lib/aircue/airlines";
+import { buildOptionKey } from "@/lib/aircue/option-key";
+import { isFaaCoverageCountry, type CoverageState } from "@/lib/aircue/coverage";
 import type {
   AvailabilityEvidence,
   ConditionsEvidence,
@@ -83,6 +85,8 @@ export interface RankedOption {
   carrier: string | null;
   flightNumber: string | null;
   flightLabel: string;
+  /** Deterministic itinerary identity (not display). */
+  optionKey: string;
   origin: string;
   dest: string;
   depLocal: string;
@@ -295,14 +299,23 @@ async function operationsFor(
   travelDate: string,
   depLocal: string,
 ): Promise<{ state: PillarState; label: string; detail: string; evidence: ConditionsEvidence }> {
-  const icao = await icaoForAirport(origin);
+  const [originMeta, destMeta, icao] = await Promise.all([
+    airportMeta(origin),
+    airportMeta(dest),
+    icaoForAirport(origin),
+  ]);
+  const faaCovered =
+    isFaaCoverageCountry(originMeta?.country) || isFaaCoverageCountry(destMeta?.country);
+
   const [faa, metar, taf] = await Promise.all([
-    getFaaPrograms(),
+    faaCovered ? getFaaPrograms() : Promise.resolve(null),
     icao ? getMetar(icao) : Promise.resolve(null),
     icao ? getTaf(icao) : Promise.resolve(null),
   ]);
 
-  const programs = (faa.data ?? []).filter((p) => p.airport === origin || p.airport === dest);
+  const programs = faa
+    ? (faa.data ?? []).filter((p) => p.airport === origin || p.airport === dest)
+    : [];
   const stop = programs.find((p) => p.type === "ground_stop" || p.type === "closure");
   const delayProgram = programs.find((p) => p.type === "ground_delay" || p.type === "delay");
 
@@ -317,42 +330,82 @@ async function operationsFor(
       null)
     : null;
   const stormy = /TS|SQ|FZRA|\+RA|BLSN/.test(tafText ?? "");
+  const weatherCoverage: CoverageState = metarText || tafText ? "available" : icao ? "unavailable" : "unknown";
+  const faaCoverage: CoverageState = !faaCovered
+    ? "not_covered"
+    : !faa || faa.ok === false
+      ? "unavailable"
+      : "available";
 
-  let state: PillarState = "good";
-  let label = "Normal";
-  let detail = "No major disruption around this flight right now.";
-  if (stop) {
-    state = "poor";
-    label = "Disrupted";
-    detail = `${stop.airport} has an active ${stop.type.replace("_", " ")}.`;
-  } else if (delayProgram) {
-    state = "fair";
-    label = "Some pressure";
-    detail = `${delayProgram.airport} is running a delay program${delayProgram.average ? ` averaging ${delayProgram.average}` : ""}.`;
+  let state: PillarState = "unknown";
+  let label = "Coverage limited";
+  let detail = "Live airport disruption coverage unavailable for this region.";
+
+  if (faaCovered) {
+    state = "good";
+    label = "Normal";
+    detail = "No major disruption around this flight right now.";
+    if (stop) {
+      state = "poor";
+      label = "Disrupted";
+      detail = `${stop.airport} has an active ${stop.type.replace("_", " ")}.`;
+    } else if (delayProgram) {
+      state = "fair";
+      label = "Some pressure";
+      detail = `${delayProgram.airport} is running a delay program${delayProgram.average ? ` averaging ${delayProgram.average}` : ""}.`;
+    } else if (stormy) {
+      state = "fair";
+      label = "Watch weather";
+      detail = "The forecast shows conditions that can slow departures.";
+    } else if (faaCoverage === "unavailable" && !metarText) {
+      state = "unknown";
+      label = "Ops unknown";
+      detail = "Airport disruption feed was unavailable just now.";
+    }
   } else if (stormy) {
     state = "fair";
     label = "Watch weather";
-    detail = "The forecast shows conditions that can slow departures.";
+    detail =
+      "Weather may slow departures. Live airport disruption coverage unavailable for this region.";
+  } else if (metarText || tafText) {
+    state = "unknown";
+    label = "Weather checked";
+    detail =
+      "Weather checked. Live airport disruption coverage unavailable for this region.";
   }
 
   const evidence: ConditionsEvidence = {
     airport: origin,
-    faa: stop
-      ? `Active ${stop.type.replace("_", " ")}`
+    faa: !faaCovered
+      ? "Live airport disruption coverage unavailable for this region"
+      : stop
+        ? `Active ${stop.type.replace("_", " ")}`
+        : delayProgram
+          ? `Delay program in effect`
+          : faaCoverage === "unavailable"
+            ? "Disruption feed unavailable"
+            : "No active ground stop",
+    delays: !faaCovered
+      ? "FAA delay programs not applicable here"
       : delayProgram
-        ? `Delay program in effect`
-        : "No active ground stop",
-    delays: delayProgram ? "Delays above normal" : "Delays currently near normal",
+        ? "Delays above normal"
+        : "Delays currently near normal",
     weather: metarText ? metarText.slice(0, 90) : "No current observation",
     forecast: stormy
       ? "Convective weather in the forecast window"
       : tafText
         ? "Nothing unusual in the forecast"
         : null,
-    forecastState: stormy ? "fair" : "good",
-    note: stormy
-      ? `Your ${depLocal} departure may sit near the higher-risk weather window.`
-      : `Nothing in today's ${origin} operation is working against a ${depLocal} departure.`,
+    forecastState: stormy ? "fair" : metarText || tafText ? "good" : "unknown",
+    note: !faaCovered
+      ? stormy
+        ? `Weather near ${depLocal} may matter. Disruption feed not covered for this region.`
+        : `Weather checked for ${origin}. Disruption feed not covered for this region.`
+      : stormy
+        ? `Your ${depLocal} departure may sit near the higher-risk weather window.`
+        : `Nothing in today's ${origin} operation is working against a ${depLocal} departure.`,
+    faaCoverage,
+    weatherCoverage,
   };
 
   return { state, label, detail, evidence };
@@ -660,6 +713,7 @@ async function scoreLeg(
     carrier,
     flightNumber: digits,
     flightLabel,
+    optionKey: buildOptionKey(segments),
     origin: leg.origin,
     dest: leg.dest,
     depLocal,
@@ -1035,6 +1089,7 @@ async function scoreConnection(
     carrier: first.airlineCode ?? null,
     flightNumber: null,
     flightLabel: `${first.origin} → ${hub} → ${second.dest}`,
+    optionKey: buildOptionKey(segments),
     origin: first.origin,
     dest: second.dest,
     depLocal,

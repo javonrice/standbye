@@ -15,6 +15,7 @@ function option(partial: Partial<StandbyOption> & { id: string; flightLabel: str
     judgment: "mixed",
     confidence: "medium",
     headline: "h",
+    optionKey: null,
     carrier: "UA",
     flightNumber: "1",
     origin: "ORD",

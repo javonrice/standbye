@@ -35,6 +35,14 @@ import {
   detectPlanChangeEvents,
   spilloverFromOption,
 } from "@/lib/aircue/plan-watch-events.server";
+import { buildOptionKey } from "@/lib/aircue/option-key";
+import {
+  effectiveStaffTravelCarriers,
+  resolveTravelAccess,
+  travelAccessSnapshot,
+  type AirlineAccessMeta,
+} from "@/lib/aircue/travel-access";
+import { requireCanonicalAirports, UnresolvedAirportError } from "@/lib/aircue/airports-canonical.server";
 
 /** The generated Database type does not yet know the standby tables. */
 type Db = SupabaseClient;
@@ -55,8 +63,14 @@ export async function loadStandbyProfile(
     .maybeSingle();
   if (!data) return null;
   const row = data as Row;
+  const homeRaw = row["home_airline"];
+  // Missing home airline must NOT silently become United.
+  const homeAirline =
+    homeRaw == null || String(homeRaw).trim() === ""
+      ? ""
+      : String(homeRaw).trim().toUpperCase();
   return {
-    homeAirline: String(row["home_airline"] ?? "UA"),
+    homeAirline,
     travelerType: String(row["traveler_type"] ?? "employee"),
     airlineAccess: (row["airline_access"] as string[]) ?? [],
     homeAirports: (row["home_airports"] as string[]) ?? [],
@@ -67,6 +81,7 @@ export async function loadStandbyProfile(
     freeDayUsed: Boolean(row["free_day_used"]),
     notifyOptin: Boolean(row["notify_optin"]),
     coachSeen: Boolean(row["coach_seen"]),
+    airlineAccessMeta: (row["airline_access_meta"] as AirlineAccessMeta | null) ?? {},
   };
 }
 
@@ -89,6 +104,7 @@ export async function persistStandbyProfile(
       free_day_used: values.freeDayUsed ?? false,
       notify_optin: values.notifyOptin ?? false,
       coach_seen: values.coachSeen ?? false,
+      airline_access_meta: values.airlineAccessMeta ?? {},
       onboarded_at: values.onboarded ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     });
@@ -99,6 +115,18 @@ export async function persistStandbyProfile(
 /* --------------------------------- plans --------------------------------- */
 
 function optionInsert(planId: string, userId: string, option: RankedOption) {
+  const optionKey =
+    option.optionKey ||
+    buildOptionKey(
+      option.segments.map((s) => ({
+        carrier: s.carrier,
+        flightNumber: s.flightNumber,
+        origin: s.origin,
+        dest: s.dest,
+        schedDepUtc: s.schedDepUtc,
+        depLocal: s.depLocal,
+      })),
+    );
   return {
     plan_id: planId,
     user_id: userId,
@@ -110,6 +138,7 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
     carrier: option.carrier,
     flight_number: option.flightNumber,
     flight_label: option.flightLabel,
+    option_key: optionKey,
     origin_iata: option.origin,
     dest_iata: option.dest,
     sched_dep_utc: option.schedDepUtc,
@@ -163,6 +192,7 @@ export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOptio
     confidence,
     headline: String(row["headline"] ?? ""),
     flightLabel: String(row["flight_label"] ?? ""),
+    optionKey: (row["option_key"] as string | null) ?? null,
     carrier: (row["carrier"] as string | null) ?? null,
     flightNumber: (row["flight_number"] as string | null) ?? null,
     origin: String(row["origin_iata"] ?? ""),
@@ -191,26 +221,44 @@ export async function buildPlan(
     travelDate: string;
     travelers: number;
     cabin: string;
+    /** Client preference subset; server intersects with Travel Access. */
     carriers: string[] | null;
     maxStops?: number | undefined;
     nearby?: boolean | undefined;
     routingMode?: string | undefined;
   },
 ): Promise<{ planId: string; optionCount: number; reason: RankReason | null }> {
+  const origin = input.origin.toUpperCase();
+  const dest = input.dest.toUpperCase();
+
+  await requireCanonicalAirports(client, [origin, dest]);
+
+  const profile = await loadStandbyProfile(client, userId);
+  const saved = resolveTravelAccess(profile ?? {});
+  if (saved.codes.length === 0) {
+    throw new Error("Set your travel access before building a plan.");
+  }
+  const effective = effectiveStaffTravelCarriers(saved, input.carriers);
+  if (effective.length === 0) {
+    throw new Error("That airline preference is outside your saved travel access.");
+  }
+  const accessPrefs = travelAccessSnapshot(saved, effective);
+
   const { data: planRow, error } = await db(client)
     .from("plans")
     .insert({
       user_id: userId,
-      origin_iata: input.origin.toUpperCase(),
-      dest_iata: input.dest.toUpperCase(),
+      origin_iata: origin,
+      dest_iata: dest,
       travel_date: input.travelDate,
       travelers: input.travelers,
       cabin: input.cabin,
       prefs: {
-        carriers: input.carriers,
+        carriers: effective,
         maxStops: input.maxStops ?? 1,
         nearby: input.nearby ?? false,
         routingMode: input.routingMode ?? "best",
+        ...accessPrefs,
       },
     })
     .select("id")
@@ -219,10 +267,10 @@ export async function buildPlan(
 
   const planId = String((planRow as Row)["id"]);
   const ranked = await rankStandbyOptions({
-    origin: input.origin.toUpperCase(),
-    dest: input.dest.toUpperCase(),
+    origin,
+    dest,
     travelDate: input.travelDate,
-    carriers: input.carriers,
+    carriers: effective,
     travelers: input.travelers,
     cabin: input.cabin,
     userId,
@@ -235,13 +283,14 @@ export async function buildPlan(
     .from("plans")
     .update({
       prefs: {
-        carriers: input.carriers,
+        carriers: effective,
         maxStops: input.maxStops ?? 1,
         nearby: input.nearby ?? false,
         routingMode: input.routingMode ?? "best",
         emptyReason: ranked.reason,
         scanned: ranked.scanned,
         gateways: ranked.gateways,
+        ...accessPrefs,
       },
     })
     .eq("id", planId);
@@ -254,6 +303,8 @@ export async function buildPlan(
 
   return { planId, optionCount: ranked.options.length, reason: ranked.reason };
 }
+
+export { UnresolvedAirportError };
 
 /* --------------------------------- escape --------------------------------- */
 
@@ -282,6 +333,16 @@ export async function buildEscapePlan(
   const origin = input.origin.toUpperCase();
   const dest = input.dest.toUpperCase();
 
+  await requireCanonicalAirports(client, [origin, dest]);
+
+  const profile = await loadStandbyProfile(client, userId);
+  const saved = resolveTravelAccess(profile ?? {});
+  const effective = effectiveStaffTravelCarriers(saved, input.carriers);
+  if (effective.length === 0) {
+    throw new Error("Set your travel access before widening a plan.");
+  }
+  const accessPrefs = travelAccessSnapshot(saved, effective);
+
   // An existing plan for the same problem means the Standby Day is already open.
   const { data: existing } = await db(client)
     .from("plans")
@@ -294,13 +355,14 @@ export async function buildEscapePlan(
   const standbyDayShared = ((existing ?? []) as Row[]).length > 0;
 
   const basePrefs = {
-    carriers: input.carriers,
+    carriers: effective,
     maxStops: 1,
     nearby: false,
     routingMode: "wide" as const,
     mode: "escape" as const,
     depTime: input.depTime ?? null,
     standbyDayShared,
+    ...accessPrefs,
   };
 
   const { data: planRow, error } = await db(client)
@@ -324,7 +386,7 @@ export async function buildEscapePlan(
     origin,
     dest,
     travelDate: input.travelDate,
-    carriers: input.carriers,
+    carriers: effective,
     travelers: input.travelers,
     cabin: input.cabin,
     userId,
@@ -767,7 +829,13 @@ async function syncPlanOptionsFromRanked(
     .eq("plan_id", planId);
 
   const existing = (existingRows ?? []) as Row[];
-  const byLabel = new Map(existing.map((r) => [String(r["flight_label"]), r]));
+  const byKey = new Map<string, Row>();
+  const byLabel = new Map<string, Row>();
+  for (const r of existing) {
+    const key = r["option_key"] ? String(r["option_key"]) : "";
+    if (key) byKey.set(key, r);
+    byLabel.set(String(r["flight_label"]), r);
+  }
 
   const loads = await loadsFor(
     client,
@@ -781,7 +849,8 @@ async function syncPlanOptionsFromRanked(
 
   for (const option of ranked.options) {
     const payload = optionInsert(planId, userId, option);
-    const prior = byLabel.get(option.flightLabel);
+    const optionKey = String(payload.option_key ?? option.optionKey ?? "");
+    const prior = (optionKey && byKey.get(optionKey)) || byLabel.get(option.flightLabel);
     if (prior) {
       const id = String(prior["id"]);
       await db(client).from("plan_options").update(payload).eq("id", id);
@@ -1170,7 +1239,11 @@ export async function recheckWatch(
     origin: String(planRow["origin_iata"]),
     dest: String(planRow["dest_iata"]),
     travelDate,
-    carriers: (prefs["carriers"] as string[] | null) ?? null,
+    // Prefer immutable Plan access snapshot; never broaden from live profile.
+    carriers:
+      (prefs["effectiveCarriers"] as string[] | null) ??
+      (prefs["carriers"] as string[] | null) ??
+      null,
     travelers: Number(planRow["travelers"] ?? 1),
     cabin: String(planRow["cabin"] ?? "any"),
     userId,

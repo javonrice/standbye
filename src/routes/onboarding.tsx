@@ -11,6 +11,7 @@ import { AirlineLogo } from "@/components/aircue/AirlineLogo";
 import { ALL_AIRLINE_OPTIONS, airlineName } from "@/lib/aircue/airlines";
 import {
   accessModeLabel,
+  accessModeHint,
   emptyDraft,
   painEcho,
   painOptions,
@@ -172,7 +173,10 @@ function OnboardingFlow() {
                 />
               ))}
             </div>
-            {draft.accessMode === "selected" && (
+            {draft.accessMode && (
+              <p className="mt-3 text-sm text-muted-foreground">{accessModeHint[draft.accessMode]}</p>
+            )}
+            {(draft.accessMode === "selected" || draft.accessMode === "partners") && (
               <AccessAirlinePicker
                 selected={draft.airlineAccess}
                 onToggle={(code) =>

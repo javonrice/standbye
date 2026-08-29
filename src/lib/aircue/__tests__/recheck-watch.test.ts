@@ -48,6 +48,7 @@ function makeRankedOption(overrides: Partial<RankedOption> = {}): RankedOption {
     carrier: "UA",
     flightNumber: "782",
     flightLabel: "UA782",
+    optionKey: "UA782:ORD-SFO:2026-08-29T22:10",
     origin: "ORD",
     dest: "SFO",
     depLocal: "5:10 PM",
