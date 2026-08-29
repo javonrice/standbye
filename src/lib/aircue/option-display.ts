@@ -43,6 +43,15 @@ export function formatSegmentArrival(seg: OptionSegment): string {
   return formatLocalTimeWithDayOffset(seg.arrLocal, offset);
 }
 
+/** Split "18:20+1" into its clock and day-offset marker for display. */
+export function splitTimeOffset(label: string): { time: string; offset: string | null } {
+  const m = /^(.*?)([+-]\d+)$/.exec((label ?? "").trim());
+  if (!m) return { time: (label ?? "").trim(), offset: null };
+  return { time: m[1]!.trim(), offset: m[2]! };
+}
+
+
+
 /** Compact dep → arr label used in rows and heroes. */
 export function formatOptionTimingRange(option: {
   depLocal: string;
