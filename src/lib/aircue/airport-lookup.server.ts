@@ -63,8 +63,9 @@ export interface AirportMeta {
   country: string | null;
 }
 
-/** A code with no row is cached as null and never re-queried, as before. */
+/** A code with no row is cached as null; a failed read is never cached. */
 const metaCache = new Map<string, AirportMeta | null>();
+
 
 /** Lightweight instrumentation: batched reads issued against `airports`. */
 export const airportLookupStats = { metadataReads: 0, metadataRowsFetched: 0 };
