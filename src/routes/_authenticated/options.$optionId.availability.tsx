@@ -63,12 +63,12 @@ function AvailabilityDetail() {
           {/* The count is the point of the screen — make it the hero. */}
           <div className="mt-4 rounded-2xl border border-border bg-card p-5 text-center">
             <p className="font-display text-5xl font-bold tracking-tight">
-              {largest === null ? "?" : largest >= 9 ? "9+" : largest}
+              {largest === null ? "?" : largest >= 4 ? "4+" : largest}
             </p>
             <p className="mt-1.5 text-sm font-medium">
               {largest === null
                 ? "Largest party still bookable is unclear"
-                : `Still bookable for a party of ${largest >= 9 ? "9 or more" : largest}`}
+                : `Still bookable for a party of ${largest >= 4 ? "4 or more" : largest}`}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Checked {agoLabel(availability.checkedAt)}
