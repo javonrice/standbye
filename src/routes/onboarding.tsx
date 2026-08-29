@@ -275,10 +275,10 @@ function OnboardingFlow() {
               <p className="text-sm text-muted-foreground">5 useful LAX flights after</p>
             </div>
             <p className="mt-5 text-[15px] font-semibold">
-              Standbye isn't married to the flight.
+              Standbye isn't married to one option.
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              It's trying to help you get where you're going.
+              It watches your whole plan and helps you get where you're going.
             </p>
           </section>
         );

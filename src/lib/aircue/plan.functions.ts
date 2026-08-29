@@ -35,6 +35,10 @@ export interface PlanSummary {
   optionCount: number;
   createdAt: string;
   mode: "standby" | "escape";
+  watching: boolean;
+  planVerdict: string | null;
+  lastCheckedAt: string | null;
+  primaryFlightLabel: string | null;
 }
 
 export interface WatchSummary {
@@ -51,6 +55,10 @@ export interface WatchSummary {
   unseenChanges: number;
   lastCheckedAt: string;
   state: string;
+  /** Most recent unseen change headline, when the plan needs attention. */
+  latestHeadline: string | null;
+  /** Primary option flight label when set on the plan. */
+  primaryFlightLabel: string | null;
 }
 
 export interface ChangeItem {
@@ -241,10 +249,29 @@ export const addReportedLoad = createServerFn({ method: "POST" })
 
 /* -------------------------------- watching -------------------------------- */
 
+export const setPrimaryOptionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { planId: string; optionId: string }) =>
+    z.object({ planId: z.string().uuid(), optionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { setPrimaryOption } = await import("@/lib/aircue/plan.server");
+    return setPrimaryOption(context.supabase, context.userId, data.planId, data.optionId);
+  });
+
 export const startWatchPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { optionId: string; mode: string }) =>
-    z.object({ optionId: z.string().uuid(), mode: z.string().min(3).max(24) }).parse(input),
+  .inputValidator((input: { planId?: string; optionId?: string; mode: string }) =>
+    z
+      .object({
+        planId: z.string().uuid().optional(),
+        optionId: z.string().uuid().optional(),
+        mode: z.string().min(3).max(24),
+      })
+      .refine((v) => Boolean(v.planId || v.optionId), {
+        message: "planId or optionId required",
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ watchId: string }> => {
     const { beginWatch } = await import("@/lib/aircue/plan.server");

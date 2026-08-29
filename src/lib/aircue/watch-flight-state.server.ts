@@ -11,6 +11,12 @@ export type WatchSnapshot = {
   largestShowing: number | null;
   laterCount: number;
   flightState?: WatchFlightState;
+  primaryOptionId?: string | null;
+  preferredOptionId?: string | null;
+  backupRunwayCount?: number;
+  backupNonstopCount?: number;
+  backupConnectionCount?: number;
+  spilloverCancelled?: number;
 };
 
 export type FlightPresence =

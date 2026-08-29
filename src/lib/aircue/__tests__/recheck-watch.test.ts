@@ -20,6 +20,7 @@ let watchStatusResult: { status: FlightStatus | null; unavailable: boolean } = {
 let rankedOptions: RankedOption[] = [];
 const insertedEvents: Array<Record<string, unknown>> = [];
 let lastWatchUpdate: Record<string, unknown> | null = null;
+let lastRankInput: Record<string, unknown> | null = null;
 let optionUpdateCount = 0;
 
 const baseRecovery = {
@@ -109,9 +110,18 @@ function makeWatchRow(snapshot: Record<string, unknown> = {}) {
     },
     plans: {
       id: PLAN_ID,
+      origin_iata: "ORD",
+      dest_iata: "SFO",
       travel_date: "2026-08-29",
       travelers: 1,
       cabin: "any",
+      primary_option_id: OPTION_ID,
+      prefs: {
+        carriers: ["UA"],
+        maxStops: 1,
+        nearby: false,
+        routingMode: "best",
+      },
     },
   };
 }
@@ -143,11 +153,37 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
       }
       if (table === "plan_options") {
         return {
+          select: () => ({
+            eq: (col: string) => {
+              if (col === "plan_id") {
+                return Promise.resolve({
+                  data: [watchRow.plan_options],
+                });
+              }
+              return {
+                eq: () => ({
+                  maybeSingle: () => Promise.resolve({ data: watchRow.plan_options }),
+                }),
+              };
+            },
+          }),
           update: () => ({
             eq: () => {
               optionUpdateCount += 1;
               return Promise.resolve({ data: null, error: null });
             },
+          }),
+          insert: () => ({
+            select: () => ({
+              single: () => Promise.resolve({ data: watchRow.plan_options, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === "plans") {
+        return {
+          update: () => ({
+            eq: () => Promise.resolve({ data: null, error: null }),
           }),
         };
       }
@@ -173,13 +209,16 @@ mock.module("@/lib/aircue/flight-provider.server", () => ({
 }));
 
 mock.module("@/lib/aircue/ranking.server", () => ({
-  rankStandbyOptions: async () => ({
-    options: rankedOptions,
-    reason: rankedOptions.length ? null : "data_unavailable",
-    scanned: { origins: ["ORD"], dests: ["SFO"] },
-    gateways: [],
-    nonstopCount: rankedOptions.length,
-  }),
+  rankStandbyOptions: async (input: Record<string, unknown>) => {
+    lastRankInput = input;
+    return {
+      options: rankedOptions,
+      reason: rankedOptions.length ? null : "data_unavailable",
+      scanned: { origins: ["ORD"], dests: ["SFO"] },
+      gateways: [],
+      nonstopCount: rankedOptions.length,
+    };
+  },
 }));
 
 const { recheckWatch } = await import("@/lib/aircue/plan.server");
@@ -191,6 +230,7 @@ function cancelKinds() {
 beforeEach(() => {
   insertedEvents.length = 0;
   lastWatchUpdate = null;
+  lastRankInput = null;
   optionUpdateCount = 0;
   watchStatusResult = { status: { state: "scheduled", label: "On schedule" }, unavailable: false };
   rankedOptions = [makeRankedOption()];
@@ -244,8 +284,17 @@ describe("recheckWatch cancellation integration", () => {
 
     expect(cancelKinds()).toHaveLength(0);
     expect((lastWatchUpdate?.["snapshot"] as { flightState: string }).flightState).toBe("operating");
-    expect(optionUpdateCount).toBe(0);
     expect(lastWatchUpdate?.["next_check_at"]).toBeDefined();
+    expect(lastRankInput?.["origin"]).toBe("ORD");
+    expect(lastRankInput?.["maxStops"]).toBe(1);
+  });
+
+  it("recheck uses plan prefs from plans row", async () => {
+    const client = createMockClient(makeWatchRow());
+    await recheckWatch(client, USER_ID, WATCH_ID);
+    expect(lastRankInput?.["routingMode"]).toBe("best");
+    expect(lastRankInput?.["nearby"]).toBe(false);
+    expect(lastRankInput?.["carriers"]).toEqual(["UA"]);
   });
 
   it("5. ranking miss + status unavailable → no cancellation event", async () => {

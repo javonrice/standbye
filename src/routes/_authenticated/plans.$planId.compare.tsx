@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Star } from "lucide-react";
 
-import { getPlan } from "@/lib/aircue/plan.functions";
+import { getPlan, setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
 import {
   judgmentFace,
   judgmentShort,
@@ -16,13 +16,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
   head: () => ({
     meta: [
-      { title: "Compare setups — Standbye" },
+      { title: "Compare options — Standbye" },
       {
         name: "description",
         content:
           "Put your standby options side by side and see where they actually differ before you commit to one.",
       },
-      { property: "og:title", content: "Compare setups — Standbye" },
+      { property: "og:title", content: "Compare options — Standbye" },
       { property: "og:description", content: "Side-by-side comparison of your standby options." },
     ],
   }),
@@ -87,9 +87,15 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
 function ComparePage() {
   const { planId } = Route.useParams();
   const fetchPlan = useServerFn(getPlan);
-  const { data: plan, isLoading } = useQuery({
+  const setPrimary = useServerFn(setPrimaryOptionFn);
+  const { data: plan, isLoading, refetch } = useQuery({
     queryKey: ["plan", planId],
     queryFn: () => fetchPlan({ data: { planId } }),
+  });
+
+  const makePrimary = useMutation({
+    mutationFn: (optionId: string) => setPrimary({ data: { planId, optionId } }),
+    onSuccess: () => refetch(),
   });
 
   const options = (plan?.options ?? []).slice(0, 3);
@@ -106,7 +112,7 @@ function ComparePage() {
         <ArrowLeft className="h-4 w-4" /> Back to the list
       </Link>
 
-      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">Compare setups</h1>
+      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">Compare options</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {plan ? `${plan.origin} → ${plan.dest} · ${plan.travelDate}` : "Loading…"}
       </p>
@@ -192,22 +198,43 @@ function ComparePage() {
           )}
 
           <div className="mt-5 space-y-2">
-            {options.map((o) => (
-              <Link
-                key={o.id}
-                to="/options/$optionId"
-                params={{ optionId: o.id }}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-              >
-                <span className="min-w-0">
-                  <span className="block break-words text-sm font-semibold">{o.flightLabel}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {o.depLocal} local · {judgmentShort[o.judgment]}
-                  </span>
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </Link>
-            ))}
+            {options.map((o) => {
+              const isPrimary = plan?.primaryOptionId === o.id;
+              return (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
+                >
+                  <Link
+                    to="/options/$optionId"
+                    params={{ optionId: o.id }}
+                    className="flex min-w-0 flex-1 items-center justify-between gap-3"
+                  >
+                    <span className="min-w-0">
+                      <span className="block break-words text-sm font-semibold">{o.flightLabel}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {o.depLocal} local · {judgmentShort[o.judgment]}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                  {isPrimary ? (
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-primary">
+                      <Star className="h-3.5 w-3.5 fill-primary" /> Primary
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={makePrimary.isPending}
+                      onClick={() => makePrimary.mutate(o.id)}
+                      className="shrink-0 text-xs font-semibold text-primary"
+                    >
+                      Make primary
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>
       )}

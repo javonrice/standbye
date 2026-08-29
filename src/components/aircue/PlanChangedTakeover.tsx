@@ -16,6 +16,7 @@ export function PlanChangedTakeover({ watches, onDismiss }: PlanChangedTakeoverP
   const first = watches[0];
   if (!first) return null;
   const others = watches.length - 1;
+  const reason = first.latestHeadline ?? `${first.flightLabel} may have shifted`;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-background/95 backdrop-blur-sm md:items-center md:justify-center">
@@ -25,32 +26,43 @@ export function PlanChangedTakeover({ watches, onDismiss }: PlanChangedTakeoverP
         </span>
 
         <h2 className="mt-4 font-display text-2xl font-bold tracking-tight">
-          Something moved on {first.flightLabel}
+          Your {first.origin} → {first.dest} plan changed
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {first.origin} → {first.dest} on {first.travelDate}. {first.verdict}
+          {reason} · {first.travelDate}
         </p>
         {others > 0 && (
           <p className="mt-1 text-sm text-muted-foreground">
-            {others} other watched {others === 1 ? "setup has" : "setups have"} updates too.
+            {others} other watched {others === 1 ? "plan has" : "plans have"} updates too.
           </p>
         )}
 
-        <Link
-          to="/watching/$watchId"
-          params={{ watchId: first.id }}
-          onClick={onDismiss}
-          className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
-        >
-          See what changed <ArrowRight className="h-4 w-4" />
-        </Link>
+        {first.planId ? (
+          <Link
+            to="/plans/$planId"
+            params={{ planId: first.planId }}
+            onClick={onDismiss}
+            className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
+          >
+            Review plan <ArrowRight className="h-4 w-4" />
+          </Link>
+        ) : (
+          <Link
+            to="/updates/$watchId"
+            params={{ watchId: first.id }}
+            onClick={onDismiss}
+            className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
+          >
+            Review plan <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
         <Link
           to="/escape"
           search={{ from: first.origin, to: first.dest, date: first.travelDate }}
           onClick={onDismiss}
           className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold"
         >
-          Find an escape route
+          Find another way
         </Link>
         <button
           type="button"

@@ -208,6 +208,21 @@ export interface StandbyPlan {
   mode: PlanMode;
   /** True when this escape shares an existing Standby Day for the same route/date. */
   standbyDayShared: boolean;
+  /** Traveler's chosen primary option, if any. */
+  primaryOptionId: string | null;
+  /** Active watch on this plan, if any. */
+  watching: boolean;
+  watchId: string | null;
+  planVerdict: string | null;
+  lastCheckedAt: string | null;
+  /** Rank-1 option after latest rank (Standbye's current preference). */
+  preferredOptionId: string | null;
+  backupRunway: {
+    total: number;
+    nonstops: number;
+    connections: number;
+    summary: string;
+  };
 }
 
 export const judgmentFace: Record<Judgment, string> = {

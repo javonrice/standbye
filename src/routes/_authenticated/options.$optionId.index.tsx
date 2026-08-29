@@ -1,12 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
-  Bell,
-  BellOff,
   ChevronRight,
   LifeBuoy,
+  Star,
 } from "lucide-react";
 
 import { CueBadge } from "@/components/aircue/CueBadge";
@@ -15,7 +14,7 @@ import { StandbyeTake } from "@/components/aircue/StandbyeTake";
 import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/SignalRow";
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
-import { startWatchPlan, stopWatchPlan } from "@/lib/aircue/plan.functions";
+import { setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
 import {
   agoLabel,
   confidenceLabel,
@@ -43,20 +42,17 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/")({
 
 function CueScreen() {
   const { optionId } = Route.useParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading } = useOption(optionId);
-  const begin = useServerFn(startWatchPlan);
-  const end = useServerFn(stopWatchPlan);
+  const setPrimary = useServerFn(setPrimaryOptionFn);
 
-  const watch = useMutation({
-    mutationFn: () => begin({ data: { optionId, mode: "meaningful" } }),
-    onSuccess: ({ watchId }) => navigate({ to: "/watching/$watchId", params: { watchId } }),
-  });
-
-  const unwatch = useMutation({
-    mutationFn: (watchId: string) => end({ data: { watchId } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["option", optionId] }),
+  const makePrimary = useMutation({
+    mutationFn: () =>
+      setPrimary({ data: { planId: data!.planId!, optionId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["option", optionId] });
+      if (data?.planId) queryClient.invalidateQueries({ queryKey: ["plan", data.planId] });
+    },
   });
 
   if (isLoading) {
@@ -103,7 +99,7 @@ function CueScreen() {
           params={{ planId: data.planId }}
           className="flex items-center gap-1.5 text-sm text-muted-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> All options
+          <ArrowLeft className="h-4 w-4" /> Back to plan
         </Link>
       )}
 
@@ -196,20 +192,21 @@ function CueScreen() {
       <StandbyeTake className="mt-6">{option.headline}</StandbyeTake>
 
       <div className="mt-6 space-y-2">
-        {data?.watchId ? (
-          <Button
-            variant="outline"
-            className="h-12 w-full"
-            disabled={unwatch.isPending}
-            onClick={() => unwatch.mutate(data.watchId as string)}
-          >
-            <BellOff className="mr-2 h-4 w-4" /> Stop watching this Standby Day
-          </Button>
-        ) : (
-          <Button className="h-12 w-full" disabled={watch.isPending} onClick={() => watch.mutate()}>
-            <Bell className="mr-2 h-4 w-4" />
-            {watch.isPending ? "Setting up…" : "Watch this Standby Day"}
-          </Button>
+        {data?.planId && (
+          data.isPrimary ? (
+            <p className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 text-sm font-semibold text-muted-foreground">
+              <Star className="h-4 w-4" /> Your primary option
+            </p>
+          ) : (
+            <Button
+              className="h-12 w-full"
+              disabled={makePrimary.isPending}
+              onClick={() => makePrimary.mutate()}
+            >
+              <Star className="mr-2 h-4 w-4" />
+              {makePrimary.isPending ? "Saving…" : "Make this my primary option"}
+            </Button>
+          )
         )}
         <Button asChild variant="outline" className="h-12 w-full">
           <Link to="/options/$optionId/recovery" params={{ optionId }}>

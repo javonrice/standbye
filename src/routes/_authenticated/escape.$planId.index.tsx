@@ -80,6 +80,22 @@ function EscapeResults() {
 
       {plan && (
         <>
+          {plan.mode === "escape" && (
+            <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+              <p className="font-semibold text-primary">Widened view of your plan</p>
+              <p className="mt-0.5 text-muted-foreground">
+                This is the same {plan.origin} → {plan.dest} trip with more routing options.
+              </p>
+              <Link
+                to="/plans/$planId"
+                params={{ planId }}
+                className="mt-2 inline-flex items-center gap-1 font-semibold text-primary"
+              >
+                Back to plan detail <ChevronRight className="h-4 w-4" />
+              </Link>
+            </div>
+          )}
+
           <h1 className="mt-3 font-display text-[30px] font-bold leading-tight tracking-tight">
             Get me from {plan.origin} → {plan.dest}
           </h1>
@@ -224,15 +240,15 @@ function EscapeResults() {
 
           <p className="mt-6 text-xs text-muted-foreground">
             <CornerUpRight className="mr-1 inline h-3.5 w-3.5" />
-            Escape is part of this Standby Day — a different routing for the same problem, never a
-            second one.
+            A widened plan uses the same route and date — just more ways to get there.
           </p>
 
           <Link
-            to="/plan"
+            to="/plans/$planId"
+            params={{ planId }}
             className="mt-4 flex items-center gap-1 text-[13px] font-semibold text-primary"
           >
-            Back to your plan <ChevronRight className="h-4 w-4" />
+            Back to plan detail <ChevronRight className="h-4 w-4" />
           </Link>
         </>
       )}

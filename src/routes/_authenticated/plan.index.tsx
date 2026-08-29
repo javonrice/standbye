@@ -34,14 +34,14 @@ import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } fr
 export const Route = createFileRoute("/_authenticated/plan/")({
   head: () => ({
     meta: [
-      { title: "Plan a standby attempt — Standbye" },
+      { title: "Your plans — Standbye" },
       {
         name: "description",
         content:
-          "Set your route, date and preferences, and Standbye ranks the day's realistic standby setups.",
+          "Your travel plans and a quick way to build a new one — Standbye ranks realistic standby options for your route and date.",
       },
-      { property: "og:title", content: "Plan a standby attempt — Standbye" },
-      { property: "og:description", content: "Ranked standby setups for your route and date." },
+      { property: "og:title", content: "Your plans — Standbye" },
+      { property: "og:description", content: "Build and manage your standby travel plans." },
     ],
   }),
   component: PlanHome,
@@ -108,11 +108,24 @@ function PlanHome() {
 
       <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain md:hidden" />
 
-      <h1 className="mt-6 font-display text-[30px] font-bold leading-[1.15] tracking-tight md:text-[34px]">
-        Where are you trying to go?
+      {(plans ?? []).length > 0 && (
+        <section className="mt-6">
+          <h2 className="font-display text-[17px] font-semibold tracking-tight">Your plans</h2>
+          <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+            {(plans ?? []).map((p) => (
+              <li key={p.id}>
+                <RecentPlanRow plan={p} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <h1 className={`font-display text-[30px] font-bold leading-[1.15] tracking-tight md:text-[34px] ${(plans ?? []).length > 0 ? "mt-10" : "mt-6"}`}>
+        {(plans ?? []).length > 0 ? "Build a new plan" : "Where are you trying to go?"}
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-        Give us the route and the day. We'll rank the realistic shots.
+        Give us the route and the day. Standbye will rank the realistic ways to get there.
       </p>
 
       <form
@@ -259,7 +272,7 @@ function PlanHome() {
           disabled={origin.length !== 3 || dest.length !== 3 || run.isPending}
           className="mt-5 h-14 w-full rounded-2xl text-[16px] font-semibold"
         >
-          Find my best options
+          Build my plan
         </Button>
 
         {run.isError && (
@@ -269,49 +282,33 @@ function PlanHome() {
         )}
       </form>
 
-      <div className="mt-5 rounded-2xl border border-border bg-surface p-4">
-        <p className="text-[14px] font-semibold">😬 Stuck or trying to get home?</p>
-        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-          Standbye can look for unconventional ways to keep you moving — including stations the
-          usual itinerary would never touch.
-        </p>
-        <Link
-          to="/escape"
-          className="mt-2 inline-flex items-center gap-1 text-[14px] font-semibold text-primary"
-        >
-          Find an escape route <ChevronRight className="h-4 w-4" />
+      <p className="mt-4 text-center text-[14px] text-muted-foreground">
+        Stuck right now?{" "}
+        <Link to="/escape" className="font-semibold text-primary">
+          Widen a plan
         </Link>
-      </div>
+      </p>
 
       <Link
         to="/known-flight"
-        className="mt-4 flex items-center justify-between gap-3 rounded-xl px-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
+        className="mt-3 flex items-center justify-between gap-3 rounded-xl px-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
       >
         <span className="text-[14px] font-medium">
-          Already know the flight? <span className="text-primary">Look it up</span>
+          Already have a flight in mind?{" "}
+          <span className="text-primary">Start with it</span>
         </span>
         <ChevronRight className="h-4 w-4" />
       </Link>
-
-      {(plans ?? []).length > 0 && (
-        <section className="mt-10">
-          <h2 className="font-display text-[17px] font-semibold tracking-tight">
-            Recent standby days
-          </h2>
-          <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {(plans ?? []).map((p) => (
-              <li key={p.id}>
-                <RecentPlanRow plan={p} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </main>
   );
 }
 
 function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
+  const watchingLabel = p.watching
+    ? p.planVerdict === "changed"
+      ? " · Needs another look"
+      : " · Watching"
+    : "";
   const body = (
     <>
       <span className="min-w-0 flex-1">
@@ -319,8 +316,10 @@ function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
           {p.origin} → {p.dest}
         </span>
         <span className="block text-[12px] text-muted-foreground">
-          {p.mode === "escape" ? "Escape · " : ""}
-          {p.travelDate} · {p.optionCount} option{p.optionCount === 1 ? "" : "s"}
+          {p.mode === "escape" ? "Widened · " : ""}
+          {p.travelDate}
+          {p.primaryFlightLabel ? ` · Primary ${p.primaryFlightLabel}` : ""}
+          {watchingLabel}
         </span>
       </span>
       {p.bestJudgment && <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />}

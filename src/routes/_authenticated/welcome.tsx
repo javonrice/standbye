@@ -94,7 +94,7 @@ function Welcome() {
         <p className="mx-auto mt-4 max-w-[20rem] text-[16px] leading-relaxed text-muted-foreground">
           {saving
             ? "One moment while Standbye gets set up the way you travel."
-            : "Plan a real route, see the day ranked, and let Standbye watch it while you get to the airport."}
+            : "Plan a real route, build your options, and let Standbye watch the plan while you get to the airport."}
         </p>
       </div>
 
@@ -104,7 +104,7 @@ function Welcome() {
         className="h-14 rounded-full text-base font-semibold"
         onClick={() => navigate({ to: "/plan" })}
       >
-        Plan my first standby
+        Plan my first plan
       </Button>
     </main>
   );

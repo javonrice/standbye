@@ -14,6 +14,7 @@ export const getOption = createServerFn({ method: "GET" })
     planId: string | null;
     travelDate: string | null;
     watchId: string | null;
+    isPrimary: boolean;
   }> => {
     const { loadOption } = await import("@/lib/aircue/option.server");
     return loadOption(context.supabase, context.userId, data.optionId);
