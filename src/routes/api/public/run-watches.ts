@@ -11,6 +11,7 @@ export const Route = createFileRoute("/api/public/run-watches")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { recheckWatch } = await import("@/lib/aircue/plan.server");
+        const { isTravelDayWatchOver } = await import("@/lib/aircue/watch-flight-state.server");
 
         const now = new Date();
         const { data: due } = await supabaseAdmin
@@ -26,10 +27,9 @@ export const Route = createFileRoute("/api/public/run-watches")({
 
         for (const watch of due ?? []) {
           const plan = watch.plans as unknown as { travel_date: string | null } | null;
-          const travelDate = plan?.travel_date ? new Date(`${plan.travel_date}T23:59:59Z`) : null;
 
           // The travel day is over: stop watching rather than burning API units.
-          if (travelDate && travelDate.getTime() + 6 * 3600000 < now.getTime()) {
+          if (plan?.travel_date && isTravelDayWatchOver(plan.travel_date, now)) {
             await supabaseAdmin
               .from("watch_plans")
               .update({ state: "ended", ended_at: now.toISOString() })

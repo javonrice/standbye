@@ -75,3 +75,9 @@ export function cancellationEvent(
     detail: `${flightLabel} ${origin} → ${dest} is now showing cancelled.`,
   };
 }
+
+/** Travel day + 6h grace, used by the watch cron to end stale watches. */
+export function isTravelDayWatchOver(travelDate: string, now: Date): boolean {
+  const end = new Date(`${travelDate}T23:59:59Z`);
+  return end.getTime() + 6 * 3600000 < now.getTime();
+}
