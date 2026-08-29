@@ -7,7 +7,8 @@ import { JudgmentPill } from "@/components/aircue/JudgmentPill";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AIRLINES, airlineName, ALL_AIRLINES } from "@/lib/aircue/airlines";
+import { AirlineLogo } from "@/components/aircue/AirlineLogo";
+import { ALL_AIRLINE_OPTIONS, airlineName } from "@/lib/aircue/airlines";
 import {
   accessModeLabel,
   emptyDraft,
@@ -172,31 +173,16 @@ function OnboardingFlow() {
               ))}
             </div>
             {draft.accessMode === "selected" && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {AIRLINES.filter((a) => a.code !== ALL_AIRLINES).map((a) => {
-                  const on = draft.airlineAccess.includes(a.code);
-                  return (
-                    <button
-                      key={a.code}
-                      type="button"
-                      onClick={() =>
-                        update({
-                          airlineAccess: on
-                            ? draft.airlineAccess.filter((c) => c !== a.code)
-                            : [...draft.airlineAccess, a.code],
-                        })
-                      }
-                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${
-                        on
-                          ? "border-primary bg-accent text-accent-foreground"
-                          : "border-border bg-card text-muted-foreground"
-                      }`}
-                    >
-                      {a.code}
-                    </button>
-                  );
-                })}
-              </div>
+              <AccessAirlinePicker
+                selected={draft.airlineAccess}
+                onToggle={(code) =>
+                  update({
+                    airlineAccess: draft.airlineAccess.includes(code)
+                      ? draft.airlineAccess.filter((c) => c !== code)
+                      : [...draft.airlineAccess, code],
+                  })
+                }
+              />
             )}
           </section>
         );
@@ -416,17 +402,69 @@ function Question({
   );
 }
 
+function AccessAirlinePicker({
+  selected,
+  onToggle,
+}: {
+  selected: string[];
+  onToggle: (code: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const matches = q
+      ? ALL_AIRLINE_OPTIONS.filter(
+          (a) => a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q),
+        ).slice(0, 40)
+      : ALL_AIRLINE_OPTIONS.filter((a) => popularAirlines.includes(a.code));
+    const picked = ALL_AIRLINE_OPTIONS.filter((a) => selected.includes(a.code));
+    const seen = new Set(picked.map((a) => a.code));
+    return [...picked, ...matches.filter((a) => !seen.has(a.code))];
+  }, [query, selected]);
+
+  return (
+    <div className="mt-4">
+      <Input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search airline"
+        className="h-12"
+        aria-label="Search airline to add access"
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        {list.map((a) => {
+          const on = selected.includes(a.code);
+          return (
+            <button
+              key={a.code}
+              type="button"
+              onClick={() => onToggle(a.code)}
+              className={`flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-sm font-semibold ${
+                on
+                  ? "border-primary bg-accent text-accent-foreground"
+                  : "border-border bg-card text-muted-foreground"
+              }`}
+            >
+              <AirlineLogo code={a.code} size={24} className="rounded-full" />
+              <span>{a.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) => void }) {
   const [query, setQuery] = useState("");
   const list = useMemo(() => {
-    const all = AIRLINES.filter((a) => a.code !== ALL_AIRLINES);
     const q = query.trim().toLowerCase();
     if (q) {
-      return all.filter(
+      return ALL_AIRLINE_OPTIONS.filter(
         (a) => a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q),
-      );
+      ).slice(0, 40);
     }
-    return all.filter((a) => popularAirlines.includes(a.code));
+    return ALL_AIRLINE_OPTIONS.filter((a) => popularAirlines.includes(a.code));
   }, [query]);
 
   return (
@@ -449,12 +487,20 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
       </p>
       <div className="mt-2 space-y-2">
         {list.map((a) => (
-          <ChoiceButton
+          <button
             key={a.code}
-            label={a.name}
-            selected={value === a.code}
+            type="button"
             onClick={() => onPick(a.code)}
-          />
+            className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-[15px] font-semibold ${
+              value === a.code
+                ? "border-primary bg-accent text-accent-foreground"
+                : "border-border bg-card"
+            }`}
+          >
+            <AirlineLogo code={a.code} size={32} />
+            <span className="min-w-0 flex-1 break-words">{a.name}</span>
+            <span className="text-xs font-bold text-muted-foreground">{a.code}</span>
+          </button>
         ))}
         {list.length === 0 && (
           <p className="text-sm text-muted-foreground">No airline matches that.</p>
