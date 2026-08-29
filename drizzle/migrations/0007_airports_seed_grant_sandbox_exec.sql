@@ -1,0 +1,1 @@
+GRANT SELECT, INSERT, UPDATE ON public.airports TO sandbox_exec;

@@ -1,13 +1,18 @@
 /**
  * AeroDataBox cache: watch force must bypass a fresh 24h resolve cache.
  */
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, describe, expect, it } from "bun:test";
+
+import { mockModuleIsolated } from "./mock-module-isolated";
 
 const FUTURE = new Date(Date.now() + 3600_000).toISOString();
 let apiCalls = 0;
 let upsertedKey = "";
 
-mock.module("@/integrations/supabase/client.server", () => ({
+const prevAdbKey = process.env["AERODATABOX_RAPIDAPI_KEY"];
+const prevAdbEnabled = process.env["AERODATABOX_ENABLED"];
+
+await mockModuleIsolated("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       if (table === "source_cache") {
@@ -48,6 +53,13 @@ mock.module("@/integrations/supabase/client.server", () => ({
 
 process.env["AERODATABOX_RAPIDAPI_KEY"] = "test-key";
 process.env["AERODATABOX_ENABLED"] = "true";
+
+afterAll(() => {
+  if (prevAdbKey === undefined) delete process.env["AERODATABOX_RAPIDAPI_KEY"];
+  else process.env["AERODATABOX_RAPIDAPI_KEY"] = prevAdbKey;
+  if (prevAdbEnabled === undefined) delete process.env["AERODATABOX_ENABLED"];
+  else process.env["AERODATABOX_ENABLED"] = prevAdbEnabled;
+});
 
 afterEach(() => {
   apiCalls = 0;

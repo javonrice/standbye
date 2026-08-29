@@ -14,8 +14,9 @@ import {
 
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { AirportField } from "@/components/aircue/AirportField";
+import { Screen, SectionHeading } from "@/components/aircue/Layout";
+
 import { SearchingOverlay } from "@/components/aircue/SearchingOverlay";
-import { CueBadge } from "@/components/aircue/CueBadge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -26,25 +27,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createPlan, getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
-import type { PlanSummary } from "@/lib/aircue/plan.functions";
-import { AIRLINES } from "@/lib/aircue/airlines";
-import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } from "@/lib/aircue/standby";
+import {
+  createPlan,
+  getStandbyProfile,
+  listRecentSearches,
+  type PlanSummary,
+} from "@/lib/aircue/plan.functions";
+import { routingModeHint, routingModeLabel, type RoutingMode } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plan/")({
   head: () => ({
     meta: [
-      { title: "Plan a standby attempt — Standbye" },
+      { title: "Home — Standbye" },
       {
         name: "description",
         content:
-          "Set your route, date and preferences, and Standbye ranks the day's realistic standby setups.",
+          "Build a standby plan for your route and date. Standbye ranks realistic options without promising clearance.",
       },
-      { property: "og:title", content: "Plan a standby attempt — Standbye" },
-      { property: "og:description", content: "Ranked standby setups for your route and date." },
+      { property: "og:title", content: "Home — Standbye" },
+      { property: "og:description", content: "Explore and build a standby travel plan." },
     ],
   }),
-  component: PlanHome,
+  component: HomePage,
 });
 
 /** Local calendar date, not UTC — otherwise evening users lose "today". */
@@ -53,10 +57,10 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-function PlanHome() {
+function HomePage() {
   const navigate = useNavigate();
   const loadProfile = useServerFn(getStandbyProfile);
-  const recent = useServerFn(listPlans);
+  const recentFn = useServerFn(listRecentSearches);
   const create = useServerFn(createPlan);
 
   const [origin, setOrigin] = useState("");
@@ -70,19 +74,23 @@ function PlanHome() {
   const [nearby, setNearby] = useState(false);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => loadProfile() });
-  const { data: plans } = useQuery({ queryKey: ["plans"], queryFn: () => recent() });
+  const { data: recent } = useQuery({
+    queryKey: ["recent-searches"],
+    queryFn: () => recentFn(),
+  });
 
   useEffect(() => {
     if (profile && !profile.onboarded) navigate({ to: "/onboarding" });
     if (profile?.homeAirports?.[0] && !origin) setOrigin(profile.homeAirports[0]);
   }, [profile, navigate, origin]);
 
+  const accessCodes = profile ? profileCarriers(profile) : [];
   const carriers =
-    carrierMode === "all"
+    carrierMode === "profile"
       ? null
-      : carrierMode === "profile"
-        ? (profile ? profileCarriers(profile) : null)
-        : [carrierMode];
+      : accessCodes.includes(carrierMode)
+        ? [carrierMode]
+        : null;
 
   const run = useMutation({
     mutationFn: () =>
@@ -103,7 +111,7 @@ function PlanHome() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-16 pt-6 md:max-w-2xl md:px-10 md:pt-12">
+    <Screen>
       {run.isPending && <SearchingOverlay phase="building" origin={origin} dest={dest} />}
 
       <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain md:hidden" />
@@ -112,7 +120,7 @@ function PlanHome() {
         Where are you trying to go?
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-        Give us the route and the day. We'll rank the realistic shots.
+        Give us the route and the day. Standbye will rank the realistic ways to get there.
       </p>
 
       <form
@@ -169,7 +177,6 @@ function PlanHome() {
               </Select>
             </div>
           </div>
-
         </div>
 
         <button
@@ -235,17 +242,19 @@ function PlanHome() {
             </div>
 
             <div>
-              <Label className="text-[12px] font-medium text-muted-foreground">Airlines</Label>
+              <Label className="text-[12px] font-medium text-muted-foreground">Travel access</Label>
               <Select value={carrierMode} onValueChange={setCarrierMode}>
                 <SelectTrigger className="mt-1.5 h-12 rounded-xl bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="profile">Airlines I can travel on</SelectItem>
-                  <SelectItem value="all">Any airline</SelectItem>
-                  {AIRLINES.map((a) => (
-                    <SelectItem key={a.code} value={a.code}>
-                      {a.name} only
+                  <SelectItem value="profile">
+                    Using your travel access
+                    {accessCodes.length ? ` (${accessCodes.join(", ")})` : ""}
+                  </SelectItem>
+                  {accessCodes.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code} only
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -259,7 +268,7 @@ function PlanHome() {
           disabled={origin.length !== 3 || dest.length !== 3 || run.isPending}
           className="mt-5 h-14 w-full rounded-2xl text-[16px] font-semibold"
         >
-          Find my best options
+          Build my plan
         </Button>
 
         {run.isError && (
@@ -269,49 +278,44 @@ function PlanHome() {
         )}
       </form>
 
-      <div className="mt-5 rounded-2xl border border-border bg-surface p-4">
-        <p className="text-[14px] font-semibold">😬 Stuck or trying to get home?</p>
-        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-          Standbye can look for unconventional ways to keep you moving — including stations the
-          usual itinerary would never touch.
+      <div className="mt-5 space-y-2.5 text-[14px]">
+        <p className="text-muted-foreground">
+          Stuck right now?{" "}
+          <Link to="/escape" className="font-semibold text-primary">
+            Widen a plan
+          </Link>
         </p>
-        <Link
-          to="/escape"
-          className="mt-2 inline-flex items-center gap-1 text-[14px] font-semibold text-primary"
-        >
-          Find an escape route <ChevronRight className="h-4 w-4" />
-        </Link>
+        <p className="text-muted-foreground">
+          Already have a flight in mind?{" "}
+          <Link to="/known-flight" className="font-semibold text-primary">
+            Start with it
+          </Link>
+        </p>
       </div>
 
-      <Link
-        to="/known-flight"
-        className="mt-4 flex items-center justify-between gap-3 rounded-xl px-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <span className="text-[14px] font-medium">
-          Already know the flight? <span className="text-primary">Look it up</span>
-        </span>
-        <ChevronRight className="h-4 w-4" />
-      </Link>
-
-      {(plans ?? []).length > 0 && (
+      {(recent ?? []).length > 0 && (
         <section className="mt-10">
-          <h2 className="font-display text-[17px] font-semibold tracking-tight">
-            Recent standby days
-          </h2>
-          <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {(plans ?? []).map((p) => (
+          <SectionHeading
+            title="Recent searches"
+            tone="quiet"
+            hint="Exploration only — pick a primary or watch a plan to save it under Plans."
+          />
+          <ul className="mt-2 divide-y divide-border/70">
+            {(recent ?? []).map((p) => (
               <li key={p.id}>
-                <RecentPlanRow plan={p} />
+                <RecentSearchRow plan={p} />
               </li>
             ))}
           </ul>
         </section>
       )}
-    </main>
+    </Screen>
+
   );
 }
 
-function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
+function RecentSearchRow({ plan: p }: { plan: PlanSummary }) {
+  const className = "flex items-center gap-3 py-3 transition-colors hover:opacity-80";
   const body = (
     <>
       <span className="min-w-0 flex-1">
@@ -319,15 +323,14 @@ function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
           {p.origin} → {p.dest}
         </span>
         <span className="block text-[12px] text-muted-foreground">
-          {p.mode === "escape" ? "Escape · " : ""}
-          {p.travelDate} · {p.optionCount} option{p.optionCount === 1 ? "" : "s"}
+          {p.mode === "escape" ? "Widened · " : ""}
+          {p.travelDate}
+          {p.optionCount > 0 ? ` · ${p.optionCount} option${p.optionCount === 1 ? "" : "s"}` : ""}
         </span>
       </span>
-      {p.bestJudgment && <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />}
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </>
   );
-  const className = "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50";
   return p.mode === "escape" ? (
     <Link to="/escape/$planId" params={{ planId: p.id }} className={className}>
       {body}

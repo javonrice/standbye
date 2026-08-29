@@ -17,31 +17,43 @@ export type Database = {
       airports: {
         Row: {
           city: string | null
+          country: string | null
           iata: string
           icao: string | null
           lat: number
           lon: number
           name: string
+          region: string | null
+          resolved_at: string | null
+          source: string | null
           state: string | null
           tz: string
         }
         Insert: {
           city?: string | null
+          country?: string | null
           iata: string
           icao?: string | null
           lat: number
           lon: number
           name: string
+          region?: string | null
+          resolved_at?: string | null
+          source?: string | null
           state?: string | null
           tz: string
         }
         Update: {
           city?: string | null
+          country?: string | null
           iata?: string
           icao?: string | null
           lat?: number
           lon?: number
           name?: string
+          region?: string | null
+          resolved_at?: string | null
+          source?: string | null
           state?: string | null
           tz?: string
         }
@@ -447,8 +459,10 @@ export type Database = {
           flight_number: string | null
           headline: string
           id: string
+          is_current: boolean
           kind: string
           label: string
+          option_key: string | null
           origin_iata: string
           pillars: Json
           plan_id: string
@@ -474,8 +488,10 @@ export type Database = {
           flight_number?: string | null
           headline?: string
           id?: string
+          is_current?: boolean
           kind?: string
           label?: string
+          option_key?: string | null
           origin_iata: string
           pillars?: Json
           plan_id: string
@@ -501,8 +517,10 @@ export type Database = {
           flight_number?: string | null
           headline?: string
           id?: string
+          is_current?: boolean
           kind?: string
           label?: string
+          option_key?: string | null
           origin_iata?: string
           pillars?: Json
           plan_id?: string
@@ -534,6 +552,7 @@ export type Database = {
           id: string
           origin_iata: string
           prefs: Json
+          primary_option_id: string | null
           travel_date: string
           travelers: number
           user_id: string
@@ -545,6 +564,7 @@ export type Database = {
           id?: string
           origin_iata: string
           prefs?: Json
+          primary_option_id?: string | null
           travel_date: string
           travelers?: number
           user_id: string
@@ -556,11 +576,20 @@ export type Database = {
           id?: string
           origin_iata?: string
           prefs?: Json
+          primary_option_id?: string | null
           travel_date?: string
           travelers?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "plans_primary_option_id_fkey"
+            columns: ["primary_option_id"]
+            isOneToOne: false
+            referencedRelation: "plan_options"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -753,6 +782,7 @@ export type Database = {
         Row: {
           access_mode: string
           airline_access: string[]
+          airline_access_meta: Json
           coach_seen: string[]
           free_day_used: boolean
           home_airline: string
@@ -768,6 +798,7 @@ export type Database = {
         Insert: {
           access_mode?: string
           airline_access?: string[]
+          airline_access_meta?: Json
           coach_seen?: string[]
           free_day_used?: boolean
           home_airline?: string
@@ -783,6 +814,7 @@ export type Database = {
         Update: {
           access_mode?: string
           airline_access?: string[]
+          airline_access_meta?: Json
           coach_seen?: string[]
           free_day_used?: boolean
           home_airline?: string

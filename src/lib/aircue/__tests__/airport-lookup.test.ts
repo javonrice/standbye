@@ -3,7 +3,9 @@
  * holiday lookup. These assert the batched path returns what the per-code
  * queries returned, and that a missing code still behaves as before.
  */
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+
+import { mockModuleIsolated } from "./mock-module-isolated";
 
 const ROWS = [
   {
@@ -14,6 +16,7 @@ const ROWS = [
     city: "Denver",
     state: "CO",
     tz: "America/Denver",
+    country: "US",
   },
   {
     iata: "HNL",
@@ -23,8 +26,9 @@ const ROWS = [
     city: "Honolulu",
     state: "HI",
     tz: "Pacific/Honolulu",
+    country: "US",
   },
-  { iata: "NUL", icao: null, lat: 1, lon: 2, city: null, state: null, tz: null },
+  { iata: "NUL", icao: null, lat: 1, lon: 2, city: null, state: null, tz: null, country: null },
   // No stored ICAO: the prefix must be derived from state/timezone.
   {
     iata: "ANC",
@@ -34,6 +38,7 @@ const ROWS = [
     city: "Anchorage",
     state: "AK",
     tz: "America/Anchorage",
+    country: "US",
   },
   {
     iata: "ORD",
@@ -43,6 +48,7 @@ const ROWS = [
     city: "Chicago",
     state: "IL",
     tz: "America/Chicago",
+    country: "US",
   },
   {
     iata: "YYZ",
@@ -52,13 +58,14 @@ const ROWS = [
     city: "Toronto",
     state: null,
     tz: "America/Toronto",
+    country: "CA",
   },
 ];
 
 let selects: string[] = [];
 let inCalls: string[][] = [];
 
-mock.module("@/integrations/supabase/client.server", () => ({
+await mockModuleIsolated("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     from: () => ({
       select: (cols: string) => {
@@ -98,7 +105,7 @@ describe("airport metadata cache", () => {
 
     expect(airportLookupStats.metadataReads - before).toBe(1);
     expect(inCalls).toEqual([["DEN", "HNL"]]);
-    expect(selects[0]).toBe("iata,icao,lat,lon,city,state,tz");
+    expect(selects[0]).toBe("iata,icao,lat,lon,city,state,tz,country");
   });
 
   it("omits an unknown code from geo and caches the miss", async () => {

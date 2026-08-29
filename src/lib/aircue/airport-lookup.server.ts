@@ -60,6 +60,7 @@ export interface AirportMeta {
   city: string | null;
   state: string | null;
   tz: string | null;
+  country: string | null;
 }
 
 /** A code with no row is cached as null and never re-queried, as before. */
@@ -76,6 +77,7 @@ interface AirportRow {
   city: string | null;
   state: string | null;
   tz: string | null;
+  country: string | null;
 }
 
 /** Fill the cache for every code not already known. One query, not one per code. */
@@ -86,10 +88,10 @@ async function loadAirportMeta(codes: string[]): Promise<void> {
   airportLookupStats.metadataReads += 1;
   const { data } = await supabaseAdmin
     .from("airports")
-    .select("iata,icao,lat,lon,city,state,tz")
+    .select("iata,icao,lat,lon,city,state,tz,country")
     .in("iata", missing);
 
-  for (const row of (data ?? []) as AirportRow[]) {
+  for (const row of ((data ?? []) as unknown as AirportRow[])) {
     airportLookupStats.metadataRowsFetched += 1;
     metaCache.set(row.iata.toUpperCase(), {
       iata: row.iata.toUpperCase(),
@@ -99,6 +101,7 @@ async function loadAirportMeta(codes: string[]): Promise<void> {
       city: row.city,
       state: row.state ?? null,
       tz: row.tz ?? null,
+      country: row.country ?? null,
     });
   }
   for (const code of missing) if (!metaCache.has(code)) metaCache.set(code, null);

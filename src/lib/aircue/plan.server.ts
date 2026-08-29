@@ -28,10 +28,117 @@ import {
   type WatchFlightState,
   type WatchSnapshot,
 } from "@/lib/aircue/watch-flight-state.server";
+import {
+  buildPlanWatchSnapshot,
+  computeBackupRunway,
+  detectAnchorOptionEvents,
+  detectPlanChangeEvents,
+  spilloverFromOption,
+} from "@/lib/aircue/plan-watch-events.server";
+import { buildOptionKey } from "@/lib/aircue/option-key";
+import {
+  accessTypeForCarrier,
+  effectiveStaffTravelCarriers,
+  resolveTravelAccess,
+  travelAccessSnapshot,
+  type AirlineAccessMeta,
+} from "@/lib/aircue/travel-access";
+import { requireCanonicalAirports, UnresolvedAirportError, ensureCanonicalAirports } from "@/lib/aircue/airports-canonical.server";
+import { verifyOperatorForFlight } from "@/lib/aircue/operator-verify.server";
 
 /** The generated Database type does not yet know the standby tables. */
 type Db = SupabaseClient;
 const db = (client: unknown) => client as Db;
+
+function homeAirlineFromPrefs(prefs: Record<string, unknown>): string | null {
+  const snap = prefs["travelAccessSnapshot"] as { homeAirline?: string | null } | undefined;
+  return snap?.homeAirline ?? null;
+}
+
+function accessMetaFromPrefs(prefs: Record<string, unknown>): AirlineAccessMeta | undefined {
+  return (
+    (prefs["accessMetaSnapshot"] as AirlineAccessMeta | undefined) ??
+    (prefs["travelAccessSnapshot"] as { meta?: AirlineAccessMeta } | undefined)?.meta
+  );
+}
+
+function effectiveCarriersFromPrefs(prefs: Record<string, unknown>): string[] {
+  const effective = prefs["effectiveCarriers"] as string[] | null | undefined;
+  if (effective && effective.length > 0) return effective.map((c) => c.toUpperCase());
+  const carriers = prefs["carriers"] as string[] | null | undefined;
+  return (carriers ?? []).map((c) => c.toUpperCase());
+}
+
+/** Drop options whose segment airports are not yet canonical — never invent rows. */
+async function retainCanonicalSegmentOptions(
+  client: unknown,
+  options: RankedOption[],
+): Promise<RankedOption[]> {
+  if (options.length === 0) return options;
+  const codes = new Set<string>();
+  for (const o of options) {
+    for (const s of o.segments) {
+      if (s.origin) codes.add(s.origin.toUpperCase());
+      if (s.dest) codes.add(s.dest.toUpperCase());
+    }
+  }
+  const ensured = await ensureCanonicalAirports(client, [...codes]);
+  if (ensured.ok) return options;
+  // Lookup unavailable — do not wipe an otherwise valid Plan/sync.
+  if (ensured.queryFailed) return options;
+  const missing = new Set(ensured.missing.map((c) => c.toUpperCase()));
+  return options.filter((o) =>
+    o.segments.every(
+      (s) => !missing.has(s.origin.toUpperCase()) && !missing.has(s.dest.toUpperCase()),
+    ),
+  );
+}
+
+async function persistOperatorVerification(
+  client: unknown,
+  option: StandbyOption,
+  result: Awaited<ReturnType<typeof verifyOperatorForFlight>>,
+): Promise<StandbyOption> {
+  const nextAccess = result.accessFromOperator ?? option.access ?? null;
+  const evidence: StandbyOption["evidence"] = {
+    ...option.evidence,
+    access: nextAccess,
+    staffEligibility: result.staffEligibility,
+    operatorVerification: result.operatorVerification,
+    commercialFare: option.commercialFare ?? option.evidence.commercialFare ?? null,
+  };
+  const clears = option.standbyClears ?? option.evidence.standbyClears;
+  if (typeof clears === "number") evidence.standbyClears = clears;
+  const segments = option.segments.map((s) => ({
+    ...s,
+    access: result.accessFromOperator ?? s.access ?? null,
+  }));
+
+  await db(client)
+    .from("plan_options")
+    .update({
+      evidence,
+      segments,
+      confidence:
+        result.staffEligibility === "eligible"
+          ? option.confidence === "low"
+            ? "medium"
+            : option.confidence
+          : result.staffEligibility === "ineligible"
+            ? "low"
+            : option.confidence,
+    })
+    .eq("id", option.id);
+
+  return {
+    ...option,
+    access: nextAccess,
+    staffEligibility: result.staffEligibility,
+    operatorVerification: result.operatorVerification,
+    evidence,
+    segments,
+  };
+}
 
 type Row = Record<string, unknown>;
 
@@ -48,8 +155,14 @@ export async function loadStandbyProfile(
     .maybeSingle();
   if (!data) return null;
   const row = data as Row;
+  const homeRaw = row["home_airline"];
+  // Missing home airline must NOT silently become United.
+  const homeAirline =
+    homeRaw == null || String(homeRaw).trim() === ""
+      ? ""
+      : String(homeRaw).trim().toUpperCase();
   return {
-    homeAirline: String(row["home_airline"] ?? "UA"),
+    homeAirline,
     travelerType: String(row["traveler_type"] ?? "employee"),
     airlineAccess: (row["airline_access"] as string[]) ?? [],
     homeAirports: (row["home_airports"] as string[]) ?? [],
@@ -60,6 +173,7 @@ export async function loadStandbyProfile(
     freeDayUsed: Boolean(row["free_day_used"]),
     notifyOptin: Boolean(row["notify_optin"]),
     coachSeen: Boolean(row["coach_seen"]),
+    airlineAccessMeta: (row["airline_access_meta"] as AirlineAccessMeta | null) ?? {},
   };
 }
 
@@ -82,6 +196,7 @@ export async function persistStandbyProfile(
       free_day_used: values.freeDayUsed ?? false,
       notify_optin: values.notifyOptin ?? false,
       coach_seen: values.coachSeen ?? false,
+      airline_access_meta: values.airlineAccessMeta ?? {},
       onboarded_at: values.onboarded ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     });
@@ -92,6 +207,18 @@ export async function persistStandbyProfile(
 /* --------------------------------- plans --------------------------------- */
 
 function optionInsert(planId: string, userId: string, option: RankedOption) {
+  const optionKey =
+    option.optionKey ||
+    buildOptionKey(
+      option.segments.map((s) => ({
+        carrier: s.carrier,
+        flightNumber: s.flightNumber,
+        origin: s.origin,
+        dest: s.dest,
+        schedDepUtc: s.schedDepUtc,
+        depLocal: s.depLocal,
+      })),
+    );
   return {
     plan_id: planId,
     user_id: userId,
@@ -103,6 +230,7 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
     carrier: option.carrier,
     flight_number: option.flightNumber,
     flight_label: option.flightLabel,
+    option_key: optionKey,
     origin_iata: option.origin,
     dest_iata: option.dest,
     sched_dep_utc: option.schedDepUtc,
@@ -114,8 +242,16 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
     reasons: option.reasons,
     segments: option.segments,
     recovery: option.recovery,
-    evidence: option.evidence,
+    evidence: {
+      ...option.evidence,
+      access: option.access,
+      staffEligibility: option.staffEligibility,
+      operatorVerification: option.operatorVerification,
+      commercialFare: option.commercialFare,
+      standbyClears: option.standbyClears,
+    },
     refreshed_at: new Date().toISOString(),
+    is_current: true,
   };
 }
 
@@ -146,7 +282,7 @@ export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOptio
     },
   };
 
-  return {
+  const standby: StandbyOption = {
     id: String(row["id"]),
     planId: String(row["plan_id"]),
     rank: Number(row["rank"] ?? 1),
@@ -155,6 +291,7 @@ export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOptio
     confidence,
     headline: String(row["headline"] ?? ""),
     flightLabel: String(row["flight_label"] ?? ""),
+    optionKey: (row["option_key"] as string | null) ?? null,
     carrier: (row["carrier"] as string | null) ?? null,
     flightNumber: (row["flight_number"] as string | null) ?? null,
     origin: String(row["origin_iata"] ?? ""),
@@ -172,6 +309,13 @@ export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOptio
     load,
     refreshedAt: String(row["refreshed_at"] ?? new Date().toISOString()),
   };
+  const ev = evidence as StandbyOption["evidence"];
+  if (ev.access !== undefined) standby.access = ev.access;
+  if (ev.staffEligibility) standby.staffEligibility = ev.staffEligibility;
+  if (ev.operatorVerification) standby.operatorVerification = ev.operatorVerification;
+  if (ev.commercialFare !== undefined) standby.commercialFare = ev.commercialFare;
+  if (typeof ev.standbyClears === "number") standby.standbyClears = ev.standbyClears;
+  return standby;
 }
 
 export async function buildPlan(
@@ -183,26 +327,44 @@ export async function buildPlan(
     travelDate: string;
     travelers: number;
     cabin: string;
+    /** Client preference subset; server intersects with Travel Access. */
     carriers: string[] | null;
     maxStops?: number | undefined;
     nearby?: boolean | undefined;
     routingMode?: string | undefined;
   },
 ): Promise<{ planId: string; optionCount: number; reason: RankReason | null }> {
+  const origin = input.origin.toUpperCase();
+  const dest = input.dest.toUpperCase();
+
+  await requireCanonicalAirports(client, [origin, dest]);
+
+  const profile = await loadStandbyProfile(client, userId);
+  const saved = resolveTravelAccess(profile ?? {});
+  if (saved.codes.length === 0) {
+    throw new Error("Set your travel access before building a plan.");
+  }
+  const effective = effectiveStaffTravelCarriers(saved, input.carriers);
+  if (effective.length === 0) {
+    throw new Error("That airline preference is outside your saved travel access.");
+  }
+  const accessPrefs = travelAccessSnapshot(saved, effective);
+
   const { data: planRow, error } = await db(client)
     .from("plans")
     .insert({
       user_id: userId,
-      origin_iata: input.origin.toUpperCase(),
-      dest_iata: input.dest.toUpperCase(),
+      origin_iata: origin,
+      dest_iata: dest,
       travel_date: input.travelDate,
       travelers: input.travelers,
       cabin: input.cabin,
       prefs: {
-        carriers: input.carriers,
+        carriers: effective,
         maxStops: input.maxStops ?? 1,
         nearby: input.nearby ?? false,
         routingMode: input.routingMode ?? "best",
+        ...accessPrefs,
       },
     })
     .select("id")
@@ -211,41 +373,48 @@ export async function buildPlan(
 
   const planId = String((planRow as Row)["id"]);
   const ranked = await rankStandbyOptions({
-    origin: input.origin.toUpperCase(),
-    dest: input.dest.toUpperCase(),
+    origin,
+    dest,
     travelDate: input.travelDate,
-    carriers: input.carriers,
+    carriers: effective,
     travelers: input.travelers,
     cabin: input.cabin,
     userId,
     maxStops: input.maxStops ?? 1,
     nearby: input.nearby ?? false,
     routingMode: (input.routingMode ?? "best") as RoutingMode,
+    accessMeta: saved.meta,
   });
 
   await db(client)
     .from("plans")
     .update({
       prefs: {
-        carriers: input.carriers,
+        carriers: effective,
         maxStops: input.maxStops ?? 1,
         nearby: input.nearby ?? false,
         routingMode: input.routingMode ?? "best",
         emptyReason: ranked.reason,
         scanned: ranked.scanned,
         gateways: ranked.gateways,
+        ...accessPrefs,
       },
     })
     .eq("id", planId);
 
   if (ranked.options.length > 0) {
-    await db(client)
-      .from("plan_options")
-      .insert(ranked.options.map((o) => optionInsert(planId, userId, o)));
+    const persistable = await retainCanonicalSegmentOptions(client, ranked.options);
+    if (persistable.length > 0) {
+      await db(client)
+        .from("plan_options")
+        .insert(persistable.map((o) => optionInsert(planId, userId, o)));
+    }
   }
 
   return { planId, optionCount: ranked.options.length, reason: ranked.reason };
 }
+
+export { UnresolvedAirportError };
 
 /* --------------------------------- escape --------------------------------- */
 
@@ -274,6 +443,16 @@ export async function buildEscapePlan(
   const origin = input.origin.toUpperCase();
   const dest = input.dest.toUpperCase();
 
+  await requireCanonicalAirports(client, [origin, dest]);
+
+  const profile = await loadStandbyProfile(client, userId);
+  const saved = resolveTravelAccess(profile ?? {});
+  const effective = effectiveStaffTravelCarriers(saved, input.carriers);
+  if (effective.length === 0) {
+    throw new Error("Set your travel access before widening a plan.");
+  }
+  const accessPrefs = travelAccessSnapshot(saved, effective);
+
   // An existing plan for the same problem means the Standby Day is already open.
   const { data: existing } = await db(client)
     .from("plans")
@@ -286,13 +465,14 @@ export async function buildEscapePlan(
   const standbyDayShared = ((existing ?? []) as Row[]).length > 0;
 
   const basePrefs = {
-    carriers: input.carriers,
+    carriers: effective,
     maxStops: 1,
     nearby: false,
     routingMode: "wide" as const,
     mode: "escape" as const,
     depTime: input.depTime ?? null,
     standbyDayShared,
+    ...accessPrefs,
   };
 
   const { data: planRow, error } = await db(client)
@@ -316,13 +496,14 @@ export async function buildEscapePlan(
     origin,
     dest,
     travelDate: input.travelDate,
-    carriers: input.carriers,
+    carriers: effective,
     travelers: input.travelers,
     cabin: input.cabin,
     userId,
     maxStops: 1,
     nearby: false,
     routingMode: "wide",
+    accessMeta: saved.meta,
     ...(input.depTime ? { depTime: input.depTime } : {}),
   });
 
@@ -339,9 +520,12 @@ export async function buildEscapePlan(
     .eq("id", planId);
 
   if (ranked.options.length > 0) {
-    await db(client)
-      .from("plan_options")
-      .insert(ranked.options.map((o) => optionInsert(planId, userId, o)));
+    const persistable = await retainCanonicalSegmentOptions(client, ranked.options);
+    if (persistable.length > 0) {
+      await db(client)
+        .from("plan_options")
+        .insert(persistable.map((o) => optionInsert(planId, userId, o)));
+    }
   }
 
   return { planId, optionCount: ranked.options.length, reason: ranked.reason };
@@ -466,6 +650,7 @@ export async function loadPlan(
     .from("plan_options")
     .select("*")
     .eq("plan_id", planId)
+    .eq("is_current", true)
     .order("rank");
 
   const rows = (optionRows ?? []) as Row[];
@@ -481,6 +666,20 @@ export async function loadPlan(
 
   const prefs = (plan["prefs"] ?? {}) as Record<string, unknown>;
   const scanned = (prefs["scanned"] ?? {}) as { origins?: string[]; dests?: string[] };
+  const primaryOptionId = (plan["primary_option_id"] as string | null) ?? null;
+  const preferredOptionId = options[0]?.id ?? null;
+
+  const { data: watchRow } = await db(client)
+    .from("watch_plans")
+    .select("id,verdict,last_checked_at")
+    .eq("plan_id", planId)
+    .eq("user_id", userId)
+    .eq("state", "active")
+    .maybeSingle();
+
+  const backupRunway = computeBackupRunway(options, primaryOptionId, {
+    homeAirline: homeAirlineFromPrefs(prefs) ?? null,
+  });
 
   return {
     id: planId,
@@ -503,34 +702,110 @@ export async function loadPlan(
     routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
     mode: (prefs["mode"] as StandbyPlan["mode"]) ?? "standby",
     standbyDayShared: prefs["standbyDayShared"] === true,
+    primaryOptionId,
+    watching: Boolean(watchRow),
+    watchId: watchRow ? String((watchRow as Row)["id"]) : null,
+    planVerdict: watchRow ? String((watchRow as Row)["verdict"] ?? "steady") : null,
+    lastCheckedAt: watchRow ? String((watchRow as Row)["last_checked_at"] ?? "") : null,
+    preferredOptionId,
+    backupRunway,
   };
 }
 
 export async function loadPlanSummaries(client: unknown, userId: string): Promise<PlanSummary[]> {
-  const { data } = await db(client)
+  const { data, error } = await db(client)
     .from("plans")
-    .select("id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,plan_options(label,rank)")
+    .select(
+      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options!plan_options_plan_id_fkey(label,rank,flight_label,id,is_current,kind),watch_plans(state,verdict,last_checked_at)",
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(40);
 
-  return ((data ?? []) as Row[]).map((row) => {
-    const opts = ((row["plan_options"] as Row[]) ?? []).slice().sort(
-      (a, b) => Number(a["rank"]) - Number(b["rank"]),
-    );
-    const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
-    return {
-      id: String(row["id"]),
-      origin: String(row["origin_iata"]),
-      dest: String(row["dest_iata"]),
-      travelDate: String(row["travel_date"]),
-      travelers: Number(row["travelers"] ?? 1),
-      bestJudgment: opts[0] ? String(opts[0]["label"]) : null,
-      optionCount: opts.length,
-      createdAt: String(row["created_at"]),
-      mode: (prefs["mode"] === "escape" ? "escape" : "standby") as "standby" | "escape",
-    };
-  });
+  if (error) {
+    console.error("[loadPlanSummaries] plans query failed", error.message);
+    throw new Error(`Could not load plans right now: ${error.message}`);
+  }
+
+  return ((data ?? []) as Row[]).map((row) => summarizePlanRow(row));
+}
+
+/** Committed Plans: primary selected and/or actively watched. */
+export function isCommittedPlanSummary(plan: PlanSummary): boolean {
+  return plan.hasPrimary || plan.watching;
+}
+
+export function partitionPlanSummaries(all: PlanSummary[]): {
+  committed: PlanSummary[];
+  recent: PlanSummary[];
+} {
+  const committed: PlanSummary[] = [];
+  const recent: PlanSummary[] = [];
+  for (const plan of all) {
+    if (isCommittedPlanSummary(plan)) committed.push(plan);
+    else recent.push(plan);
+  }
+  return { committed, recent };
+}
+
+export async function loadCommittedPlanSummaries(
+  client: unknown,
+  userId: string,
+): Promise<PlanSummary[]> {
+  const all = await loadPlanSummaries(client, userId);
+  return partitionPlanSummaries(all).committed;
+}
+
+export async function loadRecentSearchSummaries(
+  client: unknown,
+  userId: string,
+  limit = 8,
+): Promise<PlanSummary[]> {
+  const all = await loadPlanSummaries(client, userId);
+  return partitionPlanSummaries(all).recent.slice(0, limit);
+}
+
+function summarizePlanRow(row: Row): PlanSummary {
+  const opts = ((row["plan_options"] as Row[]) ?? [])
+    .filter((o) => o["is_current"] !== false)
+    .slice()
+    .sort((a, b) => Number(a["rank"]) - Number(b["rank"]));
+  const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
+  const watches = ((row["watch_plans"] as Row[]) ?? []).filter((w) => w["state"] === "active");
+  const watch = watches[0];
+  const primaryId = (row["primary_option_id"] as string | null) ?? null;
+  const hasPrimary = Boolean(primaryId);
+  const primaryOpt = primaryId
+    ? opts.find((o) => String(o["id"]) === primaryId)
+    : null;
+  const total = opts.length;
+  const nonstops = opts.filter((o) => o["kind"] === "nonstop").length;
+  const connections = opts.filter((o) => o["kind"] === "connection").length;
+  const parts: string[] = [];
+  if (nonstops > 0) parts.push(`${nonstops} nonstop${nonstops === 1 ? "" : "s"}`);
+  if (connections > 0) parts.push(`${connections} connection${connections === 1 ? "" : "s"}`);
+  const backupRunwaySummary =
+    total === 0
+      ? null
+      : `${total} realistic way${total === 1 ? "" : "s"} remain${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
+
+  return {
+    id: String(row["id"]),
+    origin: String(row["origin_iata"]),
+    dest: String(row["dest_iata"]),
+    travelDate: String(row["travel_date"]),
+    travelers: Number(row["travelers"] ?? 1),
+    bestJudgment: opts[0] ? String(opts[0]["label"]) : null,
+    optionCount: opts.length,
+    createdAt: String(row["created_at"]),
+    mode: (prefs["mode"] === "escape" ? "escape" : "standby") as "standby" | "escape",
+    watching: watches.length > 0,
+    planVerdict: watch ? String(watch["verdict"] ?? "steady") : null,
+    lastCheckedAt: watch ? String(watch["last_checked_at"] ?? "") : null,
+    primaryFlightLabel: primaryOpt ? String(primaryOpt["flight_label"]) : null,
+    hasPrimary,
+    backupRunwaySummary,
+  };
 }
 
 export async function planFromFlightNumber(
@@ -574,9 +849,17 @@ export async function planFromFlightNumber(
     .eq("flight_label", `${input.carrier}${input.flightNumber}`)
     .maybeSingle();
 
+  const optionId = data ? String((data as Row)["id"]) : null;
+  if (optionId) {
+    await db(client)
+      .from("plans")
+      .update({ primary_option_id: optionId })
+      .eq("id", planId);
+  }
+
   return {
     planId,
-    optionId: data ? String((data as Row)["id"]) : null,
+    optionId,
     legs: legs.map((l) => ({
       origin: l.originIata,
       dest: l.destIata,
@@ -599,12 +882,16 @@ export async function attachLoad(
     source: string;
   },
 ): Promise<{ optionId: string; judgment: string }> {
-  const { data: optionRow } = await db(client)
+  const { data: optionRow, error: optionError } = await db(client)
     .from("plan_options")
-    .select("*, plans(travel_date)")
+    .select("*, plans!plan_options_plan_id_fkey(travel_date)")
     .eq("id", input.optionId)
     .eq("user_id", userId)
     .maybeSingle();
+  if (optionError) {
+    console.error("[attachLoad] plan_options query failed", optionError.message);
+    throw new Error(`Could not attach load right now: ${optionError.message}`);
+  }
   if (!optionRow) throw new Error("That option is no longer available.");
   const row = optionRow as Row;
   const travelDate = String(((row["plans"] as Row) ?? {})["travel_date"] ?? "");
@@ -640,69 +927,263 @@ export async function attachLoad(
 
 /* -------------------------------- watching -------------------------------- */
 
-function snapshotOf(option: StandbyOption, flightState: WatchFlightState = "unknown") {
-  return {
-    judgment: option.judgment,
-    pillars: Object.fromEntries(option.pillars.map((p) => [p.key, p.state])),
-    largestShowing: option.evidence.availability.largestShowing,
-    laterCount: option.evidence.recovery.laterNonstops.length,
-    flightState,
-  };
+function planPrefsFromRow(planRow: Row): Record<string, unknown> {
+  return (planRow["prefs"] ?? {}) as Record<string, unknown>;
 }
 
-function mergeRecheckSnapshot(
-  before: StandbyOption,
-  fresh: StandbyOption | null,
-  prev: WatchSnapshot,
-  flightState: WatchFlightState,
-): WatchSnapshot {
-  if (!fresh) {
-    return { ...prev, flightState };
+async function syncPlanOptionsFromRanked(
+  client: unknown,
+  planId: string,
+  userId: string,
+  ranked: Awaited<ReturnType<typeof rankStandbyOptions>>,
+  prefs: Record<string, unknown>,
+  travelDate: string,
+): Promise<StandbyOption[]> {
+  const { data: existingRows } = await db(client)
+    .from("plan_options")
+    .select("*")
+    .eq("plan_id", planId);
+
+  const existing = (existingRows ?? []) as Row[];
+  const byKey = new Map<string, Row>();
+  const byLabel = new Map<string, Row>();
+  for (const r of existing) {
+    const key = r["option_key"] ? String(r["option_key"]) : "";
+    if (key) byKey.set(key, r);
+    byLabel.set(String(r["flight_label"]), r);
   }
-  return snapshotOf(
-    {
-      ...before,
-      judgment: fresh.judgment,
-      pillars: fresh.pillars,
-      evidence: { ...before.evidence, availability: fresh.evidence.availability, recovery: fresh.recovery },
-    },
-    flightState,
+
+  const loads = await loadsFor(
+    client,
+    userId,
+    ranked.options.map((o) => o.flightLabel),
+    travelDate,
   );
+
+  const syncedIds = new Set<string>();
+  const synced: StandbyOption[] = [];
+
+  const persistable = await retainCanonicalSegmentOptions(client, ranked.options);
+
+  for (const option of persistable) {
+    const payload = optionInsert(planId, userId, option);
+    const optionKey = String(payload.option_key ?? option.optionKey ?? "");
+    const prior = (optionKey && byKey.get(optionKey)) || byLabel.get(option.flightLabel);
+    if (prior) {
+      const id = String(prior["id"]);
+      await db(client).from("plan_options").update(payload).eq("id", id);
+      syncedIds.add(id);
+      synced.push(
+        optionFromRow(
+          { ...prior, ...payload, id, recovery: payload.recovery },
+          loads.get(option.flightLabel) ?? null,
+        ),
+      );
+    } else {
+      const { data: inserted } = await db(client)
+        .from("plan_options")
+        .insert(payload)
+        .select("*")
+        .single();
+      if (inserted) {
+        const row = inserted as Row;
+        syncedIds.add(String(row["id"]));
+        synced.push(optionFromRow(row, loads.get(option.flightLabel) ?? null));
+      }
+    }
+  }
+
+  const staleIds = existing
+    .map((r) => String(r["id"]))
+    .filter((id) => !syncedIds.has(id));
+  if (staleIds.length > 0) {
+    await db(client)
+      .from("plan_options")
+      .update({ is_current: false })
+      .in("id", staleIds);
+  }
+
+  await db(client)
+    .from("plans")
+    .update({
+      prefs: {
+        ...prefs,
+        emptyReason: ranked.reason,
+        scanned: ranked.scanned,
+        gateways: ranked.gateways,
+      },
+    })
+    .eq("id", planId);
+
+  synced.sort((a, b) => a.rank - b.rank);
+  return synced;
+}
+
+export async function setPrimaryOption(
+  client: unknown,
+  userId: string,
+  planId: string,
+  optionId: string,
+): Promise<{ ok: true }> {
+  const { data: optionRow } = await db(client)
+    .from("plan_options")
+    .select("*")
+    .eq("id", optionId)
+    .eq("user_id", userId)
+    .eq("plan_id", planId)
+    .maybeSingle();
+  if (!optionRow) throw new Error("That option is not part of this plan.");
+  if ((optionRow as Row)["is_current"] === false) {
+    throw new Error("That option is no longer current on this plan.");
+  }
+
+  await db(client)
+    .from("plans")
+    .update({ primary_option_id: optionId })
+    .eq("id", planId)
+    .eq("user_id", userId);
+
+  const { data: watch } = await db(client)
+    .from("watch_plans")
+    .select("id")
+    .eq("plan_id", planId)
+    .eq("user_id", userId)
+    .eq("state", "active")
+    .maybeSingle();
+
+  if (watch) {
+    await db(client)
+      .from("watch_plans")
+      .update({ plan_option_id: optionId })
+      .eq("id", String((watch as Row)["id"]));
+  }
+
+  // Lazy ADB operator verify on primary — never verify-all.
+  try {
+    const { data: planRow } = await db(client)
+      .from("plans")
+      .select("travel_date,prefs")
+      .eq("id", planId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (planRow) {
+      const prefs = ((planRow as Row)["prefs"] ?? {}) as Record<string, unknown>;
+      const option = optionFromRow(optionRow as Row, null);
+      const identity = watchFlightIdentity(option);
+      if (identity) {
+        const allowed = effectiveCarriersFromPrefs(prefs);
+        const meta = accessMetaFromPrefs(prefs);
+        const truth = await verifyOperatorForFlight({
+          flightNumber: identity.flightNumber,
+          travelDate: String((planRow as Row)["travel_date"]),
+          origin: identity.origin,
+          dest: identity.dest,
+          allowedAccess: allowed,
+          ...(meta ? { accessMeta: meta } : {}),
+          force: true,
+        });
+        await persistOperatorVerification(client, option, truth);
+      }
+    }
+  } catch (error) {
+    // Primary is set; verification is best-effort and must not undo intent.
+    console.error("[setPrimaryOption] operator verify", error);
+  }
+
+  return { ok: true };
+}
+
+function initialWatchSnapshot(
+  anchor: StandbyOption,
+  primaryOptionId: string | null,
+  options: StandbyOption[],
+  homeAirline?: string | null,
+): WatchSnapshot {
+  const primary = options.find((o) => o.id === primaryOptionId) ?? null;
+  const backup = computeBackupRunway(
+    options,
+    primaryOptionId,
+    homeAirline !== undefined ? { homeAirline } : undefined,
+  );
+  return buildPlanWatchSnapshot({
+    anchor,
+    preferred: options[0] ?? null,
+    primaryOptionId,
+    flightState: "unknown",
+    backup,
+    spilloverCancelled: spilloverFromOption(anchor),
+    primary,
+  });
 }
 
 export async function beginWatch(
   client: unknown,
   userId: string,
-  input: { optionId: string; mode: string },
+  input: { planId?: string; optionId?: string; mode: string },
 ): Promise<{ watchId: string }> {
-  const { data: optionRow } = await db(client)
-    .from("plan_options")
-    .select("*")
-    .eq("id", input.optionId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!optionRow) throw new Error("That option is no longer available.");
-  const option = optionFromRow(optionRow as Row, null);
+  let planId: string;
+  let anchorOptionId: string;
+  let anchorOption: StandbyOption;
+  let allOptions: StandbyOption[] = [];
+
+  if (input.planId) {
+    const plan = await loadPlan(client, userId, input.planId);
+    if (!plan) throw new Error("That plan is no longer available.");
+    planId = plan.id;
+    allOptions = plan.options;
+    anchorOptionId = plan.primaryOptionId ?? plan.options[0]?.id ?? "";
+    anchorOption = plan.options.find((o) => o.id === anchorOptionId) ?? plan.options[0]!;
+    if (!anchorOption) throw new Error("This plan has no options to watch yet.");
+  } else if (input.optionId) {
+    const { data: optionRow } = await db(client)
+      .from("plan_options")
+      .select("*")
+      .eq("id", input.optionId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!optionRow) throw new Error("That option is no longer available.");
+    anchorOption = optionFromRow(optionRow as Row, null);
+    planId = anchorOption.planId;
+    anchorOptionId = anchorOption.id;
+    const plan = await loadPlan(client, userId, planId);
+    allOptions = plan?.options ?? [anchorOption];
+  } else {
+    throw new Error("A plan or option is required to start watching.");
+  }
 
   const { data: existing } = await db(client)
     .from("watch_plans")
     .select("id")
     .eq("user_id", userId)
-    .eq("plan_option_id", input.optionId)
+    .eq("plan_id", planId)
     .eq("state", "active")
     .maybeSingle();
   if (existing) return { watchId: String((existing as Row)["id"]) };
+
+  const { data: planRow } = await db(client)
+    .from("plans")
+    .select("primary_option_id,prefs")
+    .eq("id", planId)
+    .maybeSingle();
+  const primaryOptionId =
+    ((planRow as Row | null)?.["primary_option_id"] as string | null) ?? anchorOptionId;
+  const prefs = ((planRow as Row | null)?.["prefs"] ?? {}) as Record<string, unknown>;
 
   const { data, error } = await db(client)
     .from("watch_plans")
     .insert({
       user_id: userId,
-      plan_option_id: input.optionId,
-      plan_id: option.planId,
+      plan_option_id: anchorOptionId,
+      plan_id: planId,
       mode: input.mode,
       state: "active",
       verdict: "steady",
-      snapshot: snapshotOf(option),
+      snapshot: initialWatchSnapshot(
+        anchorOption,
+        primaryOptionId,
+        allOptions,
+        homeAirlineFromPrefs(prefs),
+      ),
       last_checked_at: new Date().toISOString(),
       next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     })
@@ -715,20 +1196,64 @@ export async function beginWatch(
 export async function loadWatches(client: unknown, userId: string): Promise<WatchSummary[]> {
   const { data } = await db(client)
     .from("watch_plans")
-    .select("*, plan_options(*), plans(travel_date)")
+    .select("*, plan_options(*), plans(travel_date,origin_iata,dest_iata,primary_option_id)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  return ((data ?? []) as Row[]).map((row) => {
+  const rows = (data ?? []) as Row[];
+  const watchIds = rows.map((row) => String(row["id"]));
+  const headlines = new Map<string, string>();
+  const primaryOptionIds = [
+    ...new Set(
+      rows
+        .map((row) => {
+          const plan = (row["plans"] as Row) ?? {};
+          return plan["primary_option_id"] as string | null;
+        })
+        .filter(Boolean),
+    ),
+  ] as string[];
+  const primaryLabels = new Map<string, string>();
+
+  if (primaryOptionIds.length > 0) {
+    const { data: primaryOpts } = await db(client)
+      .from("plan_options")
+      .select("id, flight_label, dep_local")
+      .in("id", primaryOptionIds);
+    for (const opt of (primaryOpts ?? []) as Row[]) {
+      primaryLabels.set(String(opt["id"]), String(opt["flight_label"] ?? ""));
+    }
+  }
+
+  if (watchIds.length > 0) {
+    const { data: events } = await db(client)
+      .from("plan_change_events")
+      .select("watch_id, headline, occurred_at")
+      .in("watch_id", watchIds)
+      .eq("user_id", userId)
+      .eq("seen", false)
+      .order("occurred_at", { ascending: false });
+
+    for (const event of (events ?? []) as Row[]) {
+      const watchId = String(event["watch_id"]);
+      if (!headlines.has(watchId)) {
+        headlines.set(watchId, String(event["headline"] ?? ""));
+      }
+    }
+  }
+
+  return rows.map((row) => {
     const option = (row["plan_options"] as Row) ?? {};
     const plan = (row["plans"] as Row) ?? {};
+    const id = String(row["id"]);
+    const primaryOptionId = (plan["primary_option_id"] as string | null) ?? null;
     return {
-      id: String(row["id"]),
+      id,
       optionId: String(row["plan_option_id"]),
       planId: (row["plan_id"] as string | null) ?? null,
       flightLabel: String(option["flight_label"] ?? "Flight"),
-      origin: String(option["origin_iata"] ?? ""),
-      dest: String(option["dest_iata"] ?? ""),
+      origin: String(plan["origin_iata"] ?? option["origin_iata"] ?? ""),
+      dest: String(plan["dest_iata"] ?? option["dest_iata"] ?? ""),
       travelDate: String(plan["travel_date"] ?? ""),
       depLocal: String(option["dep_local"] ?? ""),
       judgment: String(option["label"] ?? "mixed"),
@@ -736,6 +1261,10 @@ export async function loadWatches(client: unknown, userId: string): Promise<Watc
       unseenChanges: Number(row["unseen_changes"] ?? 0),
       lastCheckedAt: String(row["last_checked_at"] ?? ""),
       state: String(row["state"] ?? "active"),
+      latestHeadline: headlines.get(id) ?? null,
+      primaryFlightLabel: primaryOptionId
+        ? (primaryLabels.get(primaryOptionId) ?? null)
+        : null,
     };
   });
 }
@@ -813,7 +1342,7 @@ export async function loadWatchTimeline(
   return { watch, option, changes };
 }
 
-/** Re-rank the watched option and record only meaningful movement. */
+/** Re-rank the watched plan and record only meaningful movement. */
 export async function recheckWatch(
   client: unknown,
   userId: string,
@@ -828,17 +1357,24 @@ export async function recheckWatch(
   if (!watchRow) return { changed: false };
 
   const row = watchRow as Row;
-  const optionRow = (row["plan_options"] as Row) ?? {};
+  const anchorRow = (row["plan_options"] as Row) ?? {};
   const planRow = (row["plans"] as Row) ?? {};
-  const before = optionFromRow(optionRow, null);
-  const prev = ((row["snapshot"] as WatchSnapshot | null) ?? snapshotOf(before)) as WatchSnapshot;
+  const anchorBefore = optionFromRow(anchorRow, null);
+  const prev = ((row["snapshot"] as WatchSnapshot | null) ??
+    initialWatchSnapshot(anchorBefore, null, [anchorBefore])) as WatchSnapshot;
   let flightState: WatchFlightState = prev.flightState ?? "unknown";
 
-  const events: Array<{ kind: string; severity: string; headline: string; detail: string }> = [];
-  const identity = watchFlightIdentity(before);
+  const prefs = planPrefsFromRow(planRow);
   const travelDate = String(planRow["travel_date"] ?? "");
   const planId = String(planRow["id"] ?? "");
+  const primaryOptionId =
+    (planRow["primary_option_id"] as string | null) ??
+    prev.primaryOptionId ??
+    String(row["plan_option_id"]);
 
+  const events: Array<{ kind: string; severity: string; headline: string; detail: string }> = [];
+
+  const identity = watchFlightIdentity(anchorBefore);
   if (identity) {
     const { getFlightProvider } = await import("@/lib/aircue/flight-provider.server");
     const provider = getFlightProvider();
@@ -851,91 +1387,141 @@ export async function recheckWatch(
 
     if (!unavailable && status) {
       const presence = classifyFlightStatus(status);
-      flightState = presence.state;
-      if (shouldEmitCancellation(prev.flightState, flightState)) {
-        events.push(cancellationEvent(before.flightLabel, before.origin, before.dest));
+      if (presence.presence === "confirmed") {
+        flightState = presence.state;
+        if (shouldEmitCancellation(prev.flightState, flightState)) {
+          events.push(
+            cancellationEvent(anchorBefore.flightLabel, anchorBefore.origin, anchorBefore.dest),
+          );
+        }
       }
     }
   }
 
+  const accessMeta =
+    (prefs["accessMetaSnapshot"] as import("@/lib/aircue/travel-access").AirlineAccessMeta | undefined) ??
+    (prefs["travelAccessSnapshot"] as { meta?: import("@/lib/aircue/travel-access").AirlineAccessMeta } | undefined)
+      ?.meta;
+
   const ranked = await rankStandbyOptions({
-    origin: String(optionRow["origin_iata"]),
-    dest: String(optionRow["dest_iata"]),
+    origin: String(planRow["origin_iata"]),
+    dest: String(planRow["dest_iata"]),
     travelDate,
-    carriers: optionRow["carrier"] ? [String(optionRow["carrier"])] : null,
+    // Prefer immutable Plan access snapshot; never broaden from live profile.
+    carriers:
+      (prefs["effectiveCarriers"] as string[] | null) ??
+      (prefs["carriers"] as string[] | null) ??
+      null,
     travelers: Number(planRow["travelers"] ?? 1),
     cabin: String(planRow["cabin"] ?? "any"),
     userId,
+    maxStops: Number(prefs["maxStops"] ?? 1),
+    nearby: Boolean(prefs["nearby"] ?? false),
+    routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
+    ...(accessMeta ? { accessMeta } : {}),
   });
 
-  const fresh = ranked.options.find((o) => o.flightLabel === before.flightLabel) ?? null;
+  const rerankTrusted = !ranked.incomplete && ranked.reason !== "data_unavailable";
 
-  if (fresh) {
+  if (rerankTrusted) {
+    const syncedOptions = await syncPlanOptionsFromRanked(
+      client,
+      planId,
+      userId,
+      ranked,
+      prefs,
+      travelDate,
+    );
+    const preferred = syncedOptions[0] ?? null;
+    let primary = syncedOptions.find((o) => o.id === primaryOptionId) ?? null;
+    let anchorFresh =
+      syncedOptions.find((o) => o.id === String(row["plan_option_id"])) ??
+      syncedOptions.find((o) => o.flightLabel === anchorBefore.flightLabel) ??
+      null;
+
+    // Lazy ADB operator verify on watched primary only.
+    const verifyTarget = primary ?? anchorFresh;
+    if (verifyTarget) {
+      const identity = watchFlightIdentity(verifyTarget);
+      if (identity) {
+        const allowed = effectiveCarriersFromPrefs(prefs);
+        const meta = accessMetaFromPrefs(prefs);
+        const truth = await verifyOperatorForFlight({
+          flightNumber: identity.flightNumber,
+          travelDate,
+          origin: identity.origin,
+          dest: identity.dest,
+          allowedAccess: allowed,
+          ...(meta ? { accessMeta: meta } : {}),
+          force: true,
+        });
+        const updated = await persistOperatorVerification(client, verifyTarget, truth);
+        if (primary && primary.id === updated.id) primary = updated;
+        if (anchorFresh && anchorFresh.id === updated.id) anchorFresh = updated;
+        const idx = syncedOptions.findIndex((o) => o.id === updated.id);
+        if (idx >= 0) syncedOptions[idx] = updated;
+      }
+    }
+
+    const backup = computeBackupRunway(syncedOptions, primaryOptionId, {
+      homeAirline: homeAirlineFromPrefs(prefs) ?? null,
+    });
+    const spillover = spilloverFromOption(anchorFresh ?? primary ?? preferred);
+
+    events.push(
+      ...detectPlanChangeEvents({
+        prev,
+        preferred,
+        primary,
+        backup,
+        spilloverCancelled: spillover,
+      }),
+    );
+    events.push(...detectAnchorOptionEvents(prev, anchorFresh));
+
+    if (events.length > 0) {
+      await db(client)
+        .from("plan_change_events")
+        .insert(
+          events.map((e) => ({
+            watch_id: watchId,
+            user_id: userId,
+            kind: e.kind,
+            severity: e.severity,
+            headline: e.headline,
+            detail: e.detail,
+          })),
+        );
+    }
+
+    const meaningful = events.filter((e) => e.severity === "meaningful").length;
+    const nextSnapshot = buildPlanWatchSnapshot({
+      anchor: anchorFresh ?? anchorBefore,
+      preferred,
+      primaryOptionId,
+      flightState,
+      backup,
+      spilloverCancelled: spillover,
+      prev,
+      primary,
+    });
+
     await db(client)
-      .from("plan_options")
+      .from("watch_plans")
       .update({
-        label: fresh.judgment,
-        confidence: fresh.confidence,
-        score: fresh.score,
-        headline: fresh.headline,
-        pillars: fresh.pillars,
-        reasons: fresh.reasons,
-        recovery: fresh.recovery,
-        evidence: fresh.evidence,
-        refreshed_at: new Date().toISOString(),
+        snapshot: nextSnapshot,
+        verdict: meaningful > 0 ? "changed" : "steady",
+        unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
+        last_checked_at: new Date().toISOString(),
+        next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       })
-      .eq("id", before.id);
+      .eq("id", watchId);
 
-    if (fresh.judgment !== prev.judgment) {
-      events.push({
-        kind: "judgment",
-        severity: "meaningful",
-        headline:
-          fresh.judgment === "favorable"
-            ? "This setup improved"
-            : fresh.judgment === "riskier"
-              ? "This setup got harder"
-              : "This setup shifted",
-        detail: fresh.headline,
-      });
-    }
-
-    const prevLargest = prev.largestShowing;
-    const nextLargest = fresh.evidence.availability.largestShowing;
-    if (prevLargest !== null && nextLargest !== null && nextLargest < prevLargest) {
-      events.push({
-        kind: "availability",
-        severity: nextLargest === 0 ? "meaningful" : "context",
-        headline:
-          nextLargest === 0
-            ? "Public availability has closed"
-            : "Public availability tightened",
-        detail: `Booking now shows for parties up to ${nextLargest}, down from ${prevLargest}. This is a demand signal, not a load.`,
-      });
-    }
-
-    const prevOps = prev.pillars?.["operations"];
-    const nextOps = fresh.pillars.find((p) => p.key === "operations")?.state;
-    if (prevOps && nextOps && prevOps !== nextOps && nextOps === "poor") {
-      events.push({
-        kind: "operations",
-        severity: "meaningful",
-        headline: "Operations turned against this plan",
-        detail: fresh.pillars.find((p) => p.key === "operations")?.detail ?? "",
-      });
-    }
-
-    const laterNow = fresh.recovery.laterNonstops.length;
-    if (laterNow < (prev.laterCount ?? 0)) {
-      events.push({
-        kind: "recovery",
-        severity: laterNow === 0 ? "meaningful" : "context",
-        headline: laterNow === 0 ? "You are out of backup options" : "Backup options thinned out",
-        detail: fresh.recovery.summary,
-      });
-    }
+    return { changed: meaningful > 0 };
   }
 
+  // Failed / incomplete rerank: preserve last known-good plan + snapshot runway.
+  // Feature #1 cancellation events (already in `events`) still persist.
   if (events.length > 0) {
     await db(client)
       .from("plan_change_events")
@@ -952,11 +1538,33 @@ export async function recheckWatch(
   }
 
   const meaningful = events.filter((e) => e.severity === "meaningful").length;
+  const preservedSnapshot: WatchSnapshot = {
+    judgment: prev.judgment,
+    pillars: prev.pillars,
+    largestShowing: prev.largestShowing,
+    laterCount: prev.laterCount,
+    flightState,
+    primaryOptionId: prev.primaryOptionId ?? primaryOptionId,
+    preferredOptionId: prev.preferredOptionId ?? null,
+  };
+  if (prev.backupRunwayCount !== undefined) {
+    preservedSnapshot.backupRunwayCount = prev.backupRunwayCount;
+  }
+  if (prev.backupNonstopCount !== undefined) {
+    preservedSnapshot.backupNonstopCount = prev.backupNonstopCount;
+  }
+  if (prev.backupConnectionCount !== undefined) {
+    preservedSnapshot.backupConnectionCount = prev.backupConnectionCount;
+  }
+  if (prev.spilloverCancelled !== undefined) {
+    preservedSnapshot.spilloverCancelled = prev.spilloverCancelled;
+  }
+
   await db(client)
     .from("watch_plans")
     .update({
-      snapshot: mergeRecheckSnapshot(before, fresh, prev, flightState),
-      verdict: meaningful > 0 ? "changed" : "steady",
+      snapshot: preservedSnapshot,
+      verdict: meaningful > 0 ? "changed" : String(row["verdict"] ?? "steady"),
       unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
       last_checked_at: new Date().toISOString(),
       next_check_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),

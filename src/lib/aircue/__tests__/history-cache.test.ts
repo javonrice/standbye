@@ -3,7 +3,9 @@
  * shared across every leg of every search; route-history output must be byte
  * identical whether the months came from the DB or the cache.
  */
-import { afterEach, describe, expect, it, mock, setSystemTime } from "bun:test";
+import { afterEach, describe, expect, it, setSystemTime } from "bun:test";
+
+import { mockModuleIsolated } from "./mock-module-isolated";
 
 const PATTERN_ROWS = [
   {
@@ -68,7 +70,7 @@ function builder(rows: unknown[], onAwait?: () => void) {
   return chain;
 }
 
-mock.module("@/integrations/supabase/client.server", () => ({
+await mockModuleIsolated("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       if (table === "hist_ontime_pattern") return builder(PATTERN_ROWS);

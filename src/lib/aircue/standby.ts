@@ -41,6 +41,17 @@ export interface OptionSegment {
   depLocal: string;
   arrLocal: string;
   schedDepUtc: string;
+  /** Provisional access from marketing carrier (pre-verify) or operator (post-verify). */
+  access?: import("@/lib/aircue/travel-access").AccessType | null;
+}
+
+export type StaffEligibility = import("@/lib/aircue/staff-eligibility").StaffEligibility;
+export type OperatorVerification = import("@/lib/aircue/staff-eligibility").OperatorVerification;
+
+export interface CommercialFare {
+  amount: number;
+  currency: string;
+  bookingUrl?: string | null;
 }
 
 export interface AvailabilityEvidence {
@@ -60,6 +71,9 @@ export interface ConditionsEvidence {
   forecast: string | null;
   forecastState: PillarState;
   note: string;
+  /** FAA NAS coverage for this airport's country/region. */
+  faaCoverage?: import("@/lib/aircue/coverage").CoverageState;
+  weatherCoverage?: import("@/lib/aircue/coverage").CoverageState;
 }
 
 export interface HistoryEvidence {
@@ -70,6 +84,8 @@ export interface HistoryEvidence {
   cancelPattern: string;
   delayPattern: string;
   sourcePeriod: string | null;
+  /** History source coverage for this route/carrier window. */
+  historyCoverage?: import("@/lib/aircue/coverage").CoverageState;
 }
 
 export interface HolidayEvidence {
@@ -166,6 +182,8 @@ export interface StandbyOption {
   confidence: Confidence;
   headline: string;
   flightLabel: string;
+  /** Deterministic itinerary identity; null on legacy rows until next sync. */
+  optionKey: string | null;
   carrier: string | null;
   flightNumber: string | null;
   origin: string;
@@ -182,9 +200,20 @@ export interface StandbyOption {
     history: HistoryEvidence | null;
     holiday: HolidayEvidence | null;
     recovery: RecoveryEvidence;
+    /** Itinerary-level access (worst segment), when known. */
+    access?: import("@/lib/aircue/travel-access").AccessType | null;
+    staffEligibility?: StaffEligibility;
+    operatorVerification?: OperatorVerification;
+    commercialFare?: CommercialFare | null;
+    standbyClears?: number;
   };
   load: ReportedLoad | null;
   refreshedAt: string;
+  access?: import("@/lib/aircue/travel-access").AccessType | null;
+  staffEligibility?: StaffEligibility;
+  operatorVerification?: OperatorVerification;
+  commercialFare?: CommercialFare | null;
+  standbyClears?: number;
 }
 
 export interface StandbyPlan {
@@ -208,6 +237,27 @@ export interface StandbyPlan {
   mode: PlanMode;
   /** True when this escape shares an existing Standby Day for the same route/date. */
   standbyDayShared: boolean;
+  /** Traveler's chosen primary option, if any. */
+  primaryOptionId: string | null;
+  /** Active watch on this plan, if any. */
+  watching: boolean;
+  watchId: string | null;
+  planVerdict: string | null;
+  lastCheckedAt: string | null;
+  /** Rank-1 option after latest rank (Standbye's current preference). */
+  preferredOptionId: string | null;
+  backupRunway: {
+    totalRealisticWays: number;
+    backupAlternatives: number;
+    nonstops: number;
+    connections: number;
+    summary: string;
+    /** Alias of totalRealisticWays for older callers. */
+    total: number;
+    homeCount?: number;
+    zedCount?: number;
+    otherCount?: number;
+  };
 }
 
 export const judgmentFace: Record<Judgment, string> = {

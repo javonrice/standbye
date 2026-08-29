@@ -11,6 +11,12 @@ export type WatchSnapshot = {
   largestShowing: number | null;
   laterCount: number;
   flightState?: WatchFlightState;
+  primaryOptionId?: string | null;
+  preferredOptionId?: string | null;
+  backupRunwayCount?: number;
+  backupNonstopCount?: number;
+  backupConnectionCount?: number;
+  spilloverCancelled?: number;
 };
 
 export type FlightPresence =
@@ -42,7 +48,9 @@ export function watchFlightIdentity(
 }
 
 /** Map provider status into a watch-safe state. Delayed still means operating. */
-export function classifyFlightStatus(status: FlightStatus): FlightPresence {
+export function classifyFlightStatus(
+  status: FlightStatus,
+): Extract<FlightPresence, { presence: "confirmed" }> {
   switch (status.state) {
     case "cancelled":
       return { presence: "confirmed", state: "cancelled", label: status.label };

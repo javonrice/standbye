@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight, LogOut } from "lucide-react";
 
+import { Screen } from "@/components/aircue/Layout";
 import { supabase } from "@/integrations/supabase/client";
-import { getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
+import { getStandbyProfile, listCommittedPlans } from "@/lib/aircue/plan.functions";
 import { travelerTypes } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/you")({
@@ -26,10 +27,10 @@ export const Route = createFileRoute("/_authenticated/you")({
 function YouPage() {
   const navigate = useNavigate();
   const profileFn = useServerFn(getStandbyProfile);
-  const plansFn = useServerFn(listPlans);
+  const plansFn = useServerFn(listCommittedPlans);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => profileFn() });
-  const { data: plans } = useQuery({ queryKey: ["plans"], queryFn: () => plansFn() });
+  const { data: plans } = useQuery({ queryKey: ["committed-plans"], queryFn: () => plansFn() });
 
   const travelerLabel =
     travelerTypes.find((t) => t.value === profile?.travelerType)?.label ?? "Not set";
@@ -40,9 +41,9 @@ function YouPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
-      <h1 className="font-display text-2xl font-bold tracking-tight">You</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
+    <Screen>
+      <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight">You</h1>
+      <p className="mt-1.5 text-[15px] text-muted-foreground">
         Standbye reads your options through your travel setup, so keep this current.
       </p>
 
@@ -75,7 +76,7 @@ function YouPage() {
         <h2 className="font-display text-base font-semibold">Your plans</h2>
         {!plans || plans.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
-            No plans yet. Start one from the Plan tab.
+            No plans yet. Build a search on Home, then pick a primary or watch a plan.
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -91,8 +92,9 @@ function YouPage() {
                       {p.origin} → {p.dest}
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      {p.travelDate} · {p.optionCount}{" "}
-                      {p.optionCount === 1 ? "setup" : "setups"}
+                      {p.travelDate}
+                      {p.primaryFlightLabel ? ` · Primary ${p.primaryFlightLabel}` : ""}
+                      {p.watching ? " · Watching" : ""}
                     </span>
                   </span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -101,6 +103,13 @@ function YouPage() {
             ))}
           </ul>
         )}
+        <Link
+          to="/plans"
+          className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium"
+        >
+          Open Plans
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
       </section>
 
       <section className="mt-4 rounded-2xl border border-border bg-surface p-4">
@@ -127,7 +136,7 @@ function YouPage() {
       >
         <LogOut className="h-4 w-4" /> Sign out
       </button>
-    </main>
+    </Screen>
   );
 }
 

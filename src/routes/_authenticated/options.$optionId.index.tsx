@@ -3,19 +3,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
-  Bell,
-  BellOff,
   ChevronRight,
   LifeBuoy,
+  Star,
 } from "lucide-react";
 
+import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
+import { Screen } from "@/components/aircue/Layout";
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { FlightHero } from "@/components/aircue/FlightHero";
 import { StandbyeTake } from "@/components/aircue/StandbyeTake";
 import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/SignalRow";
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
-import { startWatchPlan, stopWatchPlan } from "@/lib/aircue/plan.functions";
+import { setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
 import {
   agoLabel,
   confidenceLabel,
@@ -45,22 +46,40 @@ function CueScreen() {
   const { optionId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useOption(optionId);
-  const begin = useServerFn(startWatchPlan);
-  const end = useServerFn(stopWatchPlan);
+  const { data, isLoading, isError } = useOption(optionId);
+  const setPrimary = useServerFn(setPrimaryOptionFn);
 
-  const watch = useMutation({
-    mutationFn: () => begin({ data: { optionId, mode: "meaningful" } }),
-    onSuccess: ({ watchId }) => navigate({ to: "/watching/$watchId", params: { watchId } }),
-  });
-
-  const unwatch = useMutation({
-    mutationFn: (watchId: string) => end({ data: { watchId } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["option", optionId] }),
+  const makePrimary = useMutation({
+    mutationFn: () =>
+      setPrimary({ data: { planId: data!.planId!, optionId } }),
+    onSuccess: async () => {
+      const planId = data!.planId!;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["option", optionId] }),
+        queryClient.invalidateQueries({ queryKey: ["plan", planId] }),
+        queryClient.invalidateQueries({ queryKey: ["committed-plans"] }),
+        queryClient.invalidateQueries({ queryKey: ["recent-searches"] }),
+      ]);
+      void navigate({ to: "/plans/$planId", params: { planId } });
+    },
   });
 
   if (isLoading) {
     return <p className="p-6 text-sm text-muted-foreground">Loading this cue…</p>;
+  }
+
+  if (isError) {
+    return (
+      <main className="mx-auto max-w-md px-5 py-10">
+        <p className="font-display text-lg font-semibold">Could not load this option</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Something went wrong on our side. Try again in a moment — your plan is still there.
+        </p>
+        <Button asChild className="mt-4 h-11" variant="outline">
+          <Link to="/plan">Back to Home</Link>
+        </Button>
+      </main>
+    );
   }
 
   const option = data?.option;
@@ -96,20 +115,30 @@ function CueScreen() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-3xl md:px-10 md:pt-12">
+    <Screen width="lg">
       {data?.planId && (
         <Link
           to="/plans/$planId"
           params={{ planId: data.planId }}
           className="flex items-center gap-1.5 text-sm text-muted-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> All options
+          <ArrowLeft className="h-4 w-4" /> Back to plan
         </Link>
       )}
 
       <header className="mt-4">
+        <div className="mb-3 flex items-center gap-3">
+          <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={44} />
+          <div className="min-w-0">
+            <p className="font-display text-[19px] font-bold leading-tight tracking-tight">
+              {option.flightLabel}
+            </p>
+            {dateLabel ? (
+              <p className="text-[13px] text-muted-foreground">{dateLabel}</p>
+            ) : null}
+          </div>
+        </div>
         <FlightHero
-          eyebrow={dateLabel ? `${option.flightLabel} · ${dateLabel}` : option.flightLabel}
           origin={option.origin}
           dest={option.dest}
           depLocal={option.depLocal}
@@ -196,20 +225,21 @@ function CueScreen() {
       <StandbyeTake className="mt-6">{option.headline}</StandbyeTake>
 
       <div className="mt-6 space-y-2">
-        {data?.watchId ? (
-          <Button
-            variant="outline"
-            className="h-12 w-full"
-            disabled={unwatch.isPending}
-            onClick={() => unwatch.mutate(data.watchId as string)}
-          >
-            <BellOff className="mr-2 h-4 w-4" /> Stop watching this Standby Day
-          </Button>
-        ) : (
-          <Button className="h-12 w-full" disabled={watch.isPending} onClick={() => watch.mutate()}>
-            <Bell className="mr-2 h-4 w-4" />
-            {watch.isPending ? "Setting up…" : "Watch this Standby Day"}
-          </Button>
+        {data?.planId && (
+          data.isPrimary ? (
+            <p className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 text-sm font-semibold text-muted-foreground">
+              <Star className="h-4 w-4" /> Your primary option
+            </p>
+          ) : (
+            <Button
+              className="h-12 w-full"
+              disabled={makePrimary.isPending}
+              onClick={() => makePrimary.mutate()}
+            >
+              <Star className="mr-2 h-4 w-4" />
+              {makePrimary.isPending ? "Saving…" : "Make this my primary option"}
+            </Button>
+          )
         )}
         <Button asChild variant="outline" className="h-12 w-full">
           <Link to="/options/$optionId/recovery" params={{ optionId }}>
@@ -222,7 +252,7 @@ function CueScreen() {
         Standbye reads public availability and operating conditions. It is not airline load data and
         never predicts whether you will clear.
       </p>
-    </main>
+    </Screen>
   );
 }
 

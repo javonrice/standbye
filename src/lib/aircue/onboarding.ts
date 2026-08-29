@@ -1,6 +1,15 @@
 /** Client-side onboarding draft: collected before the user has an account. */
 
-export type AccessMode = "home" | "partners" | "selected";
+import {
+  buildAccessMetaFromDraft,
+  resolvedAccessCodes,
+  resolveTravelAccess,
+  type AccessMode,
+  type AirlineAccessMeta,
+} from "@/lib/aircue/travel-access";
+
+export type { AccessMode };
+export { buildAccessMetaFromDraft };
 
 export interface OnboardingDraft {
   painPoint: string;
@@ -46,8 +55,16 @@ export const popularAirlines = ["UA", "AA", "DL", "WN", "B6", "AS"];
 
 export const accessModeLabel: Record<AccessMode, string> = {
   home: "My home airline",
-  partners: "Home airline + partner / ZED airlines",
+  partners: "Home airline + ZED / interline airlines I can use",
   selected: "Only airlines I select",
+};
+
+/** Clarifies ZED/interline is user-declared — never alliance membership. */
+export const accessModeHint: Record<AccessMode, string> = {
+  home: "Standbye will only consider your home airline for staff travel.",
+  partners:
+    "Include airlines where you know you can staff travel through ZED, interline, or another employee benefit. Alliance membership alone is not enough.",
+  selected: "Pick exactly which airlines you can staff travel on (plus your home airline).",
 };
 
 export const emptyDraft: OnboardingDraft = {
@@ -90,31 +107,21 @@ export function clearDraft(): void {
   }
 }
 
-/** Airlines Standbye may consider, derived from the access answers. */
+/** Airlines Standbye may consider, derived from the access answers (IATA only). */
 export function resolvedAccess(draft: OnboardingDraft): string[] {
-  if (draft.accessMode === "home") return [draft.homeAirline];
-  if (draft.accessMode === "selected") {
-    return Array.from(new Set([draft.homeAirline, ...draft.airlineAccess]));
-  }
-  return [];
+  return resolvedAccessCodes(draft);
 }
 
 /**
- * Airlines Standbye may consider for a saved profile. `airline_access` can hold
- * the access-mode token ("home"/"any") rather than real codes, so filter to
- * genuine IATA codes and fall back to the home airline.
+ * Airlines Standbye may consider for a saved profile.
+ * Never expands to unfiltered "any/all" staff travel — only declared access.
+ * Missing home with no codes → empty list (never invent UA).
  */
 export function profileCarriers(profile: {
   homeAirline?: string | null | undefined;
   airlineAccess?: string[] | null | undefined;
   accessMode?: string | null | undefined;
-}): string[] | null {
-  const home = (profile.homeAirline ?? "").toUpperCase();
-  const codes = (profile.airlineAccess ?? [])
-    .map((a) => a.toUpperCase())
-    .filter((a) => /^[A-Z0-9]{2,3}$/.test(a) && a !== "ANY" && a !== "ALL");
-  if (profile.accessMode === "any" || profile.accessMode === "all") return null;
-  if (profile.accessMode === "home") return home ? [home] : null;
-  const merged = Array.from(new Set([...(home ? [home] : []), ...codes]));
-  return merged.length ? merged : null;
+  airlineAccessMeta?: AirlineAccessMeta | null | undefined;
+}): string[] {
+  return resolveTravelAccess(profile).codes;
 }

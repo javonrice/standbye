@@ -67,7 +67,7 @@ function EscapeHome() {
           ...(when === "later" && depTime ? { depTime } : {}),
         },
       }),
-    onSuccess: ({ planId }) => navigate({ to: "/escape/$planId", params: { planId } }),
+    onSuccess: ({ planId }) => navigate({ to: "/plans/$planId", params: { planId } }),
   });
 
   return (
@@ -75,15 +75,15 @@ function EscapeHome() {
       {run.isPending && <SearchingOverlay phase="escape" origin={origin} dest={dest} />}
 
       <Link to="/plan" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <ArrowLeft className="h-4 w-4" /> Plan
+        <ArrowLeft className="h-4 w-4" /> Plans
       </Link>
 
       <h1 className="mt-6 font-display text-[30px] font-bold leading-[1.15] tracking-tight md:text-[34px]">
-        Stuck? Find another way.
+        Stuck? Widen your plan.
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-        Standbye will look beyond the usual itinerary for realistic ways to keep you moving —
-        including the odd little stations that actually get you there.
+        Standbye will look beyond the usual itinerary for realistic ways to keep you moving — the
+        same plan, widened when you need another way.
       </p>
 
       <form
@@ -170,7 +170,7 @@ function EscapeHome() {
           disabled={origin.length !== 3 || dest.length !== 3 || run.isPending}
           className="mt-5 h-14 w-full rounded-2xl text-[16px] font-semibold"
         >
-          Find me a way →
+          Widen my plan →
         </Button>
 
         {run.isError && (

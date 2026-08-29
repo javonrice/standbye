@@ -50,8 +50,8 @@ function KnownFlightPage() {
         },
       }),
     onSuccess: (res) => {
-      if (res.optionId) navigate({ to: "/options/$optionId", params: { optionId: res.optionId } });
-      else if (res.planId) navigate({ to: "/plans/$planId", params: { planId: res.planId } });
+      if (res.planId) navigate({ to: "/plans/$planId", params: { planId: res.planId } });
+      else if (res.optionId) navigate({ to: "/options/$optionId", params: { optionId: res.optionId } });
     },
   });
 

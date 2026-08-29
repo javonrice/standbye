@@ -22,6 +22,8 @@ export interface StandbyProfileValues {
   freeDayUsed?: boolean | undefined;
   notifyOptin?: boolean | undefined;
   coachSeen?: boolean | undefined;
+  /** Per-carrier access typing: home | zed | other. */
+  airlineAccessMeta?: import("@/lib/aircue/travel-access").AirlineAccessMeta | undefined;
 }
 
 
@@ -35,6 +37,14 @@ export interface PlanSummary {
   optionCount: number;
   createdAt: string;
   mode: "standby" | "escape";
+  watching: boolean;
+  planVerdict: string | null;
+  lastCheckedAt: string | null;
+  primaryFlightLabel: string | null;
+  /** True when plans.primary_option_id is set (committed intent). */
+  hasPrimary: boolean;
+  /** Short backup runway line for list rows, when options exist. */
+  backupRunwaySummary: string | null;
 }
 
 export interface WatchSummary {
@@ -51,6 +61,10 @@ export interface WatchSummary {
   unseenChanges: number;
   lastCheckedAt: string;
   state: string;
+  /** Most recent unseen change headline, when the plan needs attention. */
+  latestHeadline: string | null;
+  /** Primary option flight label when set on the plan. */
+  primaryFlightLabel: string | null;
 }
 
 export interface ChangeItem {
@@ -88,7 +102,9 @@ export const saveStandbyProfile = createServerFn({ method: "POST" })
         freeDayUsed: z.boolean().optional(),
         notifyOptin: z.boolean().optional(),
         coachSeen: z.boolean().optional(),
-
+        airlineAccessMeta: z
+          .record(z.object({ type: z.enum(["home", "zed", "other"]) }))
+          .optional(),
       })
       .parse(input),
   )
@@ -107,7 +123,8 @@ export const createPlan = createServerFn({ method: "POST" })
     travelDate: string;
     travelers: number;
     cabin: string;
-    carriers: string[] | null;
+    /** Preference subset of Travel Access; omit/empty = all saved access. Never expands eligibility. */
+    carriers?: string[] | null;
     maxStops?: number;
     nearby?: boolean;
     routingMode?: string;
@@ -119,7 +136,7 @@ export const createPlan = createServerFn({ method: "POST" })
         travelDate: z.string().min(10).max(10),
         travelers: z.number().int().min(1).max(9),
         cabin: z.string().min(3).max(16),
-        carriers: z.array(z.string().min(2).max(3)).max(12).nullable(),
+        carriers: z.array(z.string().min(2).max(3)).max(12).nullable().optional(),
         maxStops: z.number().int().min(0).max(1).optional(),
         nearby: z.boolean().optional(),
         routingMode: z.enum(["best", "nonstop", "wide"]).optional(),
@@ -128,7 +145,10 @@ export const createPlan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ planId: string; optionCount: number; reason: string | null }> => {
     const { buildPlan } = await import("@/lib/aircue/plan.server");
-    return buildPlan(context.supabase, context.userId, data);
+    return buildPlan(context.supabase, context.userId, {
+      ...data,
+      carriers: data.carriers ?? null,
+    });
   });
 
 /* --------------------------------- escape --------------------------------- */
@@ -148,9 +168,12 @@ export const createEscapePlan = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ planId: string; optionCount: number; reason: string | null }> => {
     const { buildEscapePlan, loadStandbyProfile } = await import("@/lib/aircue/plan.server");
-    const { profileCarriers } = await import("@/lib/aircue/onboarding");
+    const { resolveTravelAccess, effectiveStaffTravelCarriers } = await import(
+      "@/lib/aircue/travel-access"
+    );
     const profile = await loadStandbyProfile(context.supabase, context.userId);
-    const carriers = profile ? profileCarriers(profile) : null;
+    const saved = resolveTravelAccess(profile ?? {});
+    const carriers = effectiveStaffTravelCarriers(saved, null);
     return buildEscapePlan(context.supabase, context.userId, {
       origin: data.origin,
       dest: data.dest,
@@ -190,6 +213,22 @@ export const listPlans = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<PlanSummary[]> => {
     const { loadPlanSummaries } = await import("@/lib/aircue/plan.server");
     return loadPlanSummaries(context.supabase, context.userId);
+  });
+
+/** Trips with a primary option and/or an active watch. */
+export const listCommittedPlans = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PlanSummary[]> => {
+    const { loadCommittedPlanSummaries } = await import("@/lib/aircue/plan.server");
+    return loadCommittedPlanSummaries(context.supabase, context.userId);
+  });
+
+/** Uncommitted exploration builds (no primary, no active watch). */
+export const listRecentSearches = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PlanSummary[]> => {
+    const { loadRecentSearchSummaries } = await import("@/lib/aircue/plan.server");
+    return loadRecentSearchSummaries(context.supabase, context.userId);
   });
 
 export const checkKnownFlight = createServerFn({ method: "POST" })
@@ -241,14 +280,36 @@ export const addReportedLoad = createServerFn({ method: "POST" })
 
 /* -------------------------------- watching -------------------------------- */
 
+export const setPrimaryOptionFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { planId: string; optionId: string }) =>
+    z.object({ planId: z.string().uuid(), optionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { setPrimaryOption } = await import("@/lib/aircue/plan.server");
+    return setPrimaryOption(context.supabase, context.userId, data.planId, data.optionId);
+  });
+
 export const startWatchPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { optionId: string; mode: string }) =>
-    z.object({ optionId: z.string().uuid(), mode: z.string().min(3).max(24) }).parse(input),
+  .inputValidator((input: { planId?: string; optionId?: string; mode: string }) =>
+    z
+      .object({
+        planId: z.string().uuid().optional(),
+        optionId: z.string().uuid().optional(),
+        mode: z.string().min(3).max(24),
+      })
+      .refine((v) => Boolean(v.planId || v.optionId), {
+        message: "planId or optionId required",
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ watchId: string }> => {
     const { beginWatch } = await import("@/lib/aircue/plan.server");
-    return beginWatch(context.supabase, context.userId, data);
+    const input: { planId?: string; optionId?: string; mode: string } = { mode: data.mode };
+    if (data.planId) input.planId = data.planId;
+    if (data.optionId) input.optionId = data.optionId;
+    return beginWatch(context.supabase, context.userId, input);
   });
 
 export const listWatchPlans = createServerFn({ method: "GET" })
