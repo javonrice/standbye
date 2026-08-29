@@ -48,7 +48,9 @@ export function watchFlightIdentity(
 }
 
 /** Map provider status into a watch-safe state. Delayed still means operating. */
-export function classifyFlightStatus(status: FlightStatus): FlightPresence {
+export function classifyFlightStatus(
+  status: FlightStatus,
+): Extract<FlightPresence, { presence: "confirmed" }> {
   switch (status.state) {
     case "cancelled":
       return { presence: "confirmed", state: "cancelled", label: status.label };

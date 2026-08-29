@@ -12,7 +12,13 @@ import {
   watchFlightIdentity,
 } from "@/lib/aircue/watch-flight-state.server";
 
-function status(state: FlightStatus["state"], label = state): FlightStatus {
+function status(state: FlightStatus["state"], label?: string): FlightStatus {
+  return { state, label: label ?? state };
+}
+function unused_removed(): never {
+  throw new Error("unused");
+}
+function statusLegacy(state: FlightStatus["state"], label = state): FlightStatus {
   return { state, label };
 }
 
