@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight } from "lucide-react";
 
+import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { EmptyState, Screen, StatusLine } from "@/components/aircue/Layout";
+
 import { Button } from "@/components/ui/button";
 import { listCommittedPlans, type PlanSummary } from "@/lib/aircue/plan.functions";
 
