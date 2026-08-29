@@ -199,7 +199,12 @@ function ComparePage() {
                           className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pillarDot[cell.state])}
                         />
                       )}
-                      <span className="truncate">{cell.text}</span>
+                      {cell.time ? (
+                        <LocalTime value={cell.text} className="truncate" />
+                      ) : (
+                        <span className="truncate">{cell.text}</span>
+                      )}
+
                     </div>
                   ))}
                 </div>
