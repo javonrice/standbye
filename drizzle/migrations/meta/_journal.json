@@ -50,6 +50,13 @@
       "when": 1788018148629,
       "tag": "0006_airports_global_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788018181429,
+      "tag": "0007_airports_seed_grant_sandbox_exec",
+      "breakpoints": true
     }
   ]
 }
