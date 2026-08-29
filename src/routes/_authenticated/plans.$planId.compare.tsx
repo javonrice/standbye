@@ -4,7 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ChevronRight, Star } from "lucide-react";
 
 import { getPlan, setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
+import { LocalTime } from "@/components/aircue/LocalTime";
 import { formatOptionArrival } from "@/lib/aircue/option-display";
+
 import {
   judgmentFace,
   judgmentShort,
