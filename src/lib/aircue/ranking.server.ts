@@ -101,7 +101,7 @@ export interface RankedOption {
 
 /* ------------------------------ small helpers ----------------------------- */
 
-const PARTY_LEVELS = [1, 2, 4, 6, 9];
+const PARTY_LEVELS = [1, 2, 3, 4];
 
 /** A standby search answers with what it has rather than hanging the traveller. */
 const SEARCH_BUDGET_MS = 20_000;
@@ -233,7 +233,7 @@ function availabilityFor(
     };
   }
 
-  const largest = entry.largestN ?? (entry.bucket === "9+" ? 9 : entry.bucket === "0" ? 0 : null);
+  const largest = entry.largestN ?? (entry.bucket === "9+" ? 4 : entry.bucket === "0" ? 0 : null);
   const tested = PARTY_LEVELS.map((adults) => ({
     adults,
     showing: largest === null ? false : adults <= largest,
