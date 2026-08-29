@@ -73,6 +73,7 @@ function HomePage() {
   const [showPrefs, setShowPrefs] = useState(false);
   const [routingMode, setRoutingMode] = useState<RoutingMode>("best");
   const [nearby, setNearby] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => loadProfile() });
   const { data: recent } = useQuery({
@@ -82,8 +83,12 @@ function HomePage() {
 
   useEffect(() => {
     if (profile && !profile.onboarded) navigate({ to: "/onboarding" });
-    if (profile?.homeAirports?.[0] && !origin) setOrigin(profile.homeAirports[0]);
-  }, [profile, navigate, origin]);
+    // Prefill home airport once — clearing it must not snap it back.
+    if (profile?.homeAirports?.[0] && !prefilled) {
+      setPrefilled(true);
+      setOrigin((v) => v || profile.homeAirports[0]!);
+    }
+  }, [profile, navigate, prefilled]);
 
   const accessCodes = profile ? profileCarriers(profile) : [];
   const carriers =

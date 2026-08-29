@@ -93,6 +93,9 @@ export function AirportField({
         align="start"
         sideOffset={6}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
         className="max-h-60 w-auto overflow-hidden border-border bg-card p-0 shadow-card"
         style={{ width: "var(--radix-popover-trigger-width)" }}
       >
