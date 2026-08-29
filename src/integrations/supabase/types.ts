@@ -450,6 +450,7 @@ export type Database = {
           is_current: boolean
           kind: string
           label: string
+          option_key: string | null
           origin_iata: string
           pillars: Json
           plan_id: string
@@ -478,6 +479,7 @@ export type Database = {
           is_current?: boolean
           kind?: string
           label?: string
+          option_key?: string | null
           origin_iata: string
           pillars?: Json
           plan_id: string
@@ -506,6 +508,7 @@ export type Database = {
           is_current?: boolean
           kind?: string
           label?: string
+          option_key?: string | null
           origin_iata?: string
           pillars?: Json
           plan_id?: string
@@ -767,6 +770,7 @@ export type Database = {
         Row: {
           access_mode: string
           airline_access: string[]
+          airline_access_meta: Json
           coach_seen: string[]
           free_day_used: boolean
           home_airline: string
@@ -782,6 +786,7 @@ export type Database = {
         Insert: {
           access_mode?: string
           airline_access?: string[]
+          airline_access_meta?: Json
           coach_seen?: string[]
           free_day_used?: boolean
           home_airline?: string
@@ -797,6 +802,7 @@ export type Database = {
         Update: {
           access_mode?: string
           airline_access?: string[]
+          airline_access_meta?: Json
           coach_seen?: string[]
           free_day_used?: boolean
           home_airline?: string
