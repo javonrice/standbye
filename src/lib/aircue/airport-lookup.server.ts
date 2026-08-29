@@ -87,7 +87,7 @@ async function loadAirportMeta(codes: string[]): Promise<void> {
   if (missing.length === 0) return;
 
   airportLookupStats.metadataReads += 1;
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("airports")
     .select("iata,icao,lat,lon,city,state,tz,country")
     .in("iata", missing);
@@ -105,8 +105,12 @@ async function loadAirportMeta(codes: string[]): Promise<void> {
       country: row.country ?? null,
     });
   }
+  // Only remember a miss when the read actually succeeded. Caching a failed
+  // read as "unknown airport" would drop timezones for the process lifetime.
+  if (error) return;
   for (const code of missing) if (!metaCache.has(code)) metaCache.set(code, null);
 }
+
 
 /** Full metadata for one airport, or null when we have no row for it. */
 export async function airportMeta(iata: string): Promise<AirportMeta | null> {
