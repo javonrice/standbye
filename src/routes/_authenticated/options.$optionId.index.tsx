@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -42,6 +42,7 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/")({
 
 function CueScreen() {
   const { optionId } = Route.useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, isError } = useOption(optionId);
   const setPrimary = useServerFn(setPrimaryOptionFn);
@@ -49,9 +50,15 @@ function CueScreen() {
   const makePrimary = useMutation({
     mutationFn: () =>
       setPrimary({ data: { planId: data!.planId!, optionId } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["option", optionId] });
-      if (data?.planId) queryClient.invalidateQueries({ queryKey: ["plan", data.planId] });
+    onSuccess: async () => {
+      const planId = data!.planId!;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["option", optionId] }),
+        queryClient.invalidateQueries({ queryKey: ["plan", planId] }),
+        queryClient.invalidateQueries({ queryKey: ["committed-plans"] }),
+        queryClient.invalidateQueries({ queryKey: ["recent-searches"] }),
+      ]);
+      void navigate({ to: "/plans/$planId", params: { planId } });
     },
   });
 
@@ -67,7 +74,7 @@ function CueScreen() {
           Something went wrong on our side. Try again in a moment — your plan is still there.
         </p>
         <Button asChild className="mt-4 h-11" variant="outline">
-          <Link to="/plan">Back to plans</Link>
+          <Link to="/plan">Back to Home</Link>
         </Button>
       </main>
     );

@@ -40,8 +40,12 @@ function PlanDetailScreen() {
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-12 pt-8 md:max-w-3xl md:px-10 md:pt-12">
-      <Link to="/plan" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <ArrowLeft className="h-4 w-4" /> Your plans
+      <Link
+        to={plan && (plan.primaryOptionId || plan.watching) ? "/plans" : "/plan"}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />{" "}
+        {plan && (plan.primaryOptionId || plan.watching) ? "Your plans" : "Home"}
       </Link>
 
       {isLoading && (

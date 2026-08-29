@@ -39,6 +39,10 @@ export interface PlanSummary {
   planVerdict: string | null;
   lastCheckedAt: string | null;
   primaryFlightLabel: string | null;
+  /** True when plans.primary_option_id is set (committed intent). */
+  hasPrimary: boolean;
+  /** Short backup runway line for list rows, when options exist. */
+  backupRunwaySummary: string | null;
 }
 
 export interface WatchSummary {
@@ -198,6 +202,22 @@ export const listPlans = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<PlanSummary[]> => {
     const { loadPlanSummaries } = await import("@/lib/aircue/plan.server");
     return loadPlanSummaries(context.supabase, context.userId);
+  });
+
+/** Trips with a primary option and/or an active watch. */
+export const listCommittedPlans = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PlanSummary[]> => {
+    const { loadCommittedPlanSummaries } = await import("@/lib/aircue/plan.server");
+    return loadCommittedPlanSummaries(context.supabase, context.userId);
+  });
+
+/** Uncommitted exploration builds (no primary, no active watch). */
+export const listRecentSearches = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PlanSummary[]> => {
+    const { loadRecentSearchSummaries } = await import("@/lib/aircue/plan.server");
+    return loadRecentSearchSummaries(context.supabase, context.userId);
   });
 
 export const checkKnownFlight = createServerFn({ method: "POST" })

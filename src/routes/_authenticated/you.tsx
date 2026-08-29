@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight, LogOut } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
+import { getStandbyProfile, listCommittedPlans } from "@/lib/aircue/plan.functions";
 import { travelerTypes } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/you")({
@@ -26,10 +26,10 @@ export const Route = createFileRoute("/_authenticated/you")({
 function YouPage() {
   const navigate = useNavigate();
   const profileFn = useServerFn(getStandbyProfile);
-  const plansFn = useServerFn(listPlans);
+  const plansFn = useServerFn(listCommittedPlans);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => profileFn() });
-  const { data: plans } = useQuery({ queryKey: ["plans"], queryFn: () => plansFn() });
+  const { data: plans } = useQuery({ queryKey: ["committed-plans"], queryFn: () => plansFn() });
 
   const travelerLabel =
     travelerTypes.find((t) => t.value === profile?.travelerType)?.label ?? "Not set";
@@ -75,7 +75,7 @@ function YouPage() {
         <h2 className="font-display text-base font-semibold">Your plans</h2>
         {!plans || plans.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
-            No plans yet. Start one from the Plan tab.
+            No plans yet. Build a search on Home, then pick a primary or watch a plan.
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -91,8 +91,9 @@ function YouPage() {
                       {p.origin} → {p.dest}
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      {p.travelDate} · {p.optionCount}{" "}
-                      {p.optionCount === 1 ? "setup" : "setups"}
+                      {p.travelDate}
+                      {p.primaryFlightLabel ? ` · Primary ${p.primaryFlightLabel}` : ""}
+                      {p.watching ? " · Watching" : ""}
                     </span>
                   </span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -101,6 +102,13 @@ function YouPage() {
             ))}
           </ul>
         )}
+        <Link
+          to="/plans"
+          className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium"
+        >
+          Open Plans
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
       </section>
 
       <section className="mt-4 rounded-2xl border border-border bg-surface p-4">

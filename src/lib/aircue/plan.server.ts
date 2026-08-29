@@ -538,45 +538,96 @@ export async function loadPlanSummaries(client: unknown, userId: string): Promis
   const { data, error } = await db(client)
     .from("plans")
     .select(
-      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options!plan_options_plan_id_fkey(label,rank,flight_label,id,is_current),watch_plans(state,verdict,last_checked_at)",
+      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options!plan_options_plan_id_fkey(label,rank,flight_label,id,is_current,kind),watch_plans(state,verdict,last_checked_at)",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(40);
 
   if (error) {
     console.error("[loadPlanSummaries] plans query failed", error.message);
     throw new Error(`Could not load plans right now: ${error.message}`);
   }
 
-  return ((data ?? []) as Row[]).map((row) => {
-    const opts = ((row["plan_options"] as Row[]) ?? [])
-      .filter((o) => o["is_current"] !== false)
-      .slice()
-      .sort((a, b) => Number(a["rank"]) - Number(b["rank"]));
-    const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
-    const watches = ((row["watch_plans"] as Row[]) ?? []).filter((w) => w["state"] === "active");
-    const watch = watches[0];
-    const primaryId = row["primary_option_id"] as string | null;
-    const primaryOpt = primaryId
-      ? opts.find((o) => String(o["id"]) === primaryId)
-      : opts[0];
-    return {
-      id: String(row["id"]),
-      origin: String(row["origin_iata"]),
-      dest: String(row["dest_iata"]),
-      travelDate: String(row["travel_date"]),
-      travelers: Number(row["travelers"] ?? 1),
-      bestJudgment: opts[0] ? String(opts[0]["label"]) : null,
-      optionCount: opts.length,
-      createdAt: String(row["created_at"]),
-      mode: (prefs["mode"] === "escape" ? "escape" : "standby") as "standby" | "escape",
-      watching: watches.length > 0,
-      planVerdict: watch ? String(watch["verdict"] ?? "steady") : null,
-      lastCheckedAt: watch ? String(watch["last_checked_at"] ?? "") : null,
-      primaryFlightLabel: primaryOpt ? String(primaryOpt["flight_label"]) : null,
-    };
-  });
+  return ((data ?? []) as Row[]).map((row) => summarizePlanRow(row));
+}
+
+/** Committed Plans: primary selected and/or actively watched. */
+export function isCommittedPlanSummary(plan: PlanSummary): boolean {
+  return plan.hasPrimary || plan.watching;
+}
+
+export function partitionPlanSummaries(all: PlanSummary[]): {
+  committed: PlanSummary[];
+  recent: PlanSummary[];
+} {
+  const committed: PlanSummary[] = [];
+  const recent: PlanSummary[] = [];
+  for (const plan of all) {
+    if (isCommittedPlanSummary(plan)) committed.push(plan);
+    else recent.push(plan);
+  }
+  return { committed, recent };
+}
+
+export async function loadCommittedPlanSummaries(
+  client: unknown,
+  userId: string,
+): Promise<PlanSummary[]> {
+  const all = await loadPlanSummaries(client, userId);
+  return partitionPlanSummaries(all).committed;
+}
+
+export async function loadRecentSearchSummaries(
+  client: unknown,
+  userId: string,
+  limit = 8,
+): Promise<PlanSummary[]> {
+  const all = await loadPlanSummaries(client, userId);
+  return partitionPlanSummaries(all).recent.slice(0, limit);
+}
+
+function summarizePlanRow(row: Row): PlanSummary {
+  const opts = ((row["plan_options"] as Row[]) ?? [])
+    .filter((o) => o["is_current"] !== false)
+    .slice()
+    .sort((a, b) => Number(a["rank"]) - Number(b["rank"]));
+  const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
+  const watches = ((row["watch_plans"] as Row[]) ?? []).filter((w) => w["state"] === "active");
+  const watch = watches[0];
+  const primaryId = (row["primary_option_id"] as string | null) ?? null;
+  const hasPrimary = Boolean(primaryId);
+  const primaryOpt = primaryId
+    ? opts.find((o) => String(o["id"]) === primaryId)
+    : null;
+  const total = opts.length;
+  const nonstops = opts.filter((o) => o["kind"] === "nonstop").length;
+  const connections = opts.filter((o) => o["kind"] === "connection").length;
+  const parts: string[] = [];
+  if (nonstops > 0) parts.push(`${nonstops} nonstop${nonstops === 1 ? "" : "s"}`);
+  if (connections > 0) parts.push(`${connections} connection${connections === 1 ? "" : "s"}`);
+  const backupRunwaySummary =
+    total === 0
+      ? null
+      : `${total} realistic way${total === 1 ? "" : "s"} remain${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
+
+  return {
+    id: String(row["id"]),
+    origin: String(row["origin_iata"]),
+    dest: String(row["dest_iata"]),
+    travelDate: String(row["travel_date"]),
+    travelers: Number(row["travelers"] ?? 1),
+    bestJudgment: opts[0] ? String(opts[0]["label"]) : null,
+    optionCount: opts.length,
+    createdAt: String(row["created_at"]),
+    mode: (prefs["mode"] === "escape" ? "escape" : "standby") as "standby" | "escape",
+    watching: watches.length > 0,
+    planVerdict: watch ? String(watch["verdict"] ?? "steady") : null,
+    lastCheckedAt: watch ? String(watch["last_checked_at"] ?? "") : null,
+    primaryFlightLabel: primaryOpt ? String(primaryOpt["flight_label"]) : null,
+    hasPrimary,
+    backupRunwaySummary,
+  };
 }
 
 export async function planFromFlightNumber(

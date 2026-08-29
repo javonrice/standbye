@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ChevronRight, Star } from "lucide-react";
 
@@ -86,16 +86,25 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
 
 function ComparePage() {
   const { planId } = Route.useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const fetchPlan = useServerFn(getPlan);
   const setPrimary = useServerFn(setPrimaryOptionFn);
-  const { data: plan, isLoading, refetch } = useQuery({
+  const { data: plan, isLoading } = useQuery({
     queryKey: ["plan", planId],
     queryFn: () => fetchPlan({ data: { planId } }),
   });
 
   const makePrimary = useMutation({
     mutationFn: (optionId: string) => setPrimary({ data: { planId, optionId } }),
-    onSuccess: () => refetch(),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["plan", planId] }),
+        queryClient.invalidateQueries({ queryKey: ["committed-plans"] }),
+        queryClient.invalidateQueries({ queryKey: ["recent-searches"] }),
+      ]);
+      void navigate({ to: "/plans/$planId", params: { planId } });
+    },
   });
 
   const options = (plan?.options ?? []).slice(0, 3);

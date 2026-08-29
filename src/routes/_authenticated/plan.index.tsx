@@ -15,7 +15,6 @@ import {
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { AirportField } from "@/components/aircue/AirportField";
 import { SearchingOverlay } from "@/components/aircue/SearchingOverlay";
-import { CueBadge } from "@/components/aircue/CueBadge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -26,25 +25,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createPlan, getStandbyProfile, listPlans } from "@/lib/aircue/plan.functions";
-import type { PlanSummary } from "@/lib/aircue/plan.functions";
+import {
+  createPlan,
+  getStandbyProfile,
+  listRecentSearches,
+  type PlanSummary,
+} from "@/lib/aircue/plan.functions";
 import { AIRLINES } from "@/lib/aircue/airlines";
-import { routingModeHint, routingModeLabel, type Judgment, type RoutingMode } from "@/lib/aircue/standby";
+import { routingModeHint, routingModeLabel, type RoutingMode } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plan/")({
   head: () => ({
     meta: [
-      { title: "Your plans — Standbye" },
+      { title: "Home — Standbye" },
       {
         name: "description",
         content:
-          "Your travel plans and a quick way to build a new one — Standbye ranks realistic standby options for your route and date.",
+          "Build a standby plan for your route and date. Standbye ranks realistic options without promising clearance.",
       },
-      { property: "og:title", content: "Your plans — Standbye" },
-      { property: "og:description", content: "Build and manage your standby travel plans." },
+      { property: "og:title", content: "Home — Standbye" },
+      { property: "og:description", content: "Explore and build a standby travel plan." },
     ],
   }),
-  component: PlanHome,
+  component: HomePage,
 });
 
 /** Local calendar date, not UTC — otherwise evening users lose "today". */
@@ -53,10 +56,10 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-function PlanHome() {
+function HomePage() {
   const navigate = useNavigate();
   const loadProfile = useServerFn(getStandbyProfile);
-  const recent = useServerFn(listPlans);
+  const recentFn = useServerFn(listRecentSearches);
   const create = useServerFn(createPlan);
 
   const [origin, setOrigin] = useState("");
@@ -70,7 +73,10 @@ function PlanHome() {
   const [nearby, setNearby] = useState(false);
 
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => loadProfile() });
-  const { data: plans } = useQuery({ queryKey: ["plans"], queryFn: () => recent() });
+  const { data: recent } = useQuery({
+    queryKey: ["recent-searches"],
+    queryFn: () => recentFn(),
+  });
 
   useEffect(() => {
     if (profile && !profile.onboarded) navigate({ to: "/onboarding" });
@@ -108,21 +114,8 @@ function PlanHome() {
 
       <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain md:hidden" />
 
-      {(plans ?? []).length > 0 && (
-        <section className="mt-6">
-          <h2 className="font-display text-[17px] font-semibold tracking-tight">Your plans</h2>
-          <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {(plans ?? []).map((p) => (
-              <li key={p.id}>
-                <RecentPlanRow plan={p} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <h1 className={`font-display text-[30px] font-bold leading-[1.15] tracking-tight md:text-[34px] ${(plans ?? []).length > 0 ? "mt-10" : "mt-6"}`}>
-        {(plans ?? []).length > 0 ? "Build a new plan" : "Where are you trying to go?"}
+      <h1 className="mt-6 font-display text-[30px] font-bold leading-[1.15] tracking-tight md:text-[34px]">
+        Where are you trying to go?
       </h1>
       <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
         Give us the route and the day. Standbye will rank the realistic ways to get there.
@@ -182,7 +175,6 @@ function PlanHome() {
               </Select>
             </div>
           </div>
-
         </div>
 
         <button
@@ -294,21 +286,32 @@ function PlanHome() {
         className="mt-3 flex items-center justify-between gap-3 rounded-xl px-1 py-2 text-muted-foreground transition-colors hover:text-foreground"
       >
         <span className="text-[14px] font-medium">
-          Already have a flight in mind?{" "}
-          <span className="text-primary">Start with it</span>
+          Already have a flight in mind? <span className="text-primary">Start with it</span>
         </span>
         <ChevronRight className="h-4 w-4" />
       </Link>
+
+      {(recent ?? []).length > 0 && (
+        <section className="mt-10">
+          <h2 className="font-display text-[17px] font-semibold tracking-tight">Recent searches</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Exploration only — pick a primary or watch a plan to save it under Plans.
+          </p>
+          <ul className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+            {(recent ?? []).map((p) => (
+              <li key={p.id}>
+                <RecentSearchRow plan={p} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
 
-function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
-  const watchingLabel = p.watching
-    ? p.planVerdict === "changed"
-      ? " · Needs another look"
-      : " · Watching"
-    : "";
+function RecentSearchRow({ plan: p }: { plan: PlanSummary }) {
+  const className = "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50";
   const body = (
     <>
       <span className="min-w-0 flex-1">
@@ -318,15 +321,12 @@ function RecentPlanRow({ plan: p }: { plan: PlanSummary }) {
         <span className="block text-[12px] text-muted-foreground">
           {p.mode === "escape" ? "Widened · " : ""}
           {p.travelDate}
-          {p.primaryFlightLabel ? ` · Primary ${p.primaryFlightLabel}` : ""}
-          {watchingLabel}
+          {p.optionCount > 0 ? ` · ${p.optionCount} option${p.optionCount === 1 ? "" : "s"}` : ""}
         </span>
       </span>
-      {p.bestJudgment && <CueBadge judgment={p.bestJudgment as Judgment} size="sm" />}
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </>
   );
-  const className = "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50";
   return p.mode === "escape" ? (
     <Link to="/escape/$planId" params={{ planId: p.id }} className={className}>
       {body}

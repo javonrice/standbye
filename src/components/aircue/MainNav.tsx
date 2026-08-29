@@ -1,12 +1,38 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Compass, Bell, User } from "lucide-react";
+import { Home, Map, Bell, User } from "lucide-react";
 
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 
 const items = [
-  { to: "/plan", label: "Plans", icon: Compass, match: (path: string) => path === "/plan" || path.startsWith("/plans/") },
-  { to: "/updates", label: "Updates", icon: Bell, match: (path: string) => path === "/updates" || path.startsWith("/updates/") || path === "/watching" || path.startsWith("/watching/") },
-  { to: "/you", label: "You", icon: User, match: (path: string) => path === "/you" || path.startsWith("/you/") },
+  {
+    to: "/plan",
+    label: "Home",
+    icon: Home,
+    match: (path: string) =>
+      path === "/plan" || path === "/known-flight" || path.startsWith("/known-flight"),
+  },
+  {
+    to: "/plans",
+    label: "Plans",
+    icon: Map,
+    match: (path: string) => path === "/plans" || path.startsWith("/plans/"),
+  },
+  {
+    to: "/updates",
+    label: "Updates",
+    icon: Bell,
+    match: (path: string) =>
+      path === "/updates" ||
+      path.startsWith("/updates/") ||
+      path === "/watching" ||
+      path.startsWith("/watching/"),
+  },
+  {
+    to: "/you",
+    label: "You",
+    icon: User,
+    match: (path: string) => path === "/you" || path.startsWith("/you/"),
+  },
 ] as const;
 
 export function MainNav() {
@@ -14,7 +40,6 @@ export function MainNav() {
 
   return (
     <>
-      {/* Mobile: bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
         <ul className="mx-auto flex max-w-md justify-around px-2 py-1.5">
           {items.map(({ to, label, icon: Icon, match }) => {
@@ -36,7 +61,6 @@ export function MainNav() {
         </ul>
       </nav>
 
-      {/* Desktop: side rail */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-card px-4 py-6 md:block">
         <Link to="/plan" className="mb-9 block px-1">
           <img src={wordmark.url} alt="Standbye" className="h-14 w-auto object-contain" />

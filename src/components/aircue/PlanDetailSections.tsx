@@ -26,6 +26,8 @@ export function PlanWatchBlock({ plan }: PlanWatchBlockProps) {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["plan", plan.id] });
     queryClient.invalidateQueries({ queryKey: ["watches"] });
+    queryClient.invalidateQueries({ queryKey: ["committed-plans"] });
+    queryClient.invalidateQueries({ queryKey: ["recent-searches"] });
   };
 
   const start = useMutation({
@@ -43,17 +45,40 @@ export function PlanWatchBlock({ plan }: PlanWatchBlockProps) {
     onSuccess: invalidate,
   });
 
+  const primary =
+    plan.primaryOptionId != null
+      ? plan.options.find((o) => o.id === plan.primaryOptionId)
+      : null;
+  const primaryLabel = primary?.flightLabel ?? "your primary option";
+
   if (!plan.watching) {
+    const hasPrimary = Boolean(plan.primaryOptionId);
     return (
-      <section className="mt-6 rounded-2xl border border-border bg-card p-4">
-        <p className="font-display text-[17px] font-semibold tracking-tight">Watch this plan</p>
+      <section
+        className={
+          hasPrimary
+            ? "mt-6 rounded-2xl border border-primary/35 bg-primary/5 p-4"
+            : "mt-6 rounded-2xl border border-border bg-card p-4"
+        }
+      >
+        {hasPrimary ? (
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            Next step
+          </p>
+        ) : null}
+        <p
+          className={`font-display font-semibold tracking-tight ${hasPrimary ? "mt-1 text-[19px]" : "text-[17px]"}`}
+        >
+          {hasPrimary ? "Keep an eye on this plan" : "Watch this plan"}
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Standbye will keep checking the day and only surface changes that could affect what you
-          should do.
+          {hasPrimary
+            ? `We'll watch the whole plan, not just ${primaryLabel}. If something changes enough that another option deserves your attention, we'll tell you.`
+            : "Standbye will keep checking the day and only surface changes that could affect what you should do."}
         </p>
         <Button className="mt-3 h-11 w-full" disabled={start.isPending} onClick={() => start.mutate()}>
           <Bell className="mr-2 h-4 w-4" />
-          {start.isPending ? "Setting up…" : "Watch this plan"}
+          {start.isPending ? "Setting up…" : hasPrimary ? "Watch my plan" : "Watch this plan"}
         </Button>
       </section>
     );
@@ -62,12 +87,16 @@ export function PlanWatchBlock({ plan }: PlanWatchBlockProps) {
   return (
     <section className="mt-6 rounded-2xl border border-primary/30 bg-primary/5 p-4">
       <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-primary">
-        Standbye is watching this plan
+        Standbye is watching
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
+        {plan.planVerdict === "changed" ? "Something needs another look" : "No important changes"}
+        {" · "}
         Last checked {agoLabel(plan.lastCheckedAt)}
-        {plan.planVerdict === "changed" ? " · Something needs another look" : " · No important changes"}
       </p>
+      {plan.backupRunway.summary && (
+        <p className="mt-1 text-sm text-muted-foreground">{plan.backupRunway.summary}</p>
+      )}
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {plan.watchId && (
           <Button asChild variant="outline" className="h-10">
@@ -104,7 +133,11 @@ export function PrimaryOptionSection({ plan }: PrimaryOptionSectionProps) {
   const makePrimary = useMutation({
     mutationFn: (optionId: string) =>
       setPrimary({ data: { planId: plan.id, optionId } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plan", plan.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plan", plan.id] });
+      queryClient.invalidateQueries({ queryKey: ["committed-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-searches"] });
+    },
   });
 
   const preferred = plan.options.find((o) => o.id === plan.preferredOptionId) ?? plan.options[0] ?? null;
@@ -135,7 +168,7 @@ export function PrimaryOptionSection({ plan }: PrimaryOptionSectionProps) {
           </ul>
           {preferred && preferred.id !== primary.id && (
             <div className="mt-3 rounded-xl border border-border bg-card px-4 py-3 text-sm">
-              <span className="font-semibold">Standbye now prefers {preferred.flightLabel}</span>
+              <span className="font-semibold">Standbye currently prefers {preferred.flightLabel}</span>
               <p className="mt-0.5 text-muted-foreground">{preferred.headline}</p>
               <Button
                 variant="link"
