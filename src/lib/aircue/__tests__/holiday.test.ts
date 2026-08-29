@@ -2,7 +2,9 @@
  * Holiday lookup resilience: a slow or broken Nager.Date must degrade to "no
  * holiday context" quickly, and a warm cache must not re-request.
  */
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+
+import { mockModuleIsolated } from "./mock-module-isolated";
 
 const AIRPORTS = [
   {
@@ -17,7 +19,7 @@ const AIRPORTS = [
   { iata: "XXX", icao: null, lat: 0, lon: 0, city: null, state: null, tz: null },
 ];
 
-mock.module("@/integrations/supabase/client.server", () => ({
+await mockModuleIsolated("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     from: () => ({
       select: () => ({

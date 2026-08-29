@@ -1,6 +1,5 @@
 /** Plan-level watch snapshot helpers and meaningful change detection. */
 
-import { airlineName } from "@/lib/aircue/airlines";
 import type { StandbyOption } from "@/lib/aircue/standby";
 import type { AccessType } from "@/lib/aircue/travel-access";
 import type { WatchFlightState } from "@/lib/aircue/watch-flight-state.server";
@@ -42,8 +41,8 @@ export type BackupRunway = {
   total: number;
 };
 
+/** @deprecated Unused for copy — attribution comes from option access composition. */
 export interface RunwayCopyContext {
-  /** Home airline IATA for "your airline" phrasing. */
   homeAirline?: string | null;
 }
 
@@ -69,22 +68,46 @@ function accessCounts(options: StandbyOption[]): {
   return { homeCount, zedCount, otherCount };
 }
 
-function accessMixParts(counts: {
+/**
+ * Access attribution from current runway composition (not profile homeAirline).
+ * - All Home → suffix " on your airline"
+ * - Otherwise → "· N on your airline · M ZED · K other access" for non-zero categories
+ */
+export function runwayAccessAttribution(counts: {
   homeCount: number;
   zedCount: number;
   otherCount: number;
-}): string[] {
+}): { remainSuffix: string; parts: string[] } {
+  const { homeCount, zedCount, otherCount } = counts;
+  const onlyHome = homeCount > 0 && zedCount === 0 && otherCount === 0;
+  if (onlyHome) {
+    return { remainSuffix: " on your airline", parts: [] };
+  }
   const parts: string[] = [];
-  if (counts.homeCount > 0) parts.push(`${counts.homeCount} Home`);
-  if (counts.zedCount > 0) parts.push(`${counts.zedCount} ZED`);
-  if (counts.otherCount > 0) parts.push(`${counts.otherCount} other access`);
-  return parts;
+  if (homeCount > 0) parts.push(`${homeCount} on your airline`);
+  if (zedCount > 0) parts.push(`${zedCount} ZED`);
+  if (otherCount > 0) parts.push(`${otherCount} other access`);
+  return { remainSuffix: "", parts };
+}
+
+/** Build the Backup runway summary string from counts + optional kind parts. */
+export function formatBackupRunwaySummary(
+  totalRealisticWays: number,
+  counts: { homeCount: number; zedCount: number; otherCount: number },
+  kindParts: string[] = [],
+): string {
+  if (totalRealisticWays === 0) {
+    return "No realistic staff-travel ways remain";
+  }
+  const attr = runwayAccessAttribution(counts);
+  const ways = `${totalRealisticWays} realistic way${totalRealisticWays === 1 ? "" : "s"} remain${attr.remainSuffix}`;
+  return [ways, ...kindParts, ...attr.parts].join(" · ");
 }
 
 export function computeBackupRunway(
   options: StandbyOption[],
   primaryOptionId?: string | null,
-  copy?: RunwayCopyContext,
+  _copy?: RunwayCopyContext,
 ): BackupRunway {
   const staff = staffTravelOptions(options);
   const totalRealisticWays = staff.length;
@@ -99,19 +122,8 @@ export function computeBackupRunway(
   const kindParts: string[] = [];
   if (nonstops > 0) kindParts.push(`${nonstops} nonstop${nonstops === 1 ? "" : "s"}`);
   if (connections > 0) kindParts.push(`${connections} connection${connections === 1 ? "" : "s"}`);
-  const mixParts = accessMixParts(counts);
 
-  const home = (copy?.homeAirline ?? "").trim().toUpperCase();
-  const airlinePhrase = home ? `on your ${airlineName(home)} access` : "on your airlines";
-
-  const summary =
-    totalRealisticWays === 0
-      ? `No realistic staff-travel ways remain ${airlinePhrase}`
-      : [
-          `${totalRealisticWays} realistic way${totalRealisticWays === 1 ? "" : "s"} remain ${airlinePhrase}`,
-          ...kindParts,
-          ...mixParts,
-        ].join(" · ");
+  const summary = formatBackupRunwaySummary(totalRealisticWays, counts, kindParts);
 
   return {
     totalRealisticWays,

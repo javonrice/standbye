@@ -1,12 +1,13 @@
 /**
- * Pass C — access-aware runway, composition events, coverage-noise guard, operator verify mapping.
+ * Pass C — access-aware runway, composition events, coverage-noise guard.
  */
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
 import {
   computeBackupRunway,
   detectAnchorOptionEvents,
   detectPlanChangeEvents,
+  formatBackupRunwaySummary,
   type PlanWatchSnapshot,
 } from "@/lib/aircue/plan-watch-events.server";
 import { resolveStaffEligibility } from "@/lib/aircue/staff-eligibility";
@@ -56,8 +57,63 @@ function option(partial: Partial<StandbyOption> & { id: string; flightLabel: str
   };
 }
 
-describe("access-aware runway", () => {
-  it("excludes ineligible from staff-travel runway counts", () => {
+describe("backup runway attribution copy", () => {
+  it("1. Home-only runway → on your airline (no carrier name)", () => {
+    const options = [
+      option({ id: "a", flightLabel: "UA1", access: "home", kind: "nonstop" }),
+      option({ id: "b", flightLabel: "UA2", access: "home", kind: "nonstop" }),
+      option({ id: "c", flightLabel: "UA3", access: "home", kind: "nonstop" }),
+      option({ id: "d", flightLabel: "UA4", access: "home", kind: "nonstop" }),
+    ];
+    const runway = computeBackupRunway(options, "a");
+    expect(runway.summary).toBe("4 realistic ways remain on your airline · 4 nonstops");
+    expect(runway.summary.toLowerCase()).not.toContain("united");
+    expect(runway.summary).not.toContain("ZED");
+  });
+
+  it("2. ZED-only runway → count ZED, never claim Home airline", () => {
+    const options = [
+      option({ id: "a", flightLabel: "LH1", access: "zed", kind: "connection" }),
+      option({ id: "b", flightLabel: "LH2", access: "zed", kind: "connection" }),
+    ];
+    const runway = computeBackupRunway(options, "a", { homeAirline: "UA" });
+    expect(runway.homeCount).toBe(0);
+    expect(runway.zedCount).toBe(2);
+    expect(runway.summary).toBe("2 realistic ways remain · 2 connections · 2 ZED");
+    expect(runway.summary.toLowerCase()).not.toContain("united");
+    expect(runway.summary).not.toContain("on your airline");
+  });
+
+  it("3. mixed Home + ZED", () => {
+    const options = [
+      option({ id: "a", flightLabel: "UA1", access: "home" }),
+      option({ id: "b", flightLabel: "UA2", access: "home" }),
+      option({ id: "c", flightLabel: "LH1", access: "zed" }),
+      option({ id: "d", flightLabel: "LH2", access: "zed" }),
+      option({ id: "e", flightLabel: "LH3", access: "zed" }),
+    ];
+    const runway = computeBackupRunway(options, null);
+    expect(formatBackupRunwaySummary(5, { homeCount: 2, zedCount: 3, otherCount: 0 })).toBe(
+      "5 realistic ways remain · 2 on your airline · 3 ZED",
+    );
+    expect(runway.summary).toContain("2 on your airline");
+    expect(runway.summary).toContain("3 ZED");
+    expect(runway.summary.toLowerCase()).not.toContain("united");
+  });
+
+  it("4. no Home remaining — does not say on your airline", () => {
+    const options = [
+      option({ id: "a", flightLabel: "LH1", access: "zed", kind: "connection" }),
+      option({ id: "b", flightLabel: "AF1", access: "zed", kind: "connection" }),
+    ];
+    const runway = computeBackupRunway(options, "a", { homeAirline: "UA" });
+    expect(runway.homeCount).toBe(0);
+    expect(runway.summary).not.toContain("on your airline");
+    expect(runway.summary.toLowerCase()).not.toContain("united");
+    expect(runway.summary).toContain("2 ZED");
+  });
+
+  it("5. ineligible option excluded from counts and copy", () => {
     const options = [
       option({ id: "a", flightLabel: "UA1", access: "home", staffEligibility: "uncertain" }),
       option({ id: "b", flightLabel: "LH1", access: "zed", staffEligibility: "uncertain" }),
@@ -68,21 +124,19 @@ describe("access-aware runway", () => {
         staffEligibility: "ineligible",
       }),
     ];
-    const runway = computeBackupRunway(options, "a", { homeAirline: "UA" });
+    const runway = computeBackupRunway(options, "a");
     expect(runway.totalRealisticWays).toBe(2);
     expect(runway.backupAlternatives).toBe(1);
-    expect(runway.homeCount).toBe(1);
-    expect(runway.zedCount).toBe(1);
     expect(runway.otherCount).toBe(0);
-    expect(runway.summary).toContain("United");
-    expect(runway.summary).toContain("Home");
-    expect(runway.summary).toContain("ZED");
+    expect(runway.summary).toContain("1 on your airline");
+    expect(runway.summary).toContain("1 ZED");
+    expect(runway.summary).not.toContain("other access");
   });
 
-  it("uses dynamic your-airline copy for non-UA home", () => {
-    const options = [option({ id: "a", flightLabel: "DL1", access: "home", carrier: "DL" })];
-    const runway = computeBackupRunway(options, "a", { homeAirline: "DL" });
-    expect(runway.summary.toLowerCase()).toContain("delta");
+  it("Home + ZED + Other represents each non-zero category", () => {
+    expect(
+      formatBackupRunwaySummary(6, { homeCount: 2, zedCount: 3, otherCount: 1 }),
+    ).toBe("6 realistic ways remain · 2 on your airline · 3 ZED · 1 other access");
   });
 });
 
@@ -106,7 +160,6 @@ describe("access composition events", () => {
         option({ id: "z2", flightLabel: "LH3", access: "zed" }),
       ],
       "z",
-      { homeAirline: "UA" },
     );
     const events = detectPlanChangeEvents({
       prev,
@@ -200,16 +253,8 @@ describe("coverage noise guard", () => {
   });
 });
 
-describe("operator verify mapping (mocked ADB)", () => {
-  it("maps verified outside access to ineligible without inventing failure-ineligible", async () => {
-    mock.module("@/lib/aircue/aerodatabox.server", () => ({
-      fetchFlightStatus: async () => ({
-        flight: { airline: { iata: "BA" }, status: "Scheduled" },
-        budgetBlocked: false,
-      }),
-      aeroDataBoxEnabled: () => true,
-    }));
-    // Direct table mapping stays authoritative even when ADB is mocked elsewhere.
+describe("operator eligibility table", () => {
+  it("maps verified outside access to ineligible; failure stays uncertain", () => {
     const outside = resolveStaffEligibility({
       allowedAccess: ["LH", "UA"],
       verifyAttempted: true,

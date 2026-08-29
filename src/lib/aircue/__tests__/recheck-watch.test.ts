@@ -1,11 +1,10 @@
-/**
- * recheckWatch integration tests — Feature #1 cancellation + plan integrity.
- */
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 import type { FlightStatus } from "@/lib/aircue/flight-provider.server";
 import type { RankedOption } from "@/lib/aircue/ranking.server";
 import { isTravelDayWatchOver } from "@/lib/aircue/watch-flight-state.server";
+
+import { mockModuleIsolated } from "./mock-module-isolated";
 
 const WATCH_ID = "watch-1";
 const USER_ID = "user-1";
@@ -263,7 +262,7 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
   };
 }
 
-mock.module("@/lib/aircue/flight-provider.server", () => ({
+await mockModuleIsolated("@/lib/aircue/flight-provider.server", () => ({
   getFlightProvider: () => ({
     name: "mock",
     live: true,
@@ -271,7 +270,7 @@ mock.module("@/lib/aircue/flight-provider.server", () => ({
   }),
 }));
 
-mock.module("@/lib/aircue/ranking.server", () => ({
+await mockModuleIsolated("@/lib/aircue/ranking.server", () => ({
   rankStandbyOptions: async (input: Record<string, unknown>) => {
     lastRankInput = input;
     const empty = rankedOptions.length === 0;

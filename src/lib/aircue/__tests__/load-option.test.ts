@@ -2,7 +2,9 @@
  * Regression: Option Detail must load after plans.primary_option_id made the
  * plans ↔ plan_options embed ambiguous to PostgREST.
  */
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
+
+import { mockModuleIsolated } from "./mock-module-isolated";
 
 const USER_ID = "user-1";
 const PLAN_ID = "plan-1";
@@ -14,7 +16,7 @@ let queryError: { message: string; code?: string; details?: string } | null = nu
 let optionRow: Record<string, unknown> | null = null;
 let watchRow: Record<string, unknown> | null = null;
 
-mock.module("@/lib/aircue/plan.server", () => ({
+await mockModuleIsolated("@/lib/aircue/plan.server", () => ({
   optionFromRow: (row: Record<string, unknown>) => ({
     id: String(row["id"]),
     planId: String(row["plan_id"]),

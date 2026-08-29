@@ -3,7 +3,9 @@
  * holiday lookup. These assert the batched path returns what the per-code
  * queries returned, and that a missing code still behaves as before.
  */
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+
+import { mockModuleIsolated } from "./mock-module-isolated";
 
 const ROWS = [
   {
@@ -63,7 +65,7 @@ const ROWS = [
 let selects: string[] = [];
 let inCalls: string[][] = [];
 
-mock.module("@/integrations/supabase/client.server", () => ({
+await mockModuleIsolated("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
     from: () => ({
       select: (cols: string) => {
