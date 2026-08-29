@@ -8,6 +8,7 @@ import {
   Star,
 } from "lucide-react";
 
+import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { Screen } from "@/components/aircue/Layout";
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { FlightHero } from "@/components/aircue/FlightHero";
@@ -126,8 +127,18 @@ function CueScreen() {
       )}
 
       <header className="mt-4">
+        <div className="mb-3 flex items-center gap-3">
+          <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={44} />
+          <div className="min-w-0">
+            <p className="font-display text-[19px] font-bold leading-tight tracking-tight">
+              {option.flightLabel}
+            </p>
+            {dateLabel ? (
+              <p className="text-[13px] text-muted-foreground">{dateLabel}</p>
+            ) : null}
+          </div>
+        </div>
         <FlightHero
-          eyebrow={dateLabel ? `${option.flightLabel} · ${dateLabel}` : option.flightLabel}
           origin={option.origin}
           dest={option.dest}
           depLocal={option.depLocal}
