@@ -88,7 +88,6 @@ export function PlanWatchBlock({ plan }: PlanWatchBlockProps) {
       </p>
       <p className="mt-1.5 text-[14px] text-muted-foreground">
         Last checked {agoLabel(plan.lastCheckedAt)}
-        {plan.backupRunway.summary ? ` · ${plan.backupRunway.summary}` : ""}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
@@ -220,10 +219,7 @@ export function PrimaryOptionSection({ plan }: PrimaryOptionSectionProps) {
 
       {plan.backupRunway.totalRealisticWays > 0 && (
         <section className="mt-6 px-1">
-          <p className="font-display text-[17px] font-semibold tracking-tight">
-            {plan.backupRunway.totalRealisticWays} realistic{" "}
-            {plan.backupRunway.totalRealisticWays === 1 ? "way" : "ways"} remain
-          </p>
+          <p className="font-display text-[17px] font-semibold tracking-tight">Backup runway</p>
           <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
             {plan.backupRunway.summary}
           </p>
