@@ -33,7 +33,7 @@ import {
   listRecentSearches,
   type PlanSummary,
 } from "@/lib/aircue/plan.functions";
-import { planBuildErrorMessage } from "@/lib/aircue/plan-build-errors";
+import { PlanBuildError } from "@/components/aircue/PlanBuildError";
 import { routingModeHint, routingModeLabel, type RoutingMode } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plan/")({
