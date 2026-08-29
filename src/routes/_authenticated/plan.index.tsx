@@ -82,8 +82,12 @@ function HomePage() {
 
   useEffect(() => {
     if (profile && !profile.onboarded) navigate({ to: "/onboarding" });
-    if (profile?.homeAirports?.[0] && !origin) setOrigin(profile.homeAirports[0]);
-  }, [profile, navigate, origin]);
+    // Prefill home airport once — clearing it must not snap it back.
+    if (profile?.homeAirports?.[0] && !prefilled) {
+      setPrefilled(true);
+      setOrigin((v) => v || profile.homeAirports[0]!);
+    }
+  }, [profile, navigate, prefilled]);
 
   const accessCodes = profile ? profileCarriers(profile) : [];
   const carriers =
