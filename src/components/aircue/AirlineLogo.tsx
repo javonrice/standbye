@@ -9,8 +9,10 @@ export function carrierFromLabel(label: string | null | undefined): string | nul
   return match?.[1] ?? null;
 }
 
+/** Icon-glyph marks (same source Google Flights uses) — no wordmarks. */
 function logoUrl(iata: string, size: number): string {
-  return `https://images.daisycon.io/airline/?width=${size}&height=${size}&iata=${iata}`;
+  const px = size >= 48 ? 70 : 35;
+  return `https://www.gstatic.com/flights/airline_logos/${px}px/${iata}.png`;
 }
 
 /**
