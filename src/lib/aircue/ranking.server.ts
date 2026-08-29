@@ -737,9 +737,9 @@ const legLabel = (l: RouteLeg) =>
   l.airlineCode && l.flightNumber ? `${l.airlineCode}${l.flightNumber}` : `${l.origin}→${l.dest}`;
 
 function shotJudgment(entry: BoardEntry | undefined): Judgment {
-  const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 9 : null);
+  const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 4 : null);
   if (largest === null) return "mixed";
-  if (largest >= 6) return "favorable";
+  if (largest >= 4) return "favorable";
   if (largest >= 1) return "mixed";
   return "riskier";
 }
@@ -1223,9 +1223,9 @@ function buildRecovery(
         ? `${l.airlineCode}${l.flightNumber}`
         : `${l.origin}→${l.dest}`;
     const entry = board.map.get(label);
-    const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 9 : null);
+    const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 4 : null);
     const judgment: Judgment =
-      largest === null ? "mixed" : largest >= 6 ? "favorable" : largest >= 1 ? "mixed" : "riskier";
+      largest === null ? "mixed" : largest >= 4 ? "favorable" : largest >= 1 ? "mixed" : "riskier";
     return { flightLabel: label, depLocal: hhmm(l.schedDepUtc, l.depLocalTime), judgment };
   });
 
