@@ -462,8 +462,8 @@ export type Database = {
           is_current: boolean
           kind: string
           label: string
-          origin_iata: string
           option_key: string | null
+          origin_iata: string
           pillars: Json
           plan_id: string
           rank: number
@@ -491,8 +491,8 @@ export type Database = {
           is_current?: boolean
           kind?: string
           label?: string
-          origin_iata: string
           option_key?: string | null
+          origin_iata: string
           pillars?: Json
           plan_id: string
           rank?: number
@@ -520,8 +520,8 @@ export type Database = {
           is_current?: boolean
           kind?: string
           label?: string
-          origin_iata?: string
           option_key?: string | null
+          origin_iata?: string
           pillars?: Json
           plan_id?: string
           rank?: number
