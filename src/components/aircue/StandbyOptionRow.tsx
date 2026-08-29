@@ -51,8 +51,9 @@ export function StandbyOptionRow({
   const laterShots = option.evidence.recovery.laterNonstops.length;
   const isTop = rank === 1;
   const strong = emphasis === "primary" || (emphasis === "default" && isTop);
-  const timing = formatOptionTimingRange(option);
+  const arrival = formatOptionArrival(option);
   const disambiguation = optionDisambiguationNote(option, peers);
+
 
   return (
     <Link
