@@ -29,8 +29,8 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/availabi
 
 function readSignal(largest: number | null): { state: PillarState; label: string } {
   if (largest === null) return { state: "unknown", label: "Public signal unclear" };
-  if (largest >= 9) return { state: "good", label: "Strong public signal" };
-  if (largest >= 4) return { state: "fair", label: "Softening public signal" };
+  if (largest >= 4) return { state: "good", label: "Strong public signal" };
+  if (largest >= 2) return { state: "fair", label: "Softening public signal" };
   if (largest >= 1) return { state: "poor", label: "Tight public signal" };
   return { state: "poor", label: "Nothing selling publicly" };
 }
@@ -63,12 +63,12 @@ function AvailabilityDetail() {
           {/* The count is the point of the screen — make it the hero. */}
           <div className="mt-4 rounded-2xl border border-border bg-card p-5 text-center">
             <p className="font-display text-5xl font-bold tracking-tight">
-              {largest === null ? "?" : largest >= 9 ? "9+" : largest}
+              {largest === null ? "?" : largest >= 4 ? "4+" : largest}
             </p>
             <p className="mt-1.5 text-sm font-medium">
               {largest === null
                 ? "Largest party still bookable is unclear"
-                : `Still bookable for a party of ${largest >= 9 ? "9 or more" : largest}`}
+                : `Still bookable for a party of ${largest >= 4 ? "4 or more" : largest}`}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Checked {agoLabel(availability.checkedAt)}

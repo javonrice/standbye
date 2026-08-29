@@ -101,7 +101,7 @@ export interface RankedOption {
 
 /* ------------------------------ small helpers ----------------------------- */
 
-const PARTY_LEVELS = [1, 2, 4, 6, 9];
+const PARTY_LEVELS = [1, 2, 3, 4];
 
 /** A standby search answers with what it has rather than hanging the traveller. */
 const SEARCH_BUDGET_MS = 20_000;
@@ -233,7 +233,7 @@ function availabilityFor(
     };
   }
 
-  const largest = entry.largestN ?? (entry.bucket === "9+" ? 9 : entry.bucket === "0" ? 0 : null);
+  const largest = entry.largestN ?? (entry.bucket === "9+" ? 4 : entry.bucket === "0" ? 0 : null);
   const tested = PARTY_LEVELS.map((adults) => ({
     adults,
     showing: largest === null ? false : adults <= largest,
@@ -253,19 +253,19 @@ function availabilityFor(
       evidence: ev,
     };
   }
-  if (largest >= 9) {
-    return {
-      state: "good" as PillarState,
-      label: "Strong",
-      detail: "Booking availability is still showing for a larger party.",
-      evidence: ev,
-    };
-  }
   if (largest >= 4) {
     return {
       state: "good" as PillarState,
-      label: "Moderate",
-      detail: `Booking is still showing for parties up to ${largest}.`,
+      label: "Strong",
+      detail: "Booking availability is still showing freely for a larger party.",
+      evidence: ev,
+    };
+  }
+  if (largest >= 2) {
+    return {
+      state: "fair" as PillarState,
+      label: "Narrowing",
+      detail: `Booking only shows for parties up to ${largest}.`,
       evidence: ev,
     };
   }
@@ -273,7 +273,7 @@ function availabilityFor(
     return {
       state: "fair" as PillarState,
       label: "Tight",
-      detail: `Booking only shows for parties up to ${largest}.`,
+      detail: "Booking only shows for a single seat.",
       evidence: ev,
     };
   }
@@ -737,9 +737,9 @@ const legLabel = (l: RouteLeg) =>
   l.airlineCode && l.flightNumber ? `${l.airlineCode}${l.flightNumber}` : `${l.origin}→${l.dest}`;
 
 function shotJudgment(entry: BoardEntry | undefined): Judgment {
-  const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 9 : null);
+  const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 4 : null);
   if (largest === null) return "mixed";
-  if (largest >= 6) return "favorable";
+  if (largest >= 4) return "favorable";
   if (largest >= 1) return "mixed";
   return "riskier";
 }
@@ -1223,9 +1223,9 @@ function buildRecovery(
         ? `${l.airlineCode}${l.flightNumber}`
         : `${l.origin}→${l.dest}`;
     const entry = board.map.get(label);
-    const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 9 : null);
+    const largest = entry?.largestN ?? (entry?.bucket === "9+" ? 4 : null);
     const judgment: Judgment =
-      largest === null ? "mixed" : largest >= 6 ? "favorable" : largest >= 1 ? "mixed" : "riskier";
+      largest === null ? "mixed" : largest >= 4 ? "favorable" : largest >= 1 ? "mixed" : "riskier";
     return { flightLabel: label, depLocal: hhmm(l.schedDepUtc, l.depLocalTime), judgment };
   });
 

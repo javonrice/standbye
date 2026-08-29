@@ -196,7 +196,7 @@ export async function buildRouteBoard(input: {
 
   const filter = input.carrier ?? "all";
   const routeKey = `${input.origin}:${input.dest}:${input.date}:${filter}`;
-  const boardKey = `gf8:routeday:${routeKey}:${input.mode}`;
+  const boardKey = `gf8:routeday:v2:${routeKey}:${input.mode}`;
   const sameDay = input.date === new Date().toISOString().slice(0, 10);
   const ttlMinutes = sameDay
     ? NEAR_DEP_TTL_MIN
