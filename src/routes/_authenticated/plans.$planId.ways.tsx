@@ -127,8 +127,14 @@ function FlightWayRow({ option }: { option: StandbyOption }) {
         </div>
         <p className="mt-1.5 font-display text-[17px] font-semibold tracking-tight">
           {option.depLocal}
-          {option.arrLocal ? ` → ${option.arrLocal}` : ""}
+          {option.arrLocal ? (
+            <>
+              {" → "}
+              <LocalTime value={formatOptionArrival(option)} />
+            </>
+          ) : null}
         </p>
+
         <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
           {later > 0 ? `${later} later shot${later === 1 ? "" : "s"}` : "No later shots today"}
         </p>
