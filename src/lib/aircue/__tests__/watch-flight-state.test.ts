@@ -12,8 +12,8 @@ import {
   watchFlightIdentity,
 } from "@/lib/aircue/watch-flight-state.server";
 
-function status(state: FlightStatus["state"], label = state): FlightStatus {
-  return { state, label };
+function status(state: FlightStatus["state"], label?: string): FlightStatus {
+  return { state, label: label ?? state };
 }
 
 const BASE_OPTION: StandbyOption = {
