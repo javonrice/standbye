@@ -253,19 +253,19 @@ function availabilityFor(
       evidence: ev,
     };
   }
-  if (largest >= 9) {
-    return {
-      state: "good" as PillarState,
-      label: "Strong",
-      detail: "Booking availability is still showing for a larger party.",
-      evidence: ev,
-    };
-  }
   if (largest >= 4) {
     return {
       state: "good" as PillarState,
-      label: "Moderate",
-      detail: `Booking is still showing for parties up to ${largest}.`,
+      label: "Strong",
+      detail: "Booking availability is still showing freely for a larger party.",
+      evidence: ev,
+    };
+  }
+  if (largest >= 2) {
+    return {
+      state: "fair" as PillarState,
+      label: "Narrowing",
+      detail: `Booking only shows for parties up to ${largest}.`,
       evidence: ev,
     };
   }
@@ -273,7 +273,7 @@ function availabilityFor(
     return {
       state: "fair" as PillarState,
       label: "Tight",
-      detail: `Booking only shows for parties up to ${largest}.`,
+      detail: "Booking only shows for a single seat.",
       evidence: ev,
     };
   }
