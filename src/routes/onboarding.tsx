@@ -7,7 +7,8 @@ import { JudgmentPill } from "@/components/aircue/JudgmentPill";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AIRLINES, airlineName, ALL_AIRLINES } from "@/lib/aircue/airlines";
+import { AirlineLogo } from "@/components/aircue/AirlineLogo";
+import { ALL_AIRLINE_OPTIONS, airlineName } from "@/lib/aircue/airlines";
 import {
   accessModeLabel,
   emptyDraft,
