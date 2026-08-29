@@ -16,6 +16,8 @@ const DEVICE_RESOLVES_PER_DAY = 20;
 const TIER2_UNITS = 2;
 
 const STATUS_TTL_SECONDS = 24 * 3600;
+/** Watch rechecks need fresher status than initial resolve; 20 min keeps the 30-min loop honest. */
+export const WATCH_STATUS_TTL_SECONDS = 20 * 60;
 const FIDS_TTL_SECONDS = 3600;
 
 export interface AdbFlight {
@@ -147,7 +149,7 @@ async function cachedCall<T>(
     .maybeSingle();
 
   const fresh = row && new Date(row.expires_at).getTime() > now;
-  if (row && (fresh || !opts.force) && fresh) {
+  if (row && fresh && !opts.force) {
     return { data: row.payload as T, fromCache: true, budgetBlocked: false };
   }
 
@@ -191,22 +193,24 @@ export async function fetchFlightLegs(
   if (!aeroDataBoxEnabled()) return { flights: [], budgetBlocked: true };
 
   const number = flightNumber.replace(/\s+/g, "").toUpperCase();
-  const cacheKey = `adb:status:${number}:${travelDate}`;
+  const resolveKey = `adb:status:${number}:${travelDate}`;
+  const cacheKey = opts.force ? `${resolveKey}:watch` : resolveKey;
+  const ttl = opts.force ? WATCH_STATUS_TTL_SECONDS : STATUS_TTL_SECONDS;
 
   const cachedRow = await supabaseAdmin
     .from("source_cache")
     .select("cache_key")
-    .eq("cache_key", cacheKey)
+    .eq("cache_key", resolveKey)
     .maybeSingle();
 
-  // Only a cache miss counts against the per-device daily cap.
-  if (!cachedRow.data && !(await deviceResolveAllowed(opts.deviceId))) {
+  // Only a cache miss on the resolve key counts against the per-device daily cap.
+  if (!opts.force && !cachedRow.data && !(await deviceResolveAllowed(opts.deviceId))) {
     return { flights: [], budgetBlocked: true };
   }
 
   const result = await cachedCall<AdbFlight[]>(
     cacheKey,
-    STATUS_TTL_SECONDS,
+    ttl,
     "flight-status",
     `/flights/number/${encodeURIComponent(number)}/${travelDate}?withAircraftImage=false&withLocation=false`,
     { tripId: opts.tripId, force: opts.force },

@@ -69,6 +69,13 @@ export interface FlightProvider {
     allowRefresh?: boolean,
     leg?: LegFilter,
   ): Promise<FlightStatus | null>;
+  /** Fresh status for watch rechecks; returns unavailable when the source cannot be verified. */
+  getWatchStatus(
+    flightNumber: string,
+    travelDate: string,
+    tripId?: string,
+    leg?: LegFilter,
+  ): Promise<{ status: FlightStatus | null; unavailable: boolean }>;
   getInboundAircraft(
     flightNumber: string,
     travelDate: string,
@@ -97,6 +104,9 @@ export class ManualFlightProvider implements FlightProvider {
 
   async getStatus() {
     return null;
+  }
+  async getWatchStatus() {
+    return { status: null, unavailable: true };
   }
   async getInboundAircraft() {
     return null;
@@ -206,6 +216,24 @@ export class AeroDataBoxFreeProvider implements FlightProvider {
       dest: leg?.dest,
     });
     return flight ? toFlightStatus(flight) : null;
+  }
+
+  async getWatchStatus(
+    flightNumber: string,
+    travelDate: string,
+    tripId?: string,
+    leg?: LegFilter,
+  ): Promise<{ status: FlightStatus | null; unavailable: boolean }> {
+    const { flight, budgetBlocked } = await fetchFlightStatus(flightNumber, travelDate, {
+      ...(tripId ? { tripId } : {}),
+      force: true,
+      origin: leg?.origin,
+      dest: leg?.dest,
+    });
+    if (!flight) {
+      return { status: null, unavailable: true };
+    }
+    return { status: toFlightStatus(flight), unavailable: false };
   }
 
   /** Uses the includes on the cached status response — never a second call. */

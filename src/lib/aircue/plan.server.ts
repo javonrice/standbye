@@ -20,6 +20,14 @@ import type {
   StandbyProfileValues,
   WatchSummary,
 } from "@/lib/aircue/plan.functions";
+import {
+  cancellationEvent,
+  classifyFlightStatus,
+  shouldEmitCancellation,
+  watchFlightIdentity,
+  type WatchFlightState,
+  type WatchSnapshot,
+} from "@/lib/aircue/watch-flight-state.server";
 
 /** The generated Database type does not yet know the standby tables. */
 type Db = SupabaseClient;
@@ -632,13 +640,34 @@ export async function attachLoad(
 
 /* -------------------------------- watching -------------------------------- */
 
-function snapshotOf(option: StandbyOption) {
+function snapshotOf(option: StandbyOption, flightState: WatchFlightState = "unknown") {
   return {
     judgment: option.judgment,
     pillars: Object.fromEntries(option.pillars.map((p) => [p.key, p.state])),
     largestShowing: option.evidence.availability.largestShowing,
     laterCount: option.evidence.recovery.laterNonstops.length,
+    flightState,
   };
+}
+
+function mergeRecheckSnapshot(
+  before: StandbyOption,
+  fresh: StandbyOption | null,
+  prev: WatchSnapshot,
+  flightState: WatchFlightState,
+): WatchSnapshot {
+  if (!fresh) {
+    return { ...prev, flightState };
+  }
+  return snapshotOf(
+    {
+      ...before,
+      judgment: fresh.judgment,
+      pillars: fresh.pillars,
+      evidence: { ...before.evidence, availability: fresh.evidence.availability, recovery: fresh.recovery },
+    },
+    flightState,
+  );
 }
 
 export async function beginWatch(
@@ -802,84 +831,109 @@ export async function recheckWatch(
   const optionRow = (row["plan_options"] as Row) ?? {};
   const planRow = (row["plans"] as Row) ?? {};
   const before = optionFromRow(optionRow, null);
-  const prev = (row["snapshot"] as ReturnType<typeof snapshotOf>) ?? snapshotOf(before);
+  const prev = ((row["snapshot"] as WatchSnapshot | null) ?? snapshotOf(before)) as WatchSnapshot;
+  let flightState: WatchFlightState = prev.flightState ?? "unknown";
+
+  const events: Array<{ kind: string; severity: string; headline: string; detail: string }> = [];
+  const identity = watchFlightIdentity(before);
+  const travelDate = String(planRow["travel_date"] ?? "");
+  const planId = String(planRow["id"] ?? "");
+
+  if (identity) {
+    const { getFlightProvider } = await import("@/lib/aircue/flight-provider.server");
+    const provider = getFlightProvider();
+    const { status, unavailable } = await provider.getWatchStatus(
+      identity.flightNumber,
+      travelDate,
+      planId,
+      { origin: identity.origin, dest: identity.dest },
+    );
+
+    if (!unavailable && status) {
+      const presence = classifyFlightStatus(status);
+      flightState = presence.state;
+      if (shouldEmitCancellation(prev.flightState, flightState)) {
+        events.push(cancellationEvent(before.flightLabel, before.origin, before.dest));
+      }
+    }
+  }
 
   const ranked = await rankStandbyOptions({
     origin: String(optionRow["origin_iata"]),
     dest: String(optionRow["dest_iata"]),
-    travelDate: String(planRow["travel_date"] ?? ""),
+    travelDate,
     carriers: optionRow["carrier"] ? [String(optionRow["carrier"])] : null,
     travelers: Number(planRow["travelers"] ?? 1),
     cabin: String(planRow["cabin"] ?? "any"),
     userId,
   });
 
-  const fresh = ranked.options.find((o) => o.flightLabel === before.flightLabel);
-  if (!fresh) return { changed: false };
+  const fresh = ranked.options.find((o) => o.flightLabel === before.flightLabel) ?? null;
 
-  await db(client)
-    .from("plan_options")
-    .update({
-      label: fresh.judgment,
-      confidence: fresh.confidence,
-      score: fresh.score,
-      headline: fresh.headline,
-      pillars: fresh.pillars,
-      reasons: fresh.reasons,
-      recovery: fresh.recovery,
-      evidence: fresh.evidence,
-      refreshed_at: new Date().toISOString(),
-    })
-    .eq("id", before.id);
+  if (fresh) {
+    await db(client)
+      .from("plan_options")
+      .update({
+        label: fresh.judgment,
+        confidence: fresh.confidence,
+        score: fresh.score,
+        headline: fresh.headline,
+        pillars: fresh.pillars,
+        reasons: fresh.reasons,
+        recovery: fresh.recovery,
+        evidence: fresh.evidence,
+        refreshed_at: new Date().toISOString(),
+      })
+      .eq("id", before.id);
 
-  const events: Array<{ kind: string; severity: string; headline: string; detail: string }> = [];
-  if (fresh.judgment !== prev.judgment) {
-    events.push({
-      kind: "judgment",
-      severity: "meaningful",
-      headline:
-        fresh.judgment === "favorable"
-          ? "This setup improved"
-          : fresh.judgment === "riskier"
-            ? "This setup got harder"
-            : "This setup shifted",
-      detail: fresh.headline,
-    });
-  }
+    if (fresh.judgment !== prev.judgment) {
+      events.push({
+        kind: "judgment",
+        severity: "meaningful",
+        headline:
+          fresh.judgment === "favorable"
+            ? "This setup improved"
+            : fresh.judgment === "riskier"
+              ? "This setup got harder"
+              : "This setup shifted",
+        detail: fresh.headline,
+      });
+    }
 
-  const prevLargest = prev.largestShowing;
-  const nextLargest = fresh.evidence.availability.largestShowing;
-  if (prevLargest !== null && nextLargest !== null && nextLargest < prevLargest) {
-    events.push({
-      kind: "availability",
-      severity: nextLargest === 0 ? "meaningful" : "context",
-      headline:
-        nextLargest === 0
-          ? "Public availability has closed"
-          : "Public availability tightened",
-      detail: `Booking now shows for parties up to ${nextLargest}, down from ${prevLargest}. This is a demand signal, not a load.`,
-    });
-  }
+    const prevLargest = prev.largestShowing;
+    const nextLargest = fresh.evidence.availability.largestShowing;
+    if (prevLargest !== null && nextLargest !== null && nextLargest < prevLargest) {
+      events.push({
+        kind: "availability",
+        severity: nextLargest === 0 ? "meaningful" : "context",
+        headline:
+          nextLargest === 0
+            ? "Public availability has closed"
+            : "Public availability tightened",
+        detail: `Booking now shows for parties up to ${nextLargest}, down from ${prevLargest}. This is a demand signal, not a load.`,
+      });
+    }
 
-  const prevOps = prev.pillars?.["operations"];
-  const nextOps = fresh.pillars.find((p) => p.key === "operations")?.state;
-  if (prevOps && nextOps && prevOps !== nextOps && nextOps === "poor") {
-    events.push({
-      kind: "operations",
-      severity: "meaningful",
-      headline: "Operations turned against this plan",
-      detail: fresh.pillars.find((p) => p.key === "operations")?.detail ?? "",
-    });
-  }
+    const prevOps = prev.pillars?.["operations"];
+    const nextOps = fresh.pillars.find((p) => p.key === "operations")?.state;
+    if (prevOps && nextOps && prevOps !== nextOps && nextOps === "poor") {
+      events.push({
+        kind: "operations",
+        severity: "meaningful",
+        headline: "Operations turned against this plan",
+        detail: fresh.pillars.find((p) => p.key === "operations")?.detail ?? "",
+      });
+    }
 
-  const laterNow = fresh.recovery.laterNonstops.length;
-  if (laterNow < (prev.laterCount ?? 0)) {
-    events.push({
-      kind: "recovery",
-      severity: laterNow === 0 ? "meaningful" : "context",
-      headline: laterNow === 0 ? "You are out of backup options" : "Backup options thinned out",
-      detail: fresh.recovery.summary,
-    });
+    const laterNow = fresh.recovery.laterNonstops.length;
+    if (laterNow < (prev.laterCount ?? 0)) {
+      events.push({
+        kind: "recovery",
+        severity: laterNow === 0 ? "meaningful" : "context",
+        headline: laterNow === 0 ? "You are out of backup options" : "Backup options thinned out",
+        detail: fresh.recovery.summary,
+      });
+    }
   }
 
   if (events.length > 0) {
@@ -901,7 +955,7 @@ export async function recheckWatch(
   await db(client)
     .from("watch_plans")
     .update({
-      snapshot: snapshotOf({ ...before, judgment: fresh.judgment, pillars: fresh.pillars, evidence: { ...before.evidence, availability: fresh.evidence.availability, recovery: fresh.recovery } }),
+      snapshot: mergeRecheckSnapshot(before, fresh, prev, flightState),
       verdict: meaningful > 0 ? "changed" : "steady",
       unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
       last_checked_at: new Date().toISOString(),
