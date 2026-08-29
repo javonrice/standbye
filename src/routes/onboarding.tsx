@@ -173,31 +173,16 @@ function OnboardingFlow() {
               ))}
             </div>
             {draft.accessMode === "selected" && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {AIRLINES.filter((a) => a.code !== ALL_AIRLINES).map((a) => {
-                  const on = draft.airlineAccess.includes(a.code);
-                  return (
-                    <button
-                      key={a.code}
-                      type="button"
-                      onClick={() =>
-                        update({
-                          airlineAccess: on
-                            ? draft.airlineAccess.filter((c) => c !== a.code)
-                            : [...draft.airlineAccess, a.code],
-                        })
-                      }
-                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${
-                        on
-                          ? "border-primary bg-accent text-accent-foreground"
-                          : "border-border bg-card text-muted-foreground"
-                      }`}
-                    >
-                      {a.code}
-                    </button>
-                  );
-                })}
-              </div>
+              <AccessAirlinePicker
+                selected={draft.airlineAccess}
+                onToggle={(code) =>
+                  update({
+                    airlineAccess: draft.airlineAccess.includes(code)
+                      ? draft.airlineAccess.filter((c) => c !== code)
+                      : [...draft.airlineAccess, code],
+                  })
+                }
+              />
             )}
           </section>
         );
