@@ -304,7 +304,7 @@ function HomePage() {
             hint="Exploration only — pick a primary or watch a plan to save it under Plans."
           />
           <ul className="mt-2 divide-y divide-border/70">
-            {(recent ?? []).map((p) => (
+            {(recent ?? []).slice(0, 4).map((p) => (
               <li key={p.id}>
                 <RecentSearchRow plan={p} />
               </li>
