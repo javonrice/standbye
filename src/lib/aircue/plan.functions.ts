@@ -275,7 +275,15 @@ export const addReportedLoad = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ optionId: string; judgment: string }> => {
+  .handler(async ({ data, context }): Promise<{
+    optionId: string;
+    judgment: string;
+    reranked: boolean;
+    topOptionId: string | null;
+    topFlightLabel: string | null;
+    previousTopOptionId: string | null;
+    primaryOptionId: string | null;
+  }> => {
     const { attachLoad } = await import("@/lib/aircue/plan.server");
     return attachLoad(context.supabase, context.userId, data);
   });
