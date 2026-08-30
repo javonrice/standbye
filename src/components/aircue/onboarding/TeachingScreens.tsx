@@ -62,7 +62,7 @@ function Arrow() {
 }
 
 /** Screen 08 */
-export function BookingIsNotEverything({ origin, echo }: { origin: string; echo?: string }) {
+export function BookingIsNotEverything({ origin, echo }: { origin: string; echo?: string | undefined }) {
   return (
     <section>
       {echo && <p className="text-sm text-muted-foreground">{echo}</p>}
