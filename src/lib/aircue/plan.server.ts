@@ -913,10 +913,19 @@ export async function attachLoad(
     source: string;
     partyIncluded: "yes" | "no" | "unsure" | null;
   },
-): Promise<{ optionId: string; judgment: string }> {
+): Promise<{
+  optionId: string;
+  judgment: string;
+  /** Stored ranks moved because of this report. */
+  reranked: boolean;
+  topOptionId: string | null;
+  topFlightLabel: string | null;
+  previousTopOptionId: string | null;
+  primaryOptionId: string | null;
+}> {
   const { data: optionRow, error: optionError } = await db(client)
     .from("plan_options")
-    .select("*, plans!plan_options_plan_id_fkey(travel_date)")
+    .select("*, plans!plan_options_plan_id_fkey(travel_date,travelers,primary_option_id)")
     .eq("id", input.optionId)
     .eq("user_id", userId)
     .maybeSingle();
