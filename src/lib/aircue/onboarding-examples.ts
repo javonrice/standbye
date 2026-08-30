@@ -64,7 +64,7 @@ export const widenedExample: ExampleFlight = {
   footnote: "3 later shots remain",
 };
 
-export const widenedAlternates = ["PHX → LAX", "SFO → LAX"];
+export const widenedAlternates = ["DEN → PHX → LAX", "DEN → SFO → LAX"];
 
 /** Screen 12 — what the 1–4 public booking check actually is. */
 export const bookingCheckLadder = [
