@@ -611,36 +611,42 @@ export type Database = {
       }
       reported_loads: {
         Row: {
+          already_listed: boolean
           cabin: string
           checked_at: string
           created_at: string
           flight_label: string
           id: string
           open_seats: number | null
+          segment_key: string | null
           source: string
           standbys: number | null
           travel_date: string
           user_id: string
         }
         Insert: {
+          already_listed?: boolean
           cabin?: string
           checked_at?: string
           created_at?: string
           flight_label: string
           id?: string
           open_seats?: number | null
+          segment_key?: string | null
           source?: string
           standbys?: number | null
           travel_date: string
           user_id: string
         }
         Update: {
+          already_listed?: boolean
           cabin?: string
           checked_at?: string
           created_at?: string
           flight_label?: string
           id?: string
           open_seats?: number | null
+          segment_key?: string | null
           source?: string
           standbys?: number | null
           travel_date?: string

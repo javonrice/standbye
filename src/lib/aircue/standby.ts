@@ -119,8 +119,13 @@ export interface RecoveryEvidence {
 
 export interface ReportedLoad {
   id: string;
+  /** Canonical segment identity — one leg of an option_key. */
+  segmentKey: string;
+  /** Display-only; not used for load lookup. */
+  flightLabel: string;
   openSeats: number | null;
   standbys: number | null;
+  alreadyListed: boolean;
   cabin: string;
   source: string;
   checkedAt: string;
@@ -268,6 +273,8 @@ export interface StandbyPlan {
     zedCount?: number;
     otherCount?: number;
   };
+  /** Set after a reported load changes rank #1; cleared on next plan read after display. */
+  loadResortNotice?: { headline: string; detail: string } | null;
 }
 
 export const judgmentFace: Record<Judgment, string> = {

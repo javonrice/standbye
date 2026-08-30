@@ -258,22 +258,26 @@ export const addReportedLoad = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: {
     optionId: string;
+    segmentKey?: string;
     openSeats: number | null;
     standbys: number | null;
+    alreadyListed: boolean;
     cabin: string;
     source: string;
   }) =>
     z
       .object({
         optionId: z.string().uuid(),
+        segmentKey: z.string().min(8).max(120).optional(),
         openSeats: z.number().int().min(0).max(400).nullable(),
         standbys: z.number().int().min(0).max(400).nullable(),
+        alreadyListed: z.boolean(),
         cabin: z.string().min(3).max(16),
         source: z.string().min(3).max(24),
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ optionId: string; judgment: string }> => {
+  .handler(async ({ data, context }) => {
     const { attachLoad } = await import("@/lib/aircue/plan.server");
     return attachLoad(context.supabase, context.userId, data);
   });

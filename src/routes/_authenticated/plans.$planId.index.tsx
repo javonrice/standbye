@@ -63,6 +63,17 @@ function PlanDetailScreen() {
             {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
           </p>
 
+          {plan.loadResortNotice && (
+            <section className="mt-5 rounded-2xl border border-primary/40 bg-primary/[0.06] p-5">
+              <p className="font-display text-[20px] font-bold tracking-tight">
+                {plan.loadResortNotice.headline}
+              </p>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+                {plan.loadResortNotice.detail}
+              </p>
+            </section>
+          )}
+
           {plan.options.length === 0 && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-5">
               <p className="font-display text-[20px] font-semibold tracking-tight">

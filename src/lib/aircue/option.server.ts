@@ -1,7 +1,7 @@
 /** Server-only reads for a single standby option. */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { optionFromRow, latestLoadFor } from "@/lib/aircue/plan.server";
+import { optionFromRow, loadsForOptionRow } from "@/lib/aircue/plan.server";
 import type { StandbyOption } from "@/lib/aircue/standby";
 
 type Row = Record<string, unknown>;
@@ -13,7 +13,7 @@ type Row = Record<string, unknown>;
  * `plan_options.plan_id → plans.id` (`plan_options_plan_id_fkey`).
  */
 const PLAN_EMBED =
-  "plans!plan_options_plan_id_fkey(travel_date,primary_option_id)";
+  "plans!plan_options_plan_id_fkey(travel_date,travelers,primary_option_id)";
 
 export async function loadOption(
   client: unknown,
@@ -52,7 +52,8 @@ export async function loadOption(
   const plan = (row["plans"] as Row) ?? {};
   const travelDate = String(plan["travel_date"] ?? "");
   const planId = String(row["plan_id"]);
-  const load = await latestLoadFor(client, userId, String(row["flight_label"]), travelDate);
+  const partySize = Number(plan["travelers"] ?? 1);
+  const loads = await loadsForOptionRow(client, userId, row, travelDate);
 
   const { data: watch, error: watchError } = await db
     .from("watch_plans")
@@ -73,7 +74,7 @@ export async function loadOption(
   }
 
   return {
-    option: optionFromRow(row, load),
+    option: optionFromRow(row, { loadsBySegment: loads, partySize }),
     planId,
     travelDate,
     watchId: watch ? String((watch as Row)["id"]) : null,

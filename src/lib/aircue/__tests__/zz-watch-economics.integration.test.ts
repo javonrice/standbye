@@ -554,7 +554,18 @@ function createMultiWatchClient(watches: WatchFixture[]) {
           select: () => ({
             eq: (col: string, val: string) => {
               if (col === "plan_id") {
-                return Promise.resolve({ data: optionsByPlan.get(val) ?? [] });
+                const allRows = () => optionsByPlan.get(val) ?? [];
+                const currentRows = () => allRows().filter((o) => o["is_current"] !== false);
+                const response = Promise.resolve({ data: allRows(), error: null });
+                return Object.assign(response, {
+                  eq: () => {
+                    const current = Promise.resolve({ data: currentRows(), error: null });
+                    return Object.assign(current, {
+                      order: () => Promise.resolve({ data: currentRows(), error: null }),
+                    });
+                  },
+                  order: () => Promise.resolve({ data: currentRows(), error: null }),
+                });
               }
               return {
                 eq: () => ({
@@ -569,8 +580,10 @@ function createMultiWatchClient(watches: WatchFixture[]) {
               };
             },
           }),
-          update: () => ({
-            eq: () => Promise.resolve({ data: null, error: null }),
+          update: (payload: Record<string, unknown>) => ({
+            eq: () => ({
+              eq: () => Promise.resolve({ data: null, error: null }),
+            }),
             in: () => Promise.resolve({ data: null, error: null }),
           }),
           insert: (payload: Record<string, unknown>) => ({
@@ -585,6 +598,11 @@ function createMultiWatchClient(watches: WatchFixture[]) {
       }
       if (table === "plans") {
         return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: { travelers: 1 }, error: null }),
+            }),
+          }),
           update: () => ({
             eq: () => Promise.resolve({ data: null, error: null }),
           }),
