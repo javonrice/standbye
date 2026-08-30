@@ -238,8 +238,8 @@ The core product. Conceptual order:
 1. Route
 2. Date / travelers
 3. Overall plan state
-4. YOUR CURRENT PLAN (dominant card)
-5. Monitoring state / important changes
+4. YOUR CURRENT PLAN or RECOMMENDED NOW (dominant card, §8.2)
+5. Monitoring state / important changes (omitted entirely on zero-option Plans)
 6. Backup options
 7. Add load
 8. Find another way
@@ -283,6 +283,64 @@ Plan another trip
 Language: "Your current plan" not "Your primary option"; "Use this option" not "Make
 this my primary option". Do not expose preferredOption vs primaryOption semantics. Watch
 controls are a property of the Plan, not the emotional center.
+
+### 8.2 Selected vs unselected option — "Your current plan" vs "Recommended now"
+
+A Plan may exist with options but no user-selected option yet. Home and Plan Detail then
+present Standbye's top-ranked option as RECOMMENDED NOW — never "Your current plan":
+
+```text
+RECOMMENDED NOW
+UA 1847
+9:10 AM → 11:35 AM
+[        Use this option        ]
+```
+
+Once the user taps "Use this option", that option becomes YOUR CURRENT PLAN. If Standbye
+later ranks a different option above the selected one, the selected option stays YOUR
+CURRENT PLAN and the new top-ranked option is shown as RECOMMENDED NOW:
+
+```text
+YOUR CURRENT PLAN
+UA 1847
+
+RECOMMENDED NOW
+UA 2201
+Standbye prefers this now because…
+[        Use this option        ]
+```
+
+This preserves the difference between system recommendation and user intent without
+exposing "primary" or "preferred" terminology. Internally this still maps to the
+existing `plan.primaryOptionId` / set-primary mutation; only the presentation changes.
+
+### 8.3 Zero-option Plans
+
+A zero-option Plan is a distinct state, never merged with a weak Plan. A weak Plan still
+has options: it shows them, is monitored, and ranks them. A zero-option Plan has no
+current options to anchor anything to.
+
+A zero-option Plan:
+
+- is still a real Plan — it appears in Home and Plans and never disappears for lacking a
+  primary or a watch,
+- does not call `startWatchPlan` and never shows "Standbye is watching the day",
+- never gets a fabricated watcher, placeholder option, or new watch mode,
+- prioritizes Find another way, Try another date, and (when relevant) changing Trip
+  options.
+
+```text
+ORD → LAX
+Today
+
+No useful option yet
+
+Standbye couldn't find a setup
+we'd recommend trying right now.
+
+[      Find another way      ]
+        Try another date
+```
 
 ### 8.1 Plan monitoring lifecycle
 
