@@ -12,8 +12,6 @@ import {
   accessModeLabel,
   accessModeHint,
   emptyDraft,
-  painEcho,
-  painOptions,
   popularAirlines,
   readDraft,
   resolvedAccess,
@@ -23,19 +21,6 @@ import {
   type AccessMode,
   type OnboardingDraft,
 } from "@/lib/aircue/onboarding";
-import {
-  AddYourLoad,
-  AlreadyStuck,
-  BookingIsNotEverything,
-  LoadsAreInterpreted,
-  NoFakeOdds,
-  TheDayChanges,
-  UpdatesPreview,
-  WhatIsTheBookingCheck,
-  WhyTheCheckHelps,
-  WidenedResult,
-} from "@/components/aircue/onboarding/TeachingScreens";
-import { exampleOrigin } from "@/lib/aircue/onboarding-examples";
 
 
 export const Route = createFileRoute("/onboarding")({
@@ -45,7 +30,7 @@ export const Route = createFileRoute("/onboarding")({
       {
         name: "description",
         content:
-          "A few quick questions and four short examples, then Standbye is ready to rank your standby day.",
+          "Five quick questions and Standbye is ready to rank your standby day.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Set up Standbye for how you nonrev" },
@@ -59,7 +44,7 @@ export const Route = createFileRoute("/onboarding")({
   component: OnboardingFlow,
 });
 
-const TOTAL = 17;
+const TOTAL = 5;
 
 function OnboardingFlow() {
   const navigate = useNavigate();
@@ -83,63 +68,9 @@ function OnboardingFlow() {
   const next = () => setStep((s) => Math.min(s + 1, TOTAL - 1));
   const back = () => (step === 0 ? navigate({ to: "/" }) : setStep((s) => s - 1));
 
-  const origin = exampleOrigin(draft.homeAirport);
-
   const body = (() => {
     switch (step) {
       case 0:
-        return (
-          <Question
-            title="What gets old when you nonrev?"
-            sub="Pick the one that feels most familiar."
-          >
-            {painOptions.map((p) => (
-              <ChoiceButton
-                key={p.value}
-                emoji={p.emoji}
-                label={p.label}
-                selected={draft.painPoint === p.value}
-                onClick={() => update({ painPoint: p.value }, true)}
-              />
-            ))}
-          </Question>
-        );
-
-      case 1:
-        return (
-          <section>
-            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
-              Yeah. We know the routine.
-            </h1>
-            <ol className="mt-6 space-y-1.5 text-center">
-              {[
-                "Employee travel portal",
-                "StaffTraveler",
-                "Airline booking site",
-                "Earlier flights",
-                "Weather",
-                "Check it again",
-              ].map((line, i, all) => (
-                <li key={line}>
-                  <span className="block rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold">
-                    {line}
-                  </span>
-                  {i < all.length - 1 && (
-                    <span aria-hidden className="block py-0.5 text-muted-foreground">
-                      ↓
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ol>
-            <p className="mt-6 text-[15px] text-muted-foreground">
-              And somehow you still end up asking:
-            </p>
-            <p className="mt-2 font-display text-xl font-bold">“Which one should I try?”</p>
-          </section>
-        );
-
-      case 2:
         return (
           <Question title="How do you usually travel standby?">
             {travelerOptions.map((t) => (
@@ -154,7 +85,7 @@ function OnboardingFlow() {
           </Question>
         );
 
-      case 3:
+      case 1:
         return (
           <AirlineStep
             value={draft.homeAirline}
@@ -162,13 +93,15 @@ function OnboardingFlow() {
           />
         );
 
-      case 4:
+      case 2:
         return (
           <section>
             <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
               What can Standbye consider when finding a way there?
             </h1>
-            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">You can change this anytime.</p>
+            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">
+              You can change this anytime.
+            </p>
             <div className="mt-8 space-y-3">
               {(["home", "partners", "selected"] as AccessMode[]).map((mode) => (
                 <ChoiceButton
@@ -180,7 +113,9 @@ function OnboardingFlow() {
               ))}
             </div>
             {draft.accessMode && (
-              <p className="mt-3 text-sm text-muted-foreground">{accessModeHint[draft.accessMode]}</p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {accessModeHint[draft.accessMode]}
+              </p>
             )}
             {(draft.accessMode === "selected" || draft.accessMode === "partners") && (
               <AccessAirlinePicker
@@ -197,7 +132,7 @@ function OnboardingFlow() {
           </section>
         );
 
-      case 5:
+      case 3:
         return (
           <section>
             <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
@@ -218,42 +153,7 @@ function OnboardingFlow() {
           </section>
         );
 
-      case 6:
-        return (
-          <BookingIsNotEverything
-            origin={origin}
-            echo={draft.painPoint ? painEcho[draft.painPoint] : undefined}
-          />
-        );
-
-      case 7:
-        return <TheDayChanges origin={origin} />;
-
-      case 8:
-        return <AlreadyStuck />;
-
-      case 9:
-        return <WidenedResult />;
-
-      case 10:
-        return <WhatIsTheBookingCheck />;
-
-      case 11:
-        return <WhyTheCheckHelps />;
-
-      case 12:
-        return <AddYourLoad origin={origin} />;
-
-      case 13:
-        return <LoadsAreInterpreted />;
-
-      case 14:
-        return <NoFakeOdds />;
-
-      case 15:
-        return <UpdatesPreview />;
-
-      case 16:
+      case 4:
         return <RevealStep draft={draft} />;
 
       default:
@@ -262,18 +162,13 @@ function OnboardingFlow() {
   })();
 
   const ctaByStep: Record<number, string> = {
-    1: "Exactly",
-    8: "Show me",
-    11: "Got it",
-    14: "I like that",
-    16: "Save my setup",
+    4: "Save my setup",
   };
   const cta = ctaByStep[step] ?? "Continue";
 
-  const hideCta = step === 0 || step === 2 || step === 3;
+  const hideCta = step === 0 || step === 1;
   const disabled =
-    (step === 4 && !draft.accessMode) ||
-    (step === 5 && draft.homeAirport.trim().length !== 3);
+    (step === 2 && !draft.accessMode) || (step === 3 && draft.homeAirport.trim().length !== 3);
 
 
 

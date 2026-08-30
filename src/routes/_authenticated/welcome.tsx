@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Gift } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getStandbyProfile, saveStandbyProfile } from "@/lib/aircue/plan.functions";
@@ -65,37 +65,17 @@ function Welcome() {
   }, [save, load, navigate]);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-7 pb-8 pt-20 text-center">
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-7 pb-10 pt-24 text-center">
       <div className="flex flex-1 flex-col justify-center">
-        <span className="relative mx-auto flex h-24 w-24 items-center justify-center">
-          <span
-            aria-hidden
-            className="absolute inset-0 rounded-full bg-fine-soft opacity-70 blur-xl"
-          />
-          <span className="relative flex h-20 w-20 items-center justify-center rounded-full bg-fine-soft shadow-card">
-            {saving ? (
-              <Check className="h-8 w-8 animate-pulse text-fine-foreground" />
-            ) : (
-              <Gift className="h-8 w-8 text-fine-foreground" />
-            )}
-          </span>
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-fine-soft shadow-card">
+          <Check className={`h-7 w-7 text-fine-foreground ${saving ? "animate-pulse" : ""}`} />
         </span>
 
-        {!saving && (
-          <p className="mt-8 text-xs font-semibold uppercase tracking-[0.18em] text-fine-foreground">
-            One full standby day, on us
-          </p>
-        )}
-
-        <h1
-          className={`font-display text-[30px] font-bold leading-[1.12] tracking-tight ${saving ? "mt-8" : "mt-3"}`}
-        >
-          {saving ? "Saving your profile…" : "Try it on your actual trip"}
+        <h1 className="mt-7 font-display text-[30px] font-bold leading-[1.12] tracking-tight">
+          {saving ? "Setting you up…" : "You're in."}
         </h1>
-        <p className="mx-auto mt-4 max-w-[20rem] text-[16px] leading-relaxed text-muted-foreground">
-          {saving
-            ? "One moment while Standbye gets set up the way you travel."
-            : "Plan a real route, build your options, and let Standbye watch the plan while you get to the airport."}
+        <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">
+          {saving ? "One moment." : "Your Standbye setup is ready."}
         </p>
       </div>
 
@@ -103,9 +83,9 @@ function Welcome() {
         size="lg"
         disabled={saving}
         className="h-14 rounded-full text-base font-semibold"
-        onClick={() => navigate({ to: "/plan" })}
+        onClick={() => navigate({ to: "/plan", search: { new: true } })}
       >
-        Build my first plan
+        Plan my first trip
       </Button>
     </main>
   );

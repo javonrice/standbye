@@ -7,7 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SearchingOverlay } from "@/components/aircue/SearchingOverlay";
+import { PlanBuildingState } from "@/components/aircue/PlanBuildingState";
+import { useActivatePlan } from "@/lib/aircue/use-plan-lifecycle";
 import { checkKnownFlight } from "@/lib/aircue/plan.functions";
 
 export const Route = createFileRoute("/_authenticated/known-flight")({
@@ -35,20 +36,25 @@ function todayISO() {
 function KnownFlightPage() {
   const navigate = useNavigate();
   const check = useServerFn(checkKnownFlight);
+  const activatePlan = useActivatePlan();
 
   const [carrier, setCarrier] = useState("");
   const [flightNumber, setFlightNumber] = useState("");
   const [travelDate, setTravelDate] = useState(todayISO());
 
   const run = useMutation({
-    mutationFn: () =>
-      check({
+    mutationFn: async () => {
+      const res = await check({
         data: {
           carrier: carrier.trim().toUpperCase(),
           flightNumber: flightNumber.trim(),
           travelDate,
         },
-      }),
+      });
+      // Known Flight is an alternate entry into the same Plan lifecycle.
+      if (res.planId) await activatePlan(res.planId);
+      return res;
+    },
     onSuccess: (res) => {
       if (res.planId) navigate({ to: "/plans/$planId", params: { planId: res.planId } });
       else if (res.optionId) navigate({ to: "/options/$optionId", params: { optionId: res.optionId } });
@@ -60,10 +66,7 @@ function KnownFlightPage() {
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-xl md:px-10 md:pt-12">
       {run.isPending && (
-        <SearchingOverlay
-          phase="building"
-          flightLabel={`${carrier.toUpperCase()}${flightNumber}`}
-        />
+        <PlanBuildingState flightLabel={`${carrier.toUpperCase()}${flightNumber}`} />
       )}
 
       <Link to="/plan" className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -71,11 +74,10 @@ function KnownFlightPage() {
       </Link>
 
       <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">
-        I already know the flight
+        Start with a flight you know
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Enter it and Standbye will read that exact setup, plus what you would have left if it does not
-        work.
+        Standbye builds the whole day around it — that flight, plus the realistic backups if it does not work.
       </p>
 
       <form
@@ -125,7 +127,7 @@ function KnownFlightPage() {
           className="h-12 w-full"
           disabled={run.isPending || carrier.length < 2 || flightNumber.length < 1}
         >
-          Read this setup
+          Build around this
         </Button>
       </form>
 
