@@ -125,10 +125,9 @@ export interface ReportedLoad {
   flightLabel: string;
   openSeats: number | null;
   standbys: number | null;
-  alreadyListed: boolean;
   cabin: string;
   source: string;
-  /** Did the reporter's own party already appear in the standby count? */
+  /** Whether the reporter's party is already counted in standbys. */
   partyIncluded: "yes" | "no" | "unsure" | null;
   checkedAt: string;
 }

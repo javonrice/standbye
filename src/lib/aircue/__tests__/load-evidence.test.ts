@@ -16,19 +16,18 @@ function load(overrides: Partial<ReportedLoad>): ReportedLoad {
     flightLabel: "UA123",
     openSeats: 8,
     standbys: 3,
-    alreadyListed: false,
     cabin: "economy",
     source: "employee_system",
-    partyIncluded: null,
+    partyIncluded: "no",
     checkedAt: new Date(NOW - 5 * 60_000).toISOString(),
     ...overrides,
   };
 }
 
 describe("computeLoadEvidence null handling", () => {
-  it("8 open / null listed / alreadyListed=true stays unknown cushion", () => {
+  it("8 open / null listed stays unknown cushion", () => {
     const evidence = computeLoadEvidence(
-      load({ openSeats: 8, standbys: null, alreadyListed: true }),
+      load({ openSeats: 8, standbys: null, partyIncluded: "yes" }),
       { partySize: 1 },
     );
     expect(evidence.effectiveListed).toBeNull();
@@ -42,7 +41,7 @@ describe("computeLoadEvidence null handling", () => {
 
   it("8 open / null listed / party=4 does not invent zero listed demand", () => {
     const evidence = computeLoadEvidence(
-      load({ openSeats: 8, standbys: null, alreadyListed: false }),
+      load({ openSeats: 8, standbys: null, partyIncluded: "no" }),
       { partySize: 4 },
     );
     expect(evidence.effectiveListed).toBeNull();
@@ -50,8 +49,21 @@ describe("computeLoadEvidence null handling", () => {
     expect(loadPillarFromEvidence(evidence).state).toBe("unknown");
   });
 
-  it("null open / 3 listed keeps cushion unknown", () => {
-    const evidence = computeLoadEvidence(load({ openSeats: null, standbys: 3 }), { partySize: 1 });
+  it("partyIncluded unsure keeps cushion unknown even with open and listed", () => {
+    const evidence = computeLoadEvidence(
+      load({ openSeats: 8, standbys: 3, partyIncluded: "unsure" }),
+      { partySize: 4 },
+    );
+    expect(evidence.effectiveListed).toBeNull();
+    expect(evidence.cushion).toBeNull();
+    expect(loadPillarFromEvidence(evidence).label).toBe("Partial");
+  });
+
+  it("null open / 3 listed / party not included counts party size", () => {
+    const evidence = computeLoadEvidence(
+      load({ openSeats: null, standbys: 3, partyIncluded: "no" }),
+      { partySize: 1 },
+    );
     expect(evidence.effectiveListed).toBe(4);
     expect(evidence.cushion).toBeNull();
     expect(loadPillarFromEvidence(evidence).state).toBe("unknown");
@@ -59,7 +71,7 @@ describe("computeLoadEvidence null handling", () => {
 
   it("8 open / 0 explicitly listed is valid zero demand", () => {
     const evidence = computeLoadEvidence(
-      load({ openSeats: 8, standbys: 0, alreadyListed: true }),
+      load({ openSeats: 8, standbys: 0, partyIncluded: "yes" }),
       { partySize: 1 },
     );
     expect(evidence.effectiveListed).toBe(0);

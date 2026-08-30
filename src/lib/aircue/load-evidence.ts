@@ -12,7 +12,7 @@ export interface LoadEvidence {
   effectiveListed: number | null;
   cushion: number | null;
   partySize: number;
-  userAlreadyListed: boolean;
+  partyIncluded: "yes" | "no" | "unsure" | null;
   sourceStrength: number;
   freshnessMinutes: number;
   freshnessTier: LoadFreshnessTier;
@@ -66,11 +66,16 @@ export function computeLoadEvidence(
     // Unknown standby count is not zero demand.
     effectiveListed = null;
     cushion = null;
+  } else if (load.partyIncluded === "unsure" || load.partyIncluded === null) {
+    effectiveListed = null;
+    cushion = null;
   } else if (open === null) {
-    effectiveListed = load.alreadyListed ? listedRaw : listedRaw + partySize;
+    effectiveListed =
+      load.partyIncluded === "yes" ? listedRaw : listedRaw + partySize;
     cushion = null;
   } else {
-    effectiveListed = load.alreadyListed ? listedRaw : listedRaw + partySize;
+    effectiveListed =
+      load.partyIncluded === "yes" ? listedRaw : listedRaw + partySize;
     cushion = open - effectiveListed;
   }
 
@@ -88,7 +93,7 @@ export function computeLoadEvidence(
     effectiveListed,
     cushion,
     partySize,
-    userAlreadyListed: load.alreadyListed,
+    partyIncluded: load.partyIncluded,
     sourceStrength,
     freshnessMinutes,
     freshnessTier: fresh.tier,
@@ -116,7 +121,7 @@ export function loadPillarFromEvidence(evidence: LoadEvidence): Pillar {
 
   if (cushion === null) {
     const partyNote =
-      !evidence.userAlreadyListed && evidence.partySize > 1 && listedWasProvided
+      evidence.partyIncluded === "no" && evidence.partySize > 1 && listedWasProvided
         ? ` (${evidence.partySize} travelers in your party counted against open seats)`
         : "";
     if (open !== null && !listedWasProvided) {
@@ -150,13 +155,13 @@ export function loadPillarFromEvidence(evidence: LoadEvidence): Pillar {
   else if (cushion <= 6) label = "Workable";
 
   const partyNote =
-    !evidence.userAlreadyListed && evidence.partySize > 1
+    evidence.partyIncluded === "no" && evidence.partySize > 1
       ? ` (${evidence.partySize} travelers in your party counted against open seats)`
       : "";
 
   const openCount = open ?? 0;
   const detail =
-    evidence.userAlreadyListed || listed === 0
+    evidence.partyIncluded === "yes" || listed === 0
       ? `${openCount} open seat${openCount === 1 ? "" : "s"} reported${partyNote}.`
       : `${openCount} open seat${openCount === 1 ? "" : "s"} against ${listed} effective standby demand${partyNote}.`;
 

@@ -74,7 +74,6 @@ function AddLoad() {
   const [segmentKey, setSegmentKey] = useState("");
   const [openSeats, setOpenSeats] = useState("");
   const [standbys, setStandbys] = useState("");
-  const [alreadyListed, setAlreadyListed] = useState<"yes" | "no">("no");
   const [cabin, setCabin] = useState("economy");
   const [source, setSource] = useState("employee_system");
   const [partyIncluded, setPartyIncluded] = useState("unsure");
@@ -89,7 +88,6 @@ function AddLoad() {
           ...(segmentChoices.length > 1 ? { segmentKey: activeSegmentKey } : {}),
           openSeats: openSeats === "" ? null : Number(openSeats),
           standbys: standbys === "" ? null : Number(standbys),
-          alreadyListed: alreadyListed === "yes",
           cabin,
           source,
           partyIncluded: partyIncluded as "yes" | "no" | "unsure",
@@ -183,31 +181,6 @@ function AddLoad() {
           </div>
         </div>
 
-        <fieldset>
-          <legend className="text-sm font-medium">Are you already on the standby list?</legend>
-          <div className="mt-2 flex gap-2">
-            <Button
-              type="button"
-              variant={alreadyListed === "yes" ? "default" : "outline"}
-              className="h-11 flex-1"
-              onClick={() => setAlreadyListed("yes")}
-            >
-              Yes
-            </Button>
-            <Button
-              type="button"
-              variant={alreadyListed === "no" ? "default" : "outline"}
-              className="h-11 flex-1"
-              onClick={() => setAlreadyListed("no")}
-            >
-              Not yet
-            </Button>
-          </div>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            If not yet listed, Standbye counts your party size against the open seats.
-          </p>
-        </fieldset>
-
         <div>
           <Label>Are your travelers already included in that standby count?</Label>
           <Select value={partyIncluded} onValueChange={setPartyIncluded}>
@@ -215,11 +188,14 @@ function AddLoad() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="yes">Yes, we're already listed</SelectItem>
-              <SelectItem value="no">No, we're not listed yet</SelectItem>
+              <SelectItem value="yes">Yes, we&apos;re already listed</SelectItem>
+              <SelectItem value="no">No, we&apos;re not listed yet</SelectItem>
               <SelectItem value="unsure">Not sure</SelectItem>
             </SelectContent>
           </Select>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            If you&apos;re not listed yet, Standbye counts your party size against the open seats.
+          </p>
         </div>
 
         <div>

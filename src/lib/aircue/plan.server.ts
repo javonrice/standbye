@@ -629,7 +629,6 @@ function parseReportedLoadRow(raw: Row): ReportedLoad {
     flightLabel: String(raw["flight_label"] ?? ""),
     openSeats: (raw["open_seats"] as number | null) ?? null,
     standbys: (raw["standbys"] as number | null) ?? null,
-    alreadyListed: Boolean(raw["already_listed"]),
     cabin: String(raw["cabin"] ?? "economy"),
     source: String(raw["source"] ?? "employee_system"),
     partyIncluded: (raw["party_included"] as "yes" | "no" | "unsure" | null) ?? null,
@@ -1009,7 +1008,6 @@ export async function attachLoad(
     segmentKey?: string;
     openSeats: number | null;
     standbys: number | null;
-    alreadyListed: boolean;
     cabin: string;
     source: string;
     partyIncluded: "yes" | "no" | "unsure" | null;
@@ -1033,6 +1031,7 @@ export async function attachLoad(
   const prefs = (planEmbed["prefs"] ?? {}) as Record<string, unknown>;
 
   const segments = segmentsFromRow(row);
+  const validSegmentKeys = new Set(segments.map((segment) => buildSegmentKey(segment)));
   let segmentKey = (input.segmentKey ?? "").trim();
   if (!segmentKey) {
     if (segments.length === 1) {
@@ -1040,11 +1039,15 @@ export async function attachLoad(
     } else {
       throw new Error("Choose which flight segment this load is for.");
     }
+  } else if (!validSegmentKeys.has(segmentKey)) {
+    throw new Error("That load segment does not match this option.");
   }
-  const targetSegment =
-    segments.find((segment) => buildSegmentKey(segment) === segmentKey) ?? segments[0];
+  const targetSegment = segments.find((segment) => buildSegmentKey(segment) === segmentKey);
+  if (!targetSegment) {
+    throw new Error("That load segment does not match this option.");
+  }
   const flightLabel =
-    targetSegment?.carrier && targetSegment.flightNumber
+    targetSegment.carrier && targetSegment.flightNumber
       ? `${targetSegment.carrier}${targetSegment.flightNumber}`
       : String(row["flight_label"]);
 
@@ -1057,7 +1060,6 @@ export async function attachLoad(
       travel_date: travelDate,
       open_seats: input.openSeats,
       standbys: input.standbys,
-      already_listed: input.alreadyListed,
       cabin: input.cabin,
       source: input.source,
       party_included: input.partyIncluded,

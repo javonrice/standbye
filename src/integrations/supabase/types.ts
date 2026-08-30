@@ -611,7 +611,6 @@ export type Database = {
       }
       reported_loads: {
         Row: {
-          already_listed: boolean
           cabin: string
           checked_at: string
           created_at: string
@@ -626,7 +625,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          already_listed?: boolean
           cabin?: string
           checked_at?: string
           created_at?: string
@@ -641,7 +639,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          already_listed?: boolean
           cabin?: string
           checked_at?: string
           created_at?: string

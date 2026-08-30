@@ -261,7 +261,6 @@ export const addReportedLoad = createServerFn({ method: "POST" })
     segmentKey?: string;
     openSeats: number | null;
     standbys: number | null;
-    alreadyListed: boolean;
     cabin: string;
     source: string;
     partyIncluded: "yes" | "no" | "unsure" | null;
@@ -272,7 +271,6 @@ export const addReportedLoad = createServerFn({ method: "POST" })
         segmentKey: z.string().min(8).max(120).optional(),
         openSeats: z.number().int().min(0).max(400).nullable(),
         standbys: z.number().int().min(0).max(400).nullable(),
-        alreadyListed: z.boolean(),
         cabin: z.string().min(3).max(16),
         source: z.string().min(3).max(24),
         partyIncluded: z.enum(["yes", "no", "unsure"]).nullable(),

@@ -17,10 +17,9 @@ function load(overrides: Partial<ReportedLoad>): ReportedLoad {
     flightLabel: "UA123",
     openSeats: 2,
     standbys: 15,
-    alreadyListed: false,
+    partyIncluded: "no",
     cabin: "economy",
     source: "employee_system",
-    partyIncluded: null,
     checkedAt: new Date().toISOString(),
     ...overrides,
   };
@@ -55,7 +54,7 @@ function optionRow(overrides: Record<string, unknown> = {}) {
 
 describe("load evidence", () => {
   it("counts party size when not already listed", () => {
-    const evidence = computeLoadEvidence(load({ openSeats: 10, standbys: 8, alreadyListed: false }), {
+    const evidence = computeLoadEvidence(load({ openSeats: 10, standbys: 8, partyIncluded: "no" }), {
       partySize: 3,
     });
     expect(evidence.effectiveListed).toBe(11);
@@ -64,7 +63,7 @@ describe("load evidence", () => {
   });
 
   it("does not add party when already listed", () => {
-    const evidence = computeLoadEvidence(load({ openSeats: 10, standbys: 8, alreadyListed: true }), {
+    const evidence = computeLoadEvidence(load({ openSeats: 10, standbys: 8, partyIncluded: "yes" }), {
       partySize: 3,
     });
     expect(evidence.effectiveListed).toBe(8);
@@ -201,7 +200,7 @@ describe("plan load resort", () => {
     const withPartial = rescoreStoredOption({
       row,
       loadsBySegment: new Map([
-        [key, load({ segmentKey: key, openSeats: 8, standbys: null, alreadyListed: true })],
+        [key, load({ segmentKey: key, openSeats: 8, standbys: null, partyIncluded: "yes" })],
       ]),
       partySize: 1,
     });
@@ -227,7 +226,7 @@ describe("plan load resort", () => {
     const withPartial = rescoreStoredOption({
       row,
       loadsBySegment: new Map([
-        [key, load({ segmentKey: key, openSeats: 8, standbys: null, alreadyListed: true })],
+        [key, load({ segmentKey: key, openSeats: 8, standbys: null, partyIncluded: "yes" })],
       ]),
       partySize: 1,
     });
@@ -268,7 +267,7 @@ describe("plan load resort", () => {
     const withPartial = rescoreStoredOption({
       row,
       loadsBySegment: new Map([
-        [leg1Key, load({ segmentKey: leg1Key, openSeats: 8, standbys: null, alreadyListed: true })],
+        [leg1Key, load({ segmentKey: leg1Key, openSeats: 8, standbys: null, partyIncluded: "yes" })],
       ]),
       partySize: 1,
     });
@@ -292,7 +291,7 @@ describe("plan load resort", () => {
     const withComplete = rescoreStoredOption({
       row,
       loadsBySegment: new Map([
-        [key, load({ segmentKey: key, openSeats: 8, standbys: 0, alreadyListed: true })],
+        [key, load({ segmentKey: key, openSeats: 8, standbys: 0, partyIncluded: "yes" })],
       ]),
       partySize: 1,
     });
@@ -347,7 +346,7 @@ describe("plan load resort", () => {
       segments,
       publicAvailability,
       loadsBySegment: new Map([
-        [key, load({ segmentKey: key, openSeats: 8, standbys: null, alreadyListed: true })],
+        [key, load({ segmentKey: key, openSeats: 8, standbys: null, partyIncluded: "yes" })],
       ]),
       partySize: 1,
       access: "home",
@@ -366,7 +365,7 @@ describe("plan load resort", () => {
     const partial = rescoreStoredOption({
       row: optionRow({ id: "opt-a" }),
       loadsBySegment: new Map([
-        [keyA, load({ segmentKey: keyA, openSeats: 8, standbys: null, alreadyListed: true })],
+        [keyA, load({ segmentKey: keyA, openSeats: 8, standbys: null, partyIncluded: "yes" })],
       ]),
       partySize: 1,
     });
@@ -388,7 +387,7 @@ describe("plan load resort", () => {
         ],
       }),
       loadsBySegment: new Map([
-        [keyB, load({ segmentKey: keyB, openSeats: 6, standbys: 5, alreadyListed: false })],
+        [keyB, load({ segmentKey: keyB, openSeats: 6, standbys: 5, partyIncluded: "no" })],
       ]),
       partySize: 1,
     });
@@ -419,7 +418,7 @@ describe("plan load resort", () => {
         ],
       }),
       loadsBySegment: new Map([
-        [key, load({ segmentKey: key, openSeats: 25, standbys: 2, alreadyListed: true })],
+        [key, load({ segmentKey: key, openSeats: 25, standbys: 2, partyIncluded: "yes" })],
       ]),
       partySize: 1,
     });
@@ -442,7 +441,7 @@ describe("plan load resort", () => {
             dest: "DEN",
             schedDepUtc: "2026-09-01T10:00:00Z",
           }),
-          load({ openSeats: 6, standbys: 5, alreadyListed: false }),
+          load({ openSeats: 6, standbys: 5, partyIncluded: "no" }),
         ],
       ]),
       partySize: 1,
@@ -463,7 +462,7 @@ describe("plan load resort", () => {
     const withExtremeLoad = rescoreStoredOption({
       row: optionRow({ id: "loaded" }),
       loadsBySegment: new Map([
-        [key, load({ segmentKey: key, openSeats: 28, standbys: 0, alreadyListed: true })],
+        [key, load({ segmentKey: key, openSeats: 28, standbys: 0, partyIncluded: "yes" })],
       ]),
       partySize: 1,
     });
