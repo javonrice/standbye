@@ -259,6 +259,31 @@ Language: "Your current plan" not "Your primary option"; "Use this option" not "
 this my primary option". Do not expose preferredOption vs primaryOption semantics. Watch
 controls are a property of the Plan, not the emotional center.
 
+### 8.1 Plan monitoring lifecycle
+
+There is no Watch CTA in V2. A Plan that is current is monitored — that is what makes
+the line "Standbye is watching the day" honest. So a newly built Plan enters the
+*existing* monitoring lifecycle automatically, using the existing watch infrastructure
+(`startWatchPlan` / `beginWatch`, plan-scoped, existing modes, existing event types).
+
+Rules:
+
+- Monitoring is a property of a current Plan, never a mode the user manages. No start,
+  stop, or "not watching" surface.
+- Monitoring ≠ permission to interrupt. Notification opt-in stays a separate, explicit
+  setting under You → Notifications. Automatic monitoring must not enable any delivery
+  channel the user has not agreed to.
+- Monitoring ends the way it already does when a Plan is no longer current.
+- The watch engine, its cadence, its economics and its event semantics are not
+  redesigned in this pass.
+
+Flagged before implementation: the smallest change that makes this true is calling the
+existing plan-scoped monitoring start once, at Plan creation, with a non-notifying mode,
+instead of behind a user tap. If the existing modes cannot express "monitor without
+notifying", that is a real behavioral question and stops for review rather than being
+solved by inventing a mode.
+
+
 ## 9. Changed-plan state — same route
 
 Surface the change at the top of the Plan; never route through Updates first.
