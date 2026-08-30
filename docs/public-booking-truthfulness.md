@@ -1,6 +1,6 @@
 # Public booking truthfulness + source-label consistency
 
-Status: **plan only** — not implemented. Target: current `main` (`fa55511` at time of writing).
+Status: **implemented** on branch `cursor/public-booking-truthfulness-plan-98c4`. Target baseline: `main` at plan writing (`fa55511`).
 
 This is a semantics, presentation, source-attribution, and documentation pass. It is broader than [`ranking.server.ts`](../src/lib/aircue/ranking.server.ts). It does **not** change GF8 scoring, party probes, load math, Primary, Watch gating, or provider behavior.
 

@@ -30,9 +30,10 @@ export const painOptions = [
 /** Short reflection used later in the funnel, keyed by the pain they picked. */
 export const painEcho: Record<string, string> = {
   which_flight: "You told us picking the flight is the hard part. This is that part.",
-  checking_loads: "You told us the constant checking is the worst part. This is where that stops.",
+  checking_loads:
+    "You told us the constant checking is the worst part. Standbye helps you know when another look is worth it.",
   plan_b: "You told us Plan B is the hard part. Recovery is the thing Standbye weighs first.",
-  all_of_it: "You told us it's all of it. So here is the whole thing in four small stories.",
+  all_of_it: "You told us it's all of it. So here's how Standbye puts the whole day together.",
 };
 
 export const travelerOptions = [

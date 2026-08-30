@@ -22,7 +22,7 @@ const ESCAPE_STEPS = [
   "Looking beyond the usual route",
   "Finding stations you can actually reach",
   "Checking what leaves from each one",
-  "Checking availability and operations",
+  "Checking public booking and operations",
   "Ranking your escapes",
 ] as const;
 

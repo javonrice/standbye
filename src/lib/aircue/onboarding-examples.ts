@@ -76,14 +76,14 @@ export const bookingCheckLadder = [
 
 /** Screen 13 — the check is useful across flights and over time. */
 export const bookingCompare = [
-  { flight: "UA101", value: "1 traveler showing" },
-  { flight: "UA203", value: "4 travelers showing" },
-  { flight: "UA339", value: "2 travelers showing" },
+  { flight: "UA101", value: "Booking open for 1" },
+  { flight: "UA203", value: "Booking open for 4+" },
+  { flight: "UA339", value: "Booking open for 2" },
 ];
 
 export const bookingMovement = [
-  { at: "10:00 AM", value: "4 travelers" },
-  { at: "1:30 PM", value: "2 travelers" },
+  { at: "10:00 AM", value: "Booking open for 4+" },
+  { at: "1:30 PM", value: "Booking open for 2" },
 ];
 
 /** Screen 14 — a reported load re-ranks the plan. */
@@ -95,23 +95,36 @@ export function rankingAfter(origin: string): string[] {
   return ["AA1375", "UA222", `Via DEN · ${origin} → DEN → LAX`];
 }
 
-/** Screen 15 — the same load reads differently for different parties. */
+/**
+ * Screen 15 — the same load reads differently for different parties.
+ * Numbers match computeLoadEvidence(4 open · 3 listed) with partyIncluded yes/no.
+ */
 export const partyReadings = [
   {
     who: "Solo traveler",
-    detail: "1 person",
+    detail: "1 traveler · already included in the 3 listed",
     emoji: "😐",
     verdict: "Worth considering",
     state: "fair" as PillarState,
+    partySize: 1,
+    partyIncluded: "yes" as const,
   },
   {
     who: "Family of 4",
-    detail: "4 travelers · not listed yet",
+    detail: "4 travelers · not included in the 3 listed",
     emoji: "😬",
     verdict: "Much tighter setup",
     state: "poor" as PillarState,
+    partySize: 4,
+    partyIncluded: "no" as const,
   },
 ];
+
+/** Teaching load used by Screen 15 — keep in sync with partyReadings. */
+export const teachingLoadExample = {
+  openSeats: 4,
+  standbys: 3,
+} as const;
 
 export const stateDot: Record<PillarState, string> = {
   good: "bg-fine",
