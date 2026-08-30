@@ -14,13 +14,13 @@ export const theme = {
 export const TIMELINE = {
   fps: 30,
   total: 750,
-  brand: { from: 0, duration: 95 },
-  primary: { from: 95, duration: 145 },
-  backups: { from: 240, duration: 125 },
-  recheck: { from: 365, duration: 95 },
-  changed: { from: 460, duration: 130 },
-  choice: { from: 590, duration: 90 },
-  outro: { from: 680, duration: 70 },
+  brand: { from: 0, duration: 45 },
+  primary: { from: 45, duration: 135 },
+  backups: { from: 180, duration: 150 },
+  recheck: { from: 330, duration: 90 },
+  changed: { from: 420, duration: 90 },
+  choice: { from: 510, duration: 150 },
+  outro: { from: 660, duration: 90 },
 } as const;
 
 /** Vertical anchors (in source-image pixels) of real UI blocks. */

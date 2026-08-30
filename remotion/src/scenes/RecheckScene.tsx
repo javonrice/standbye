@@ -44,7 +44,7 @@ export function RecheckScene() {
             Rechecking your plan{".".repeat(dots)}
           </p>
           <p style={{ margin: "18px 0 0", fontSize: 36, color: theme.muted, lineHeight: 1.35 }}>
-            A fresh reported load came in on UA2110.
+            An earlier cancellation shifted the ORD–LAX bank.
           </p>
         </div>
       </AbsoluteFill>
