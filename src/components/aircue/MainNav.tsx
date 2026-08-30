@@ -52,6 +52,7 @@ export function MainNav() {
               <li key={to} className="flex-1">
                 <Link
                   to={to}
+                  activeOptions={{ exact: true }}
                   aria-current={active ? "page" : undefined}
                   className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 text-[11px] font-semibold transition-colors ${
                     active ? "bg-accent/70 text-primary" : "text-muted-foreground"
