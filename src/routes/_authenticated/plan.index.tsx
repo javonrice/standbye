@@ -134,7 +134,7 @@ function CurrentPlanHome({ planId }: { planId: string }) {
   return (
     <>
       <img src={wordmark.url} alt="Standbye" className="h-9 w-auto object-contain md:hidden" />
-      <PlanView plan={plan} />
+      <PlanSnapshot plan={plan} />
     </>
   );
 }
