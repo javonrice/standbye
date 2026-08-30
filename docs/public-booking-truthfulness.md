@@ -217,6 +217,36 @@ Never make population-level clearance claims such as “most people clear”.
 
 ---
 
+## P0 — Root metadata / SEO truthfulness
+
+File: [`src/routes/__root.tsx`](../src/routes/__root.tsx)
+
+Current root metadata is stale and contradicts current product semantics. Standbye does not provide standby odds, and raw GF8 is not seat availability.
+
+Replace:
+
+> Standbye — Know your standby odds before you go
+
+with:
+
+> Standbye — Plan standby without the constant checking
+
+Replace:
+
+> Standbye reads seat availability, operations and recovery room so you know which standby flight is worth trying.
+
+with:
+
+> Standbye combines public booking, operating conditions, recovery options, history, and any reported load you add to help you decide which standby option is worth another look.
+
+Never use **standby odds** or **seat availability** in generic product metadata unless referring specifically to a true reported load.
+
+This is copy-only. No product behavior changes.
+
+Do **not** change the first-launch / landing screen in this pass. Its current promise — “Stop planning standby one flight at a time” and that Standbye helps decide what to try, adapts as the day changes, and uses loads the user already has — already fits the product.
+
+---
+
 ## P0 — Watch / Updates copy
 
 File: [`src/lib/aircue/plan-watch-events.server.ts`](../src/lib/aircue/plan-watch-events.server.ts)
@@ -379,6 +409,7 @@ Add or update regression tests covering:
 10. Compare with mixed evidence sources → source shown correctly per option
 11. Watch `largestShowing` decrease → Public booking terminology; no load/full claim
 12. Onboarding party example → matches `partyIncluded` semantics exactly via `computeLoadEvidence()`
+13. Root metadata in [`__root.tsx`](../src/routes/__root.tsx) → no “standby odds” or “seat availability”; uses the Public booking / combined-evidence wording above
 
 Then: `bun test`, `bunx tsc --noEmit`, `bun run build`.
 
@@ -393,11 +424,11 @@ Do not blindly replace every match. True reported-load contexts may say “open�
 | Internal key `availability`, `AvailabilityEvidence`, route `/options/$optionId/availability` | Domain/API; URL churn out of scope |
 | Load labels Strong / Tight / Oversubscribed / Partial and “N open seats reported” | Real reported-load seats |
 | Load form “Yes, we’re already listed” ([`options.$optionId.load.tsx`](../src/routes/_authenticated/options.$optionId.load.tsx)) | Answers “already included in that standby count”; not GF8 |
-| [`__root.tsx`](../src/routes/__root.tsx) SEO (“odds”, “seat availability”) | Marketing chrome, not in the listed surfaces. Include only if product asks. |
+| First-launch / landing screen promise | Already truthful; not this pass |
 | Historical `.lovable/plan` | Archives |
 | Test fixture labels `"Strong"` in load-resort tests | Load pillars, not public booking |
 
-Repo-wide risky-term audit after implementation: Availability, seat(s) available, open seats, single seat, full, oversold, wide open, filling, selling freely, most people clear, already listed. Report every user-facing occurrence intentionally left and why.
+Repo-wide risky-term audit after implementation: Availability, seat(s) available, open seats, single seat, full, oversold, wide open, filling, selling freely, most people clear, already listed, standby odds, seat availability. Report every user-facing occurrence intentionally left and why.
 
 ---
 
