@@ -456,9 +456,15 @@ function RevealStep({ draft }: { draft: OnboardingDraft }) {
           {draft.homeAirport ? ` · ${draft.homeAirport.toUpperCase()}` : ""}
         </p>
         <dl className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
-          <ProfileRow label="Home airline" on={Boolean(draft.homeAirline)} />
-          <ProfileRow label="Partner / ZED" on={draft.accessMode !== "home"} />
-          <ProfileRow label="Connections allowed" on />
+          <ProfileDetail label="Home airline" value={home ? airlineName(home) : "None set"} />
+          <ProfileDetail
+            label="Also usable"
+            value={partners.length > 0 ? partners.join(" · ") : "None added"}
+          />
+          <ProfileDetail
+            label="Default origin"
+            value={draft.homeAirport ? draft.homeAirport.toUpperCase() : "None set"}
+          />
         </dl>
       </div>
 
