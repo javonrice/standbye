@@ -344,15 +344,33 @@ we'd recommend trying right now.
 
 ### 8.1 Plan monitoring lifecycle
 
-There is no Watch CTA in V2. A Plan that is current is monitored — that is what makes
-the line "Standbye is watching the day" honest. So a newly built Plan enters the
-*existing* monitoring lifecycle automatically, using the existing watch infrastructure
-(`startWatchPlan` / `beginWatch`, plan-scoped, existing modes, existing event types).
+There is no Watch CTA in V2. A current Plan with at least one current option is
+monitored — that is what makes the line "Standbye is watching the day" honest. So such a
+Plan enters the *existing* monitoring lifecycle automatically, using the existing watch
+infrastructure (`startWatchPlan` / `beginWatch`, plan-scoped, existing modes, existing
+event types).
+
+The watch infrastructure requires at least one option to anchor to; `beginWatch()`
+cannot start on a zero-option Plan. So automatic monitoring applies **only when a Plan
+has an option to anchor**. A zero-option Plan gets no watcher, no monitoring line, and
+no fabricated placeholder (see §8.3).
+
+**Exact trigger.** Automatic monitoring happens only when all of the following hold:
+
+1. Plan creation succeeded,
+2. the Plan contains at least one current option,
+3. no active watch already exists for that Plan.
+
+`beginWatch()` already de-duplicates active Plan watches, so point 3 reuses that
+behavior — no separate duplicate-prevention logic. The trigger applies to normal Plan
+creation and to Known Flight flows that result in a Plan. It does **not** mean every
+historical or previously created Plan is bulk-enrolled during this pass; that is out of
+scope.
 
 Rules:
 
-- Monitoring is a property of a current Plan, never a mode the user manages. No start,
-  stop, or "not watching" surface.
+- Monitoring is a property of a current Plan with options, never a mode the user
+  manages. No start, stop, or "not watching" surface.
 - Monitoring ≠ permission to interrupt. Notification opt-in stays a separate, explicit
   setting under You → Notifications. Automatic monitoring must not enable any delivery
   channel the user has not agreed to.
