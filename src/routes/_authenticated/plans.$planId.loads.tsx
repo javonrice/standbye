@@ -106,7 +106,7 @@ function PlanAddLoads() {
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ["plan", planId] });
-    await queryClient.invalidateQueries({ queryKey: ["committed-plans"] });
+    await queryClient.invalidateQueries({ queryKey: ["plans"] });
   };
 
   const goBackToPlan = () =>

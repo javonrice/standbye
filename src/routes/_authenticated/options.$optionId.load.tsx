@@ -97,7 +97,7 @@ function AddLoad() {
       await queryClient.invalidateQueries({ queryKey: ["option", optionId] });
       if (result.planId) {
         await queryClient.invalidateQueries({ queryKey: ["plan", result.planId] });
-        await queryClient.invalidateQueries({ queryKey: ["committed-plans"] });
+        await queryClient.invalidateQueries({ queryKey: ["plans"] });
       }
       if (result.bestOptionChanged && result.planId) {
         navigate({ to: "/plans/$planId", params: { planId: result.planId } });

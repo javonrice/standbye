@@ -1,37 +1,41 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Map, Bell, User } from "lucide-react";
+import { Home, Map, User } from "lucide-react";
 
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 
+/**
+ * Route ownership (V2 §2.4): Plans is the library only. Anything scoped to a single
+ * Plan — plan detail and descendants, options, activity, find-another-way — is the
+ * current-Plan experience and belongs to Home.
+ */
 const items = [
   {
     to: "/plan",
     label: "Home",
     icon: Home,
     match: (path: string) =>
-      path === "/plan" || path === "/known-flight" || path.startsWith("/known-flight"),
+      path === "/plan" ||
+      path === "/known-flight" ||
+      path.startsWith("/known-flight/") ||
+      path.startsWith("/plans/") ||
+      path.startsWith("/options/") ||
+      path.startsWith("/updates/") ||
+      path.startsWith("/watching/") ||
+      path === "/escape" ||
+      path.startsWith("/escape/"),
   },
   {
     to: "/plans",
     label: "Plans",
     icon: Map,
-    match: (path: string) => path === "/plans" || path.startsWith("/plans/"),
-  },
-  {
-    to: "/updates",
-    label: "Updates",
-    icon: Bell,
-    match: (path: string) =>
-      path === "/updates" ||
-      path.startsWith("/updates/") ||
-      path === "/watching" ||
-      path.startsWith("/watching/"),
+    match: (path: string) => path === "/plans",
   },
   {
     to: "/you",
     label: "You",
     icon: User,
-    match: (path: string) => path === "/you" || path.startsWith("/you/"),
+    match: (path: string) =>
+      path === "/you" || path.startsWith("/you/") || path === "/how-it-works",
   },
 ] as const;
 
@@ -61,7 +65,6 @@ export function MainNav() {
           })}
         </ul>
       </nav>
-
 
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-border bg-card px-4 py-6 md:block">
         <Link to="/plan" className="mb-9 block px-1">

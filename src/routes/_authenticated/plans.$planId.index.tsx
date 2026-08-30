@@ -1,15 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, CalendarRange, GitCompareArrows } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarRange, GitCompareArrows } from "lucide-react";
 
 import { Screen } from "@/components/aircue/Layout";
-import { PlanWatchBlock, PrimaryOptionSection } from "@/components/aircue/PlanDetailSections";
+import {
+  PlanChangedBlock,
+  PlanDecisionSection,
+  PlanMonitoringSection,
+  PlanStateLine,
+} from "@/components/aircue/PlanDetailSections";
 import { RouteOptionRow } from "@/components/aircue/RouteOptionRow";
 import { StandbyOptionRow } from "@/components/aircue/StandbyOptionRow";
-import { StandbyeTake } from "@/components/aircue/StandbyeTake";
 import { Button } from "@/components/ui/button";
 import { getPlan } from "@/lib/aircue/plan.functions";
+import type { StandbyPlan } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/plans/$planId/")({
   head: () => ({
@@ -17,10 +22,13 @@ export const Route = createFileRoute("/_authenticated/plans/$planId/")({
       { title: "Your plan — Standbye" },
       {
         name: "description",
-        content: "Your travel plan with ranked options, backup runway, and watch status.",
+        content: "Your whole standby day in one place: the move to make, backups, and changes.",
       },
       { property: "og:title", content: "Your plan — Standbye" },
-      { property: "og:description", content: "Plan detail with options and backup runway." },
+      {
+        property: "og:description",
+        content: "Your whole standby day in one place: the move to make, backups, and changes.",
+      },
     ],
   }),
   component: PlanDetailScreen,
@@ -34,180 +42,226 @@ function PlanDetailScreen() {
     queryFn: () => load({ data: { planId } }),
   });
 
-  const otherOptions =
-    plan?.options.filter((o) =>
-      plan.primaryOptionId ? o.id !== plan.primaryOptionId : o.id !== plan.preferredOptionId,
-    ) ?? [];
-
   return (
     <Screen width="lg">
-      <Link
-        to={plan && (plan.primaryOptionId || plan.watching) ? "/plans" : "/plan"}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />{" "}
-        {plan && (plan.primaryOptionId || plan.watching) ? "Your plans" : "Home"}
+      <Link to="/plan" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <ArrowLeft className="h-4 w-4" /> Home
       </Link>
 
-      {isLoading && (
-        <p className="mt-6 text-sm text-muted-foreground">Building your plan…</p>
-      )}
+      {isLoading && <p className="mt-6 text-sm text-muted-foreground">Building your plan…</p>}
 
       {plan && (
         <>
+          {/* 1–2. Route, date, travelers */}
           <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight">
             {plan.origin} → {plan.dest}
           </h1>
-          <p className="mt-2 text-[15px] font-medium text-foreground">{longDate(plan.travelDate)}</p>
-          <p className="mt-0.5 text-[14px] text-muted-foreground">
-            {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
+          <p className="mt-2 text-[15px] font-medium text-foreground">
+            {longDate(plan.travelDate)} · {plan.travelers} traveler
+            {plan.travelers === 1 ? "" : "s"}
           </p>
 
-          {plan.loadResortNotice && (
-            <section className="mt-5 rounded-2xl border border-primary/40 bg-primary/[0.06] p-5">
-              <p className="font-display text-[20px] font-bold tracking-tight">
-                {plan.loadResortNotice.headline}
-              </p>
-              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
-                {plan.loadResortNotice.detail}
-              </p>
-            </section>
-          )}
+          {/* 3. Overall plan state */}
+          <PlanStateLine plan={plan} />
 
-          {plan.options.length === 0 && (
-            <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-              <p className="font-display text-[20px] font-semibold tracking-tight">
-                {emptyTitle(plan.emptyReason)}
-              </p>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                {emptyBody(plan.emptyReason, plan.origin, plan.dest)}
-              </p>
-              <div className="mt-4 flex flex-col gap-2">
-                <Button asChild className="h-11">
-                  <Link
-                    to="/escape"
-                    search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
-                  >
-                    Stuck right now? Widen this plan
+          {plan.options.length === 0 ? (
+            <ZeroOptionState plan={plan} />
+          ) : (
+            <>
+              {/* 9. Change surfaced on the plan itself */}
+              <PlanChangedBlock plan={plan} />
+
+              {plan.loadResortNotice && (
+                <section className="mt-5 rounded-2xl border border-primary/40 bg-primary/[0.06] p-5">
+                  <p className="font-display text-[20px] font-bold tracking-tight">
+                    {plan.loadResortNotice.headline}
+                  </p>
+                  <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+                    {plan.loadResortNotice.detail}
+                  </p>
+                </section>
+              )}
+
+              {/* 4. Current decision state */}
+              <PlanDecisionSection plan={plan} />
+
+              {/* 5. Monitoring summary */}
+              <PlanMonitoringSection plan={plan} />
+
+              {/* 6. Backup options */}
+              <BackupOptions plan={plan} />
+
+              {/* 7. Plan actions */}
+              <h2 className="mt-7 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Your plan
+              </h2>
+              <div className="mt-3 space-y-2.5">
+                <ActionRow
+                  to="/plans/$planId/loads"
+                  params={{ planId }}
+                  title="Add load information"
+                  body="Screenshot or enter open seats — Standbye re-scores the whole plan."
+                  emphasis
+                />
+                <ActionRow
+                  to="/escape"
+                  search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+                  title="Find another way"
+                  body="Unconventional but realistic ways to still get there."
+                />
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {plan.options.length > 1 && (
+                  <Button asChild variant="outline" className="h-11">
+                    <Link to="/plans/$planId/compare" params={{ planId }}>
+                      <GitCompareArrows className="mr-2 h-4 w-4" /> Compare options
+                    </Link>
+                  </Button>
+                )}
+                <Button asChild variant="outline" className="h-11">
+                  <Link to="/plan">
+                    <CalendarRange className="mr-2 h-4 w-4" /> Plan another trip
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-11">
-                  <Link to="/plan">Try a nearby date</Link>
-                </Button>
               </div>
-            </div>
-          )}
 
-          {plan.options.length > 0 && (
-            <>
-              <PrimaryOptionSection plan={plan} />
-              <PlanWatchBlock plan={plan} />
-
-              <Link
-                to="/plans/$planId/loads"
-                params={{ planId }}
-                className="mt-5 flex w-full items-center justify-between rounded-2xl border border-primary/40 bg-primary/[0.06] px-4 py-3.5"
-              >
-                <span className="text-left">
-                  <span className="block text-[14px] font-semibold">Add your loads</span>
-                  <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                    Screenshot or enter open seats — Standbye re-scores the whole plan.
-                  </span>
-                </span>
-                <ArrowLeft className="h-4 w-4 shrink-0 rotate-180 text-primary" />
-              </Link>
-
-              <StandbyeTake className="mt-5">
-                {plan.noStrongSetup
-                  ? "Every option carries a real tradeoff today. Compare a couple before you commit."
-                  : "Standbye ranked the realistic ways to accomplish this trip. The day can still move."}
-              </StandbyeTake>
-
-              {otherOptions.length > 0 && (
-                <>
-                  <h2 className="mt-6 font-display text-[19px] font-semibold tracking-tight">
-                    Other good options
-                  </h2>
-                  <ul className="mt-3 space-y-2.5">
-                    {otherOptions.map((option) => (
-                      <li key={option.id}>
-                        <StandbyOptionRow
-                          option={option}
-                          rank={option.rank}
-                          emphasis="secondary"
-                          peers={plan.options}
-                        />
-                      </li>
+              {/* 8. Every route */}
+              {plan.gateways.length > 0 && (
+                <section className="mt-7">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 className="font-display text-[19px] font-semibold tracking-tight">
+                      Every route
+                    </h2>
+                    <Link
+                      to="/plans/$planId/ways"
+                      params={{ planId }}
+                      className="text-[14px] font-semibold text-primary"
+                    >
+                      See every route
+                    </Link>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Getting to {plan.dest} today is a strategy, not one flight.
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {plan.gateways.slice(0, 3).map((gateway) => (
+                      <RouteOptionRow key={gateway.hub} gateway={gateway} />
                     ))}
-                  </ul>
-                </>
+                  </div>
+                </section>
+              )}
+
+              {/* 10. Activity */}
+              {plan.watchId && (
+                <Link
+                  to="/updates/$watchId"
+                  params={{ watchId: plan.watchId }}
+                  className="mt-6 flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3.5"
+                >
+                  <span className="text-[14px] font-semibold">Activity on this plan</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </Link>
               )}
             </>
           )}
 
-          {plan.gateways.length > 0 && (
-            <section className="mt-7">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="font-display text-[19px] font-semibold tracking-tight">
-                  Ways in this plan
-                </h2>
-                <Link
-                  to="/plans/$planId/ways"
-                  params={{ planId }}
-                  className="text-[14px] font-semibold text-primary"
-                >
-                  See every route
-                </Link>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Getting to {plan.dest} today is a strategy, not one flight.
-              </p>
-              <div className="mt-3 space-y-3">
-                {plan.gateways.slice(0, 3).map((gateway) => (
-                  <RouteOptionRow key={gateway.hub} gateway={gateway} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {plan.options.length > 1 && (
-            <div className="mt-6 grid gap-2 sm:grid-cols-2">
-              <Button asChild variant="outline" className="h-11">
-                <Link to="/plans/$planId/compare" params={{ planId }}>
-                  <GitCompareArrows className="mr-2 h-4 w-4" /> Compare options
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-11">
-                <Link to="/plan">
-                  <CalendarRange className="mr-2 h-4 w-4" /> Try another date
-                </Link>
-              </Button>
-            </div>
-          )}
-
-          {plan.options.length > 0 && (
-            <Link
-              to="/escape"
-              search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
-              className="mt-5 flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-3.5 shadow-card"
-            >
-              <span className="text-left">
-                <span className="block text-[14px] font-semibold">Need another way? Widen this plan</span>
-                <span className="mt-0.5 block text-[12px] text-muted-foreground">
-                  Unconventional but realistic ways to still get there.
-                </span>
-              </span>
-              <ArrowLeft className="h-4 w-4 shrink-0 rotate-180 text-muted-foreground" />
-            </Link>
-          )}
-
           <p className="mt-6 text-xs text-muted-foreground">
-            Public availability is a demand signal, not airline load. Standbye never predicts whether
-            you will clear.
+            Public booking checks are a demand signal, not airline load. Standbye never predicts
+            whether you will clear.
           </p>
         </>
       )}
     </Screen>
+  );
+}
+
+function BackupOptions({ plan }: { plan: StandbyPlan }) {
+  const shownId = plan.primaryOptionId ?? plan.preferredOptionId ?? plan.options[0]?.id;
+  const recommendedId = plan.preferredOptionId ?? plan.options[0]?.id;
+  const backups = plan.options.filter((o) => o.id !== shownId && o.id !== recommendedId);
+  if (backups.length === 0) return null;
+
+  return (
+    <section className="mt-7">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Backup options
+      </h2>
+      <ul className="mt-3 space-y-2.5">
+        {backups.map((option) => (
+          <li key={option.id}>
+            <StandbyOptionRow
+              option={option}
+              rank={option.rank}
+              emphasis="secondary"
+              peers={plan.options}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ZeroOptionState({ plan }: { plan: StandbyPlan }) {
+  return (
+    <div className="mt-6 rounded-2xl border border-border bg-card p-5">
+      <p className="font-display text-[20px] font-semibold tracking-tight">
+        {emptyTitle(plan.emptyReason)}
+      </p>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        {emptyBody(plan.emptyReason, plan.origin, plan.dest)}
+      </p>
+      <div className="mt-4 flex flex-col gap-2">
+        <Button asChild className="h-11">
+          <Link
+            to="/escape"
+            search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+          >
+            Find another way
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="h-11">
+          <Link to="/plan">Try another date</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+interface ActionRowProps {
+  to: "/plans/$planId/loads" | "/escape";
+  params?: { planId: string };
+  search?: { from: string; to: string; date: string };
+  title: string;
+  body: string;
+  emphasis?: boolean;
+}
+
+function ActionRow({ to, params, search, title, body, emphasis }: ActionRowProps) {
+  const className = `flex w-full items-center justify-between rounded-2xl border px-4 py-3.5 ${
+    emphasis ? "border-primary/40 bg-primary/[0.06]" : "border-border bg-card shadow-card"
+  }`;
+  const inner = (
+    <>
+      <span className="text-left">
+        <span className="block text-[14px] font-semibold">{title}</span>
+        <span className="mt-0.5 block text-[12px] text-muted-foreground">{body}</span>
+      </span>
+      <ArrowRight
+        className={`h-4 w-4 shrink-0 ${emphasis ? "text-primary" : "text-muted-foreground"}`}
+      />
+    </>
+  );
+
+  return to === "/escape" ? (
+    <Link to="/escape" search={search!} className={className}>
+      {inner}
+    </Link>
+  ) : (
+    <Link to="/plans/$planId/loads" params={params!} className={className}>
+      {inner}
+    </Link>
   );
 }
 
@@ -217,7 +271,7 @@ function emptyTitle(reason: EmptyReason): string {
   if (reason === "day_over") return "The useful part of this day is behind you";
   if (reason === "carrier_filter") return "Your airline filter is too narrow";
   if (reason === "data_unavailable") return "We could not check flights right now";
-  return "No one flies this nonstop today";
+  return "No useful option yet";
 }
 
 function emptyBody(reason: EmptyReason, origin: string, dest: string): string {
@@ -227,7 +281,7 @@ function emptyBody(reason: EmptyReason, origin: string, dest: string): string {
     return "There are flights on this route, but none from the airlines you selected.";
   if (reason === "data_unavailable")
     return "Live flight data did not come back for this search. Try again in a few minutes.";
-  return `We could not find a workable ${origin} → ${dest} routing for this date.`;
+  return "Standbye couldn't find a setup we'd recommend trying right now.";
 }
 
 function longDate(iso: string): string {
