@@ -42,6 +42,25 @@ Change `Home / Plans / Updates / You` → `Home / Plans / You`.
 Updates are activity on a Plan, not a product object. Native-size, safe-area-aware
 touch targets.
 
+### Navigation ownership
+
+Plans is the *library*. Viewing one Plan, or doing anything scoped to one Plan, is the
+*current-Plan* experience and belongs to Home.
+
+| URL | Selected tab |
+| --- | --- |
+| `/plan`, `/known-flight` | Home |
+| `/plans/$planId` and every descendant (`/loads`, `/compare`, `/ways`) | Home |
+| `/options/$optionId` and its evidence/load subroutes | Home |
+| `/updates/$watchId` (Activity), `/escape*` | Home |
+| `/plans` (the library index only) | Plans |
+| `/you` and `/how-it-works` | You |
+
+Consequence: `/plans` must match exactly, and the Plans tab must not light up for
+`/plans/…` children. Tab selection is a matcher concern only — no route moves, no URL
+changes, no redirects.
+
+
 ## 1. Marketing entry — `/`
 
 One sentence, one action. No feature carousel, no data-source explanation, no
