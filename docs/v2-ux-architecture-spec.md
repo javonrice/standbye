@@ -603,5 +603,24 @@ Lifecycle acceptance added in this revision:
 - No Plan disappears from anywhere simply because no explicit primary/watch action was
   taken.
 
+Final lifecycle set (added 2026-08-30 revision 3):
+
+- Build a Plan with options but no selection → it immediately appears in Plans.
+- Home with an unselected Plan → the top-ranked option is labeled RECOMMENDED NOW.
+- Tap "Use this option" → it becomes YOUR CURRENT PLAN.
+- Ranking later changes → the selected option remains YOUR CURRENT PLAN and the new
+  top-ranked option becomes RECOMMENDED NOW.
+- Build a Plan with zero options → it still appears in Home and Plans.
+- Zero-option Plan → no watcher is started.
+- Zero-option Plan → Home offers Find another way and Try another date.
+- Build a Plan with at least one option → the existing monitoring lifecycle starts
+  exactly once.
+- Known Flight resulting in a Plan follows the same Plan/monitoring lifecycle.
+- Multiple Plans on the same date → Home chooses the most recently created one
+  (`createdAt`).
+- "Plan another trip" reveals the builder without removing the existing Plan.
+- A weak Plan (options that rank poorly) still shows options and monitoring; a
+  zero-option Plan shows the §8.3 state instead. The two are never merged.
+
 Test at iPhone viewport before desktop; run typecheck and tests.
 
