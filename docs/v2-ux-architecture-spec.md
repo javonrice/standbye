@@ -125,10 +125,25 @@ Extremely short transition: ✓ / "You're in." / "Your Standbye setup is ready."
 
 Home has two states. It is not always a blank builder.
 
-A Plan is **current** when its travel date is today or later and it has not been
-archived. Home shows the most relevant current Plan (soonest travel date; ties broken by
-most recently updated). There is no "committed" test — a Plan does not need a chosen
-option or an explicit watch to be current.
+A Plan is **current** when its travel date is today or later. Home shows the most
+relevant current Plan: soonest travel date; if multiple Plans share that date, the most
+recently created one wins (using the existing `createdAt` field on `PlanSummary`).
+There is no "committed" test — a Plan does not need a chosen option or an explicit watch
+to be current.
+
+Scope note: `PlanSummary` exposes no `updatedAt` or archive flag today, and this pass
+adds neither. No server fields and no migration. If a future explicit archive or
+current-plan lifecycle is added, it can replace this heuristic later; it is out of scope
+here.
+
+"Plan another trip" only reveals the builder. It never replaces, deletes, archives, or
+demotes the existing current Plan — that Plan stays in Home and Plans untouched.
+
+Plan existence is independent of Plan state: a Plan is real the moment it is
+successfully built. A selected/current option is optional Plan state; a watch is
+optional system state. Neither determines whether the Plan appears in Home or Plans.
+`primary_option_id`, preferred ranking and watch records may continue to exist
+internally, but they must never decide whether the user perceives a Plan as "real."
 
 ### 5A. Home with a current Plan (the default returning state)
 
