@@ -1,20 +1,22 @@
 import React from "react";
-import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 
 import { theme } from "../theme";
 
-/** Opening title card: mark, wordmark, and the premise of the story. */
+/** Fast 1.5s cold open: the premise, with the wordmark kept small. */
 export function BrandOpen() {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
+  const { durationInFrames } = useVideoConfig();
 
-  const rise = spring({ frame, fps, config: { damping: 200 } });
-  const markScale = interpolate(rise, [0, 1], [0.86, 1]);
-  const lineIn = interpolate(frame, [18, 40], [0, 1], {
+  const lineIn = interpolate(frame, [0, 12], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const out = interpolate(frame, [durationInFrames - 14, durationInFrames], [1, 0], {
+  const markIn = interpolate(frame, [6, 20], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const out = interpolate(frame, [durationInFrames - 10, durationInFrames], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -28,29 +30,26 @@ export function BrandOpen() {
         opacity: out,
       }}
     >
-      <Img
-        src={staticFile("img/mark.png")}
-        style={{ width: 260, transform: `scale(${markScale})`, opacity: rise }}
-      />
-      <Img
-        src={staticFile("img/wordmark.png")}
-        style={{ width: 520, marginTop: 44, opacity: rise }}
-      />
       <p
         style={{
-          marginTop: 70,
-          maxWidth: 840,
+          margin: 0,
+          maxWidth: 880,
           textAlign: "center",
-          color: theme.muted,
-          fontSize: 46,
-          lineHeight: 1.35,
-          fontWeight: 500,
+          color: theme.navy,
+          fontSize: 78,
+          fontWeight: 800,
+          letterSpacing: -1.8,
+          lineHeight: 1.12,
           opacity: lineIn,
-          transform: `translateY(${interpolate(lineIn, [0, 1], [16, 0])}px)`,
+          transform: `translateY(${interpolate(lineIn, [0, 1], [22, 0])}px)`,
         }}
       >
         One flight is never the whole standby plan.
       </p>
+      <Img
+        src={staticFile("img/wordmark.png")}
+        style={{ width: 300, marginTop: 64, opacity: markIn }}
+      />
     </AbsoluteFill>
   );
 }
