@@ -60,7 +60,7 @@ function CueScreen() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["option", optionId] }),
         queryClient.invalidateQueries({ queryKey: ["plan", planId] }),
-        queryClient.invalidateQueries({ queryKey: ["committed-plans"] }),
+        queryClient.invalidateQueries({ queryKey: ["plans"] }),
         queryClient.invalidateQueries({ queryKey: ["recent-searches"] }),
       ]);
       void navigate({ to: "/plans/$planId", params: { planId } });

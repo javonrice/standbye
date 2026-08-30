@@ -110,7 +110,7 @@ function ComparePage() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["plan", planId] }),
-        queryClient.invalidateQueries({ queryKey: ["committed-plans"] }),
+        queryClient.invalidateQueries({ queryKey: ["plans"] }),
         queryClient.invalidateQueries({ queryKey: ["recent-searches"] }),
       ]);
       void navigate({ to: "/plans/$planId", params: { planId } });
