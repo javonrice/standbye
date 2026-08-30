@@ -646,7 +646,7 @@ function segmentKeysForRows(rows: Row[]): string[] {
   return [...keys];
 }
 
-async function loadsForSegments(
+async function personalLoadsForSegments(
   client: unknown,
   userId: string,
   segmentKeys: string[],
@@ -668,6 +668,33 @@ async function loadsForSegments(
     map.set(key, parseReportedLoadRow(raw));
   }
   return map;
+}
+
+/**
+ * Personal reported loads win; eligible network snapshots fill gaps.
+ * Network merge failures never break personal scoring.
+ */
+async function loadsForSegments(
+  client: unknown,
+  userId: string,
+  segmentKeys: string[],
+  travelDate: string,
+): Promise<Map<string, ReportedLoad>> {
+  const personal = await personalLoadsForSegments(client, userId, segmentKeys, travelDate);
+  try {
+    const {
+      networkLoadsForSegments,
+      mergePersonalAndNetworkLoads,
+    } = await import("@/lib/aircue/load-screenshot/snapshots.server");
+    const network = await networkLoadsForSegments(client, segmentKeys, travelDate);
+    return mergePersonalAndNetworkLoads(personal, network);
+  } catch (err) {
+    console.warn(
+      "[loadsForSegments] network merge skipped",
+      err instanceof Error ? err.message : err,
+    );
+    return personal;
+  }
 }
 
 export async function loadPlan(
@@ -927,6 +954,24 @@ export interface AttachLoadResult {
   resortNotice: { headline: string; detail: string } | null;
 }
 
+/** Exported for screenshot / multi-row load pipelines. */
+export async function rescorePlanAfterLoads(
+  client: unknown,
+  userId: string,
+  planId: string,
+): Promise<ResortResult & { planId: string }> {
+  return rescoreAndResortPlanOptions(client, userId, planId);
+}
+
+/** Exported for screenshot / multi-row load pipelines. */
+export function buildLoadResortNoticeForPipeline(
+  resort: ResortResult,
+  rows: Row[],
+  triggeringLabel: string,
+): { headline: string; detail: string } | null {
+  return buildLoadResortNotice(resort, rows, triggeringLabel);
+}
+
 async function rescoreAndResortPlanOptions(
   client: unknown,
   userId: string,
@@ -1052,6 +1097,44 @@ export async function attachLoad(
       ? `${targetSegment.carrier}${targetSegment.flightNumber}`
       : String(row["flight_label"]);
 
+  const checkedAt = new Date().toISOString();
+  let snapshotId: string | null = null;
+  try {
+    const profile = await loadStandbyProfile(client, userId);
+    const homeAirline = (profile?.homeAirline ?? "").trim().toUpperCase();
+    const flightAirline = (targetSegment.carrier ?? "").trim().toUpperCase();
+    if (homeAirline && flightAirline && homeAirline === flightAirline) {
+      const { upsertSharedLoadSnapshot } = await import(
+        "@/lib/aircue/load-screenshot/snapshots.server"
+      );
+      const minted = await upsertSharedLoadSnapshot(client, {
+        segmentKey,
+        airline: flightAirline,
+        flightNumber: targetSegment.flightNumber ?? null,
+        origin: targetSegment.origin,
+        dest: targetSegment.dest,
+        travelDate,
+        schedDepUtc: targetSegment.schedDepUtc ?? null,
+        cabin: input.cabin,
+        openSeats: input.openSeats,
+        standbys: input.standbys,
+        observedAt: checkedAt,
+        timestampSource: "inferred_upload",
+        timestampConfidence: 0.5,
+        contributorUserId: userId,
+        contributorHomeAirline: homeAirline,
+        sourceKind: "manual",
+        matchConfidence: 1,
+      });
+      snapshotId = minted.snapshotId;
+    }
+  } catch (err) {
+    console.warn(
+      "[attachLoad] shared snapshot skipped",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   const { data: inserted } = await db(client)
     .from("reported_loads")
     .insert({
@@ -1064,7 +1147,8 @@ export async function attachLoad(
       cabin: input.cabin,
       source: input.source,
       party_included: input.partyIncluded,
-      checked_at: new Date().toISOString(),
+      checked_at: checkedAt,
+      snapshot_id: snapshotId,
     })
     .select("*")
     .single();

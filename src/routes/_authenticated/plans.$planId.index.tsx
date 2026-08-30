@@ -103,6 +103,20 @@ function PlanDetailScreen() {
               <PrimaryOptionSection plan={plan} />
               <PlanWatchBlock plan={plan} />
 
+              <Link
+                to="/plans/$planId/loads"
+                params={{ planId }}
+                className="mt-5 flex w-full items-center justify-between rounded-2xl border border-primary/40 bg-primary/[0.06] px-4 py-3.5"
+              >
+                <span className="text-left">
+                  <span className="block text-[14px] font-semibold">Add your loads</span>
+                  <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                    Screenshot or enter open seats — Standbye re-scores the whole plan.
+                  </span>
+                </span>
+                <ArrowLeft className="h-4 w-4 shrink-0 rotate-180 text-primary" />
+              </Link>
+
               <StandbyeTake className="mt-5">
                 {plan.noStrongSetup
                   ? "Every option carries a real tradeoff today. Compare a couple before you commit."
