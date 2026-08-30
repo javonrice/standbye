@@ -78,6 +78,7 @@ export function MainNav() {
               <li key={to}>
                 <Link
                   to={to}
+                  activeOptions={{ exact: true }}
                   className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition-colors ${
                     active
                       ? "bg-accent text-accent-foreground"
