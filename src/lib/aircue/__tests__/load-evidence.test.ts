@@ -19,6 +19,7 @@ function load(overrides: Partial<ReportedLoad>): ReportedLoad {
     alreadyListed: false,
     cabin: "economy",
     source: "employee_system",
+    partyIncluded: null,
     checkedAt: new Date(NOW - 5 * 60_000).toISOString(),
     ...overrides,
   };

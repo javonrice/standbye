@@ -71,6 +71,13 @@
       "when": 1788019620254,
       "tag": "0009_airports_read_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788048774689,
+      "tag": "0010_reported_loads_party_included",
+      "breakpoints": true
     }
   ]
 }

@@ -77,6 +77,7 @@ function AddLoad() {
   const [alreadyListed, setAlreadyListed] = useState<"yes" | "no">("no");
   const [cabin, setCabin] = useState("economy");
   const [source, setSource] = useState("employee_system");
+  const [partyIncluded, setPartyIncluded] = useState("unsure");
 
   const activeSegmentKey = segmentKey || segmentChoices[0]?.key || "";
 
@@ -85,12 +86,13 @@ function AddLoad() {
       add({
         data: {
           optionId,
-          segmentKey: segmentChoices.length > 1 ? activeSegmentKey : undefined,
+          ...(segmentChoices.length > 1 ? { segmentKey: activeSegmentKey } : {}),
           openSeats: openSeats === "" ? null : Number(openSeats),
           standbys: standbys === "" ? null : Number(standbys),
           alreadyListed: alreadyListed === "yes",
           cabin,
           source,
+          partyIncluded: partyIncluded as "yes" | "no" | "unsure",
         },
       }),
     onSuccess: async (result) => {
@@ -205,6 +207,20 @@ function AddLoad() {
             If not yet listed, Standbye counts your party size against the open seats.
           </p>
         </fieldset>
+
+        <div>
+          <Label>Are your travelers already included in that standby count?</Label>
+          <Select value={partyIncluded} onValueChange={setPartyIncluded}>
+            <SelectTrigger className="mt-1.5 h-12">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="yes">Yes, we're already listed</SelectItem>
+              <SelectItem value="no">No, we're not listed yet</SelectItem>
+              <SelectItem value="unsure">Not sure</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <div>
           <Label>Cabin</Label>

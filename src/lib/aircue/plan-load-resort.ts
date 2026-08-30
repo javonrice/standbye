@@ -98,7 +98,10 @@ export function availabilityPillarWithSegmentLoads(input: {
       }
       continue;
     }
-    const evidence = computeLoadEvidence(load, { partySize: input.partySize, now: input.now });
+    const evidence = computeLoadEvidence(load, {
+      partySize: input.partySize,
+      ...(input.now !== undefined ? { now: input.now } : {}),
+    });
     const loadPillar = loadPillarFromEvidence(evidence);
     pillar = input.segments.length > 1 ? worstPillar(pillar, loadPillar) : loadPillar;
     loadMultiplier = Math.min(loadMultiplier, loadEvidenceMultiplier(evidence));
@@ -150,7 +153,7 @@ export function rescoreStoredOption(input: {
     publicPillar,
     loadsBySegment: input.loadsBySegment,
     partySize: input.partySize,
-    now: input.now,
+    ...(input.now !== undefined ? { now: input.now } : {}),
   });
 
   const effective = pillars.map((p) => (p.key === "availability" ? pillar : p));

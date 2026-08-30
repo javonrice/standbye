@@ -632,6 +632,7 @@ function parseReportedLoadRow(raw: Row): ReportedLoad {
     alreadyListed: Boolean(raw["already_listed"]),
     cabin: String(raw["cabin"] ?? "economy"),
     source: String(raw["source"] ?? "employee_system"),
+    partyIncluded: (raw["party_included"] as "yes" | "no" | "unsure" | null) ?? null,
     checkedAt: String(raw["checked_at"]),
   };
 }
@@ -1011,6 +1012,7 @@ export async function attachLoad(
     alreadyListed: boolean;
     cabin: string;
     source: string;
+    partyIncluded: "yes" | "no" | "unsure" | null;
   },
 ): Promise<AttachLoadResult> {
   const { data: optionRow, error: optionError } = await db(client)
@@ -1058,6 +1060,7 @@ export async function attachLoad(
       already_listed: input.alreadyListed,
       cabin: input.cabin,
       source: input.source,
+      party_included: input.partyIncluded,
       checked_at: new Date().toISOString(),
     })
     .select("*")

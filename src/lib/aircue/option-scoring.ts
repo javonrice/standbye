@@ -97,7 +97,10 @@ export function availabilityPillarForSegments(
     let legMultiplier = 1;
 
     if (leg.load) {
-      legEvidence = computeLoadEvidence(leg.load, { partySize: leg.partySize, now: leg.now });
+      legEvidence = computeLoadEvidence(leg.load, {
+        partySize: leg.partySize,
+        ...(leg.now !== undefined ? { now: leg.now } : {}),
+      });
       legPillar = loadPillarFromEvidence(legEvidence);
       legMultiplier = loadEvidenceMultiplier(legEvidence);
       hasLoad = true;
@@ -153,7 +156,7 @@ export function rescoreOptionPillars(input: {
     publicPillar: input.publicAvailability,
     load: input.loadsBySegment.get(buildSegmentKey(segment)) ?? null,
     partySize: input.partySize,
-    now: input.now,
+    ...(input.now !== undefined ? { now: input.now } : {}),
   }));
 
   const { pillar: availability, loadEvidence, loadMultiplier, hasLoad } =

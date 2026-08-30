@@ -264,6 +264,7 @@ export const addReportedLoad = createServerFn({ method: "POST" })
     alreadyListed: boolean;
     cabin: string;
     source: string;
+    partyIncluded: "yes" | "no" | "unsure" | null;
   }) =>
     z
       .object({
@@ -274,12 +275,17 @@ export const addReportedLoad = createServerFn({ method: "POST" })
         alreadyListed: z.boolean(),
         cabin: z.string().min(3).max(16),
         source: z.string().min(3).max(24),
+        partyIncluded: z.enum(["yes", "no", "unsure"]).nullable(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { attachLoad } = await import("@/lib/aircue/plan.server");
-    return attachLoad(context.supabase, context.userId, data);
+    const { segmentKey, ...rest } = data;
+    return attachLoad(context.supabase, context.userId, {
+      ...rest,
+      ...(segmentKey !== undefined ? { segmentKey } : {}),
+    });
   });
 
 /* -------------------------------- watching -------------------------------- */

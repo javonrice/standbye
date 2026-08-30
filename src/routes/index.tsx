@@ -64,15 +64,15 @@ function FirstLaunch() {
           className="mx-auto h-24 w-auto max-w-[280px] object-contain"
         />
 
-        <h1 className="sr-only">Standbye — standby without all the constant checking</h1>
+        <h1 className="sr-only">Standbye — stop planning standby one flight at a time</h1>
 
         <p className="mt-10 font-display text-[26px] font-bold leading-[1.15] tracking-tight">
-          Standby without all the constant checking.
+          Stop planning standby one flight at a time.
         </p>
 
         <p className="mt-4 text-[16px] leading-relaxed text-muted-foreground">
-          Find the flights worth trying, understand what could change, and know your backup
-          options.
+          Tell Standbye where you're trying to go. It helps you decide what to try, adapts when the
+          day changes, and uses any load you already have.
         </p>
       </div>
 

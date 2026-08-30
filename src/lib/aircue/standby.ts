@@ -128,6 +128,8 @@ export interface ReportedLoad {
   alreadyListed: boolean;
   cabin: string;
   source: string;
+  /** Did the reporter's own party already appear in the standby count? */
+  partyIncluded: "yes" | "no" | "unsure" | null;
   checkedAt: string;
 }
 

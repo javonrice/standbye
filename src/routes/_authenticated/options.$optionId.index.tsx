@@ -187,6 +187,15 @@ function CueScreen() {
             {option.load.openSeats ?? "—"} open
             {option.load.standbys !== null ? ` · ${option.load.standbys} listed` : ""}
           </p>
+          {option.load.partyIncluded && (
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              {option.load.partyIncluded === "yes"
+                ? "Your travelers were already in that standby count."
+                : option.load.partyIncluded === "no"
+                  ? "Your travelers were not listed yet when this was checked."
+                  : "Unsure whether your travelers were already in that count."}
+            </p>
+          )}
           <p className="mt-1 text-[13px] text-muted-foreground">
             {loadSourceLabel[option.load.source] ?? "Reported"} · {agoLabel(option.load.checkedAt)}
             {stale ? " — worth refreshing before you commit." : ""}

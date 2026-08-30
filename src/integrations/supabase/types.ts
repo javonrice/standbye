@@ -618,6 +618,7 @@ export type Database = {
           flight_label: string
           id: string
           open_seats: number | null
+          party_included: string | null
           segment_key: string | null
           source: string
           standbys: number | null
@@ -632,6 +633,7 @@ export type Database = {
           flight_label: string
           id?: string
           open_seats?: number | null
+          party_included?: string | null
           segment_key?: string | null
           source?: string
           standbys?: number | null
@@ -646,6 +648,7 @@ export type Database = {
           flight_label?: string
           id?: string
           open_seats?: number | null
+          party_included?: string | null
           segment_key?: string | null
           source?: string
           standbys?: number | null
