@@ -475,11 +475,11 @@ function RevealStep({ draft }: { draft: OnboardingDraft }) {
   );
 }
 
-function ProfileRow({ label, on }: { label: string; on: boolean }) {
+function ProfileDetail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-start justify-between gap-4">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={on ? "text-fine-foreground" : "text-muted-foreground"}>{on ? "✓" : "—"}</dd>
+      <dd className="min-w-0 break-words text-right font-medium">{value}</dd>
     </div>
   );
 }
