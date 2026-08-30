@@ -22,57 +22,63 @@ Network philosophy:
 | 3 | **United-only interpreter** for MVP. Parser/provider interfaces stay airline-neutral. |
 | 4 | **Memory/temp processing**; discard raw image immediately. No permanent screenshot library. Storage+TTL only if later needed. |
 | 5 | **Contribution ≠ consumption.** Contributor `home_airline` must match extracted flight airline to create a shared snapshot. Any eligible traveler may **consume** a valid snapshot for a flight on their plan — home airline does **not** gate consumption. |
-| 6 | **Vision provider (MVP):** RapidAPI **JSON OCR** (`zeroteam` / `json-ocr`) as primary `LoadScreenshotParser` implementation — schema-in, structured JSON-out, base64. Keep abstraction swappable. |
+| 6 | **Vision provider (MVP):** **Google Gemini Flash** (direct Gemini API / AI Studio) as primary `LoadScreenshotParser` — vision + JSON Schema structured output. Not Lovable-coupled. RapidAPI JSON OCR remains a documented alternate. |
 | 7 | **Manual entry stays first-class** and must become **more open** than today’s option-scoped single-flight form (plan-level multi-row entry; not screenshot-only). |
 
 ---
 
-## RapidAPI vision provider selection
+## Vision provider selection
 
-Architecture still uses `LoadScreenshotParser`. This section picks the **first** RapidAPI implementation.
+Architecture still uses `LoadScreenshotParser`. This section picks the **first** implementation.
 
 ### What we need from the provider
 
 | Requirement | Why |
 |---|---|
-| Image in (base64 / multipart) | Ephemeral memory upload — no public URL required |
+| Image in (bytes / base64) | Ephemeral memory upload — no public URL required |
 | Structured multi-flight out | One UA board screenshot → many rows |
 | Custom schema / JSON Schema | Map to `ExtractedFlightLoad[]` without brittle regex |
-| Measurable cost on RapidAPI | Same billing surface as GF8/ADB |
-| Swappable | Vendor can be replaced behind the interface |
+| Measurable cost | Log units/$ on `load_parse_jobs`; model against subscription revenue |
+| Travels with the codebase | Not Lovable-proprietary; swappable behind the interface |
 
 ### Candidates compared
 
-| API | Fit | Cost shape (RapidAPI, as of research) | Risk |
+| API | Fit | Cost shape (as of research) | Risk |
 |---|---|---|---|
-| **JSON OCR** ([zeroteam / json-ocr](https://rapidapi.com/zeroteam-zeroteam-default/api/json-ocr)) | **Best product fit.** Vision LLM → schema-valid JSON; base64/url/multipart; nested arrays for flight lists | Free 30/mo; Pro **$29 / 500** (+ ~$0.07 overage); Ultra $99 / 2k | Higher $/image; validate quality on real UA boards before Mega |
-| **OCR Wizard** ([ai-engine / ocr-wizard](https://rapidapi.com/ai-engine-ai-engine-default/api/ocr-wizard)) | Strong **cheap text** extraction; we structure in `UnitedLoadInterpreter` | Free 30; Pro **$12.99 / 5k** pages | Layout/table → fields is our problem; more brittle for messy employee UIs |
-| **ChatGPT 4 aggregator** ([PR Labs / chatgpt-42](https://rapidapi.com/rphrp1985/api/chatgpt-42)) | Vision chat (`/matagvision`); very cheap Pro **$5.99** | Aggregator; weaker schema guarantee; model/routing opacity |
-| InvoiceAI / Receipt parsers | Structured JSON but **domain-locked** to invoices/receipts | N/A for load boards | Wrong product shape |
-| Direct OpenAI outside RapidAPI | Excellent vision + structured outputs | Separate billing from RapidAPI stack | Violates “prefer RapidAPI measurable usage” unless we explicitly leave RapidAPI later |
+| **Gemini 2.5 Flash (direct)** ([Google AI](https://ai.google.dev/gemini-api/docs/pricing)) | **Best overall.** Native vision + JSON Schema structured outputs; bytes in; first-party | Paid ~**$0.30 / $2.50 per 1M** in/out tokens. Typical phone screenshot ≈ few hundred–low thousand image tokens → often **≪ $0.01 / image** | Separate bill from RapidAPI; need Google AI key + our usage logging |
+| **Gemini Flash-Lite (direct)** | Same shape, cheaper | Lower $/token than Flash | May miss dense table cells — A/B on UA boards |
+| **JSON OCR** (RapidAPI zeroteam) | Schema→JSON, base64; stays on RapidAPI | Free 30/mo; Pro **$29 / 500** (~**$0.06–0.07**/image) | ~10–100× more expensive than Flash for same job; middleman |
+| **OCR Wizard** (RapidAPI) | Cheap raw text only | Pro **$12.99 / 5k** | We own brittle structuring |
+| ChatGPT aggregators on RapidAPI | Vision chat | Cheap sticker price | Schema/routing opacity |
+| Invoice/receipt APIs | Wrong domain | — | Skip |
 
-### Recommendation
+### Recommendation (revised)
 
-**Primary MVP provider: JSON OCR on RapidAPI.**
+**Primary MVP provider: Gemini Flash outright (Google Gemini API).**
+
+Prefer **`gemini-2.5-flash`** (or current Flash equivalent) with:
+
+- `response_mime_type = application/json`
+- `response_json_schema` = our `ExtractedFlightLoad[]` schema
 
 Reasons:
 
-1. One call: screenshot → `flights: [...]` matching our extraction schema (open seats, standbys, flight number, times, cabin, optional timestamp).
-2. Fits `LoadScreenshotParser` without a two-step OCR→LLM pipeline.
-3. Base64 input matches ephemeral memory processing (no Storage URL).
-4. Cost is predictable per image (~$0.05–0.07 at Pro overage; ~500 images/mo on $29) — enough to validate product before scaling.
-5. United interpreter still owns airline-specific normalization and contribution auth; provider stays airline-neutral.
+1. **Cost:** orders of magnitude below RapidAPI JSON OCR for screenshot→structured flights — sustainable if upload volume grows.  
+2. **Quality fit:** multimodal Flash is built for reading UI/tables; structured outputs reduce parse failures.  
+3. **Product ownership:** first-party Google key travels with Standbye if we leave Lovable; not a marketplace wrapper.  
+4. **Still swappable:** lives only as `providers/gemini-flash.ts` behind `LoadScreenshotParser`.  
+5. **Metering:** we already planned `load_parse_jobs` cost/usage metadata — RapidAPI was nice-to-have billing co-location with GF8/ADB, not a hard requirement. GF8/ADB stay on RapidAPI; vision can be Google.
 
-**Cost-control fallback (same abstraction):** if JSON OCR quality/price disappoints after United fixture tests, implement `OcrWizardParser` (text) + heuristic/`UnitedLoadInterpreter` structuring — or a second vision vendor — without rewriting the pipeline.
+**Optional RapidAPI path:** keep JSON OCR as `providers/json-ocr.rapidapi.ts` if we ever want all keys on one marketplace — not the MVP default.
 
-**Do not** hardcode invoice/receipt APIs. **Do not** couple to Lovable vision.
+**Do not** use Lovable vision. **Do not** use invoice/receipt APIs.
 
-### Provider validation gate (before paying Ultra/Mega)
+### Provider validation gate
 
-1. Collect real United employee load screenshots (private fixtures; not committed to git).  
-2. Run JSON OCR with our `ExtractedFlightLoad` JSON Schema via mock→live provider flag.  
-3. Score: flights recovered, open/listed accuracy, false flights, latency, $/successful snapshot.  
-4. Only then lock Pro/Ultra in production env.
+1. Private United load screenshots (not in git).  
+2. Run Gemini Flash with our schema; score flights recovered, open/listed accuracy, latency, $/success.  
+3. Optional A/B vs Flash-Lite and vs one JSON OCR sample.  
+4. Lock model id in env (`LOAD_SCREENSHOT_PROVIDER=gemini_flash`, `GEMINI_MODEL=…`).
 
 ---
 
@@ -532,7 +538,7 @@ Tone: conditions changed — not “help the community.”
 Search OD/date → results (load freshness when known)
   → Build my plan
   → Add your loads
-        ├─ Upload screenshot(s)  → JSON OCR parse → confirm uncertain
+        ├─ Upload screenshot(s)  → Gemini Flash parse → confirm uncertain
         └─ Enter manually (multi-row, plan/board matched)
   → one-line network disclosure when shared snapshots will be created
   → plan updates
@@ -557,25 +563,27 @@ src/lib/aircue/load-screenshot/
   contribute-auth.ts       // home_airline === flight.airline
   policy.ts                // AirlineVisibilityPolicy lookup
   providers/
-    json-ocr.rapidapi.ts   // MVP primary (RapidAPI JSON OCR)
-    ocr-wizard.rapidapi.ts // optional cheap fallback later
+    gemini-flash.ts        // MVP primary (Google Gemini API)
+    json-ocr.rapidapi.ts   // optional RapidAPI alternate
+    ocr-wizard.rapidapi.ts // optional cheap text fallback
     mock.ts
   pipeline.server.ts       // sequential images, hash, discard bytes
   cost.server.ts
 ```
 
-Env: `LOAD_SCREENSHOT_PROVIDER=json_ocr` (default), provider keys/caps mirror GF8/ADB.
+Env: `LOAD_SCREENSHOT_PROVIDER=gemini_flash` (default), `GEMINI_API_KEY`, `GEMINI_MODEL` (e.g. `gemini-2.5-flash`).
 ---
 
 ## 11. Cost model
 
 | Costly | Mitigation |
 |---|---|
-| JSON OCR per image (~$0.05–0.07 at Pro overage; 500 incl. on $29) | sha256 dedupe; sequential uploads; validate before Ultra |
+| Gemini Flash per image (typically ≪ $0.01) | sha256 dedupe; downscale huge images; sequential uploads |
 | Multi-image | Cap count/upload; process one-at-a-time |
-| GF8 / ADB | Unchanged; attach/resort local |
+| GF8 / ADB (RapidAPI) | Unchanged; attach/resort local |
 | Storage | None in MVP |
 | Manual multi-row | **Free** (no vision) — prefer shipping this early |
+| JSON OCR alternate | Only if we opt in — ~$0.06+/image |
 
 Log: images, units, success/fail, extracted vs accepted vs rejected_airline, snapshots created.
 
@@ -611,7 +619,7 @@ Log: images, units, success/fail, extracted vs accepted vs rejected_airline, sna
 
 ### MVP
 
-1. Parser abstraction + **JSON OCR (RapidAPI)** provider + **UnitedLoadInterpreter**  
+1. Parser abstraction + **Gemini Flash (direct)** provider + **UnitedLoadInterpreter**  
 2. Memory/temp sequential upload → extract → contribution auth → `load_snapshots` (`eligible_reuse` for UA) + personal plan resort  
 3. Network read path for eligible snapshots on any traveler’s plan  
 4. Confirm-only-uncertain UI + simple disclosure  
@@ -626,7 +634,7 @@ Log: images, units, success/fail, extracted vs accepted vs rejected_airline, sna
 ### Later
 
 - AA/DL interpreters  
-- OCR Wizard (or other) fallback provider if JSON OCR cost/quality warrants  
+- Flash-Lite cost A/B; RapidAPI JSON OCR only if needed as alternate billing path  
 - `home_airline_verified_at` / method  
 - `aggregate_only` bands  
 - Async Storage+TTL for large batches  
@@ -642,7 +650,7 @@ Log: images, units, success/fail, extracted vs accepted vs rejected_airline, sna
 3. Parser interface + mock + United interpreter fixtures.  
 4. Match + `observed_at` derivation tests.  
 5. **Open manual multi-row entry** → shared snapshot path (no vision) — ships value before paying for OCR.  
-6. Pipeline server fn (sequential, memory discard) + **JSON OCR provider** behind flag → snapshots + personal resort.  
+6. Pipeline server fn (sequential, memory discard) + **Gemini Flash provider** behind flag → snapshots + personal resort.  
 7. Provider validation on private UA screenshots; then enable in prod.  
 8. Network load resolution in scoring path (eligible snapshots).  
 9. UI: Add your loads (screenshot **and** manual) + disclosure + uncertain confirm.  
@@ -664,8 +672,9 @@ Each step keeps GF8/ADB/cheap-watch intact.
 7. **No screenshot warehouse in MVP.**  
 8. No Lovable vision to remove.  
 9. No StaffTraveler credits.  
-10. **Best RapidAPI fit is JSON OCR (schema→JSON), not raw OCR alone and not invoice parsers.**  
+10. **Best vision fit is Gemini Flash direct** (cheap + structured JSON), not RapidAPI JSON OCR as default — RapidAPI stays optional.  
 11. **Manual entry must widen** (plan-level multi-row); today’s option-only form is too closed.
+12. GF8/ADB can stay on RapidAPI while vision uses Google — metering lives in `load_parse_jobs`.
 
 ---
 
@@ -674,6 +683,6 @@ Each step keeps GF8/ADB/cheap-watch intact.
 1. **MVP contribution auth = declared `standby_profiles.home_airline`.** Real employment verification is a later additive column pair.  
 2. **Shared writes always require home-airline match** (screenshot and manual).  
 3. **Policy default for unknown airlines** = `restricted` until an interpreter ships.  
-4. **Validate JSON OCR on real UA boards** before upgrading RapidAPI tier; keep OCR Wizard as documented fallback, not built on day one.  
+4. **Validate Gemini Flash on real UA boards** before locking model; optional Flash-Lite A/B.  
 
-No further blocking product decisions are required to write the implementation brief for slice 1 (schema + open manual multi-row + mock parser), then slice 2 (JSON OCR + United screenshots).
+No further blocking product decisions are required to write the implementation brief for slice 1 (schema + open manual multi-row + mock parser), then slice 2 (Gemini Flash + United screenshots).
