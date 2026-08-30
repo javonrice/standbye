@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CalendarRange, GitCompareArrows } from "lucide-react";
 
+import { FirstUseTeaching } from "@/components/aircue/FirstUseTeaching";
 import {
   PlanChangedBlock,
   PlanDecisionSection,
@@ -57,6 +58,8 @@ export function PlanView({ plan }: { plan: StandbyPlan }) {
 
           {/* 5. Monitoring summary */}
           <PlanMonitoringSection plan={plan} />
+
+          <FirstUseTeaching />
 
           {/* 6. Backup options */}
           <BackupOptions plan={plan} />
