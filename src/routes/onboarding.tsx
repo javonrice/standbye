@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { ChoiceButton, OnboardingShell } from "@/components/aircue/OnboardingShell";
-import { JudgmentPill } from "@/components/aircue/JudgmentPill";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,13 +23,19 @@ import {
   type OnboardingDraft,
 } from "@/lib/aircue/onboarding";
 import {
-  exampleOrigin,
-  noLoadExample,
-  recoveryExample,
-  stateDot,
-  stateText,
-  type ExampleFlight,
-} from "@/lib/aircue/onboarding-examples";
+  AddYourLoad,
+  AlreadyStuck,
+  BookingIsNotEverything,
+  LoadsAreInterpreted,
+  NoFakeOdds,
+  TheDayChanges,
+  UpdatesPreview,
+  WhatIsTheBookingCheck,
+  WhyTheCheckHelps,
+  WidenedResult,
+} from "@/components/aircue/onboarding/TeachingScreens";
+import { exampleOrigin } from "@/lib/aircue/onboarding-examples";
+
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -53,7 +58,7 @@ export const Route = createFileRoute("/onboarding")({
   component: OnboardingFlow,
 });
 
-const TOTAL = 13;
+const TOTAL = 18;
 
 function OnboardingFlow() {
   const navigate = useNavigate();
@@ -214,134 +219,43 @@ function OnboardingFlow() {
 
       case 6:
         return (
-          <section>
-            {draft.painPoint && (
-              <p className="text-sm text-muted-foreground">{painEcho[draft.painPoint]}</p>
-            )}
-            <h1 className="mt-3 font-display text-[30px] font-bold leading-[1.12] tracking-tight">
-              Let's say you're trying to get to LAX.
-            </h1>
-            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">{origin} → LAX · Saturday</p>
-            <div className="mt-4 space-y-3">
-              {recoveryExample(origin).map((f) => (
-                <ExampleCard key={f.flightLabel} flight={f} />
-              ))}
-            </div>
-            <p className="mt-5 text-[15px] font-semibold">
-              Standbye would rather start with the earlier flight.
-            </p>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Why? If it doesn't work, you still have somewhere to go next.
-            </p>
-          </section>
+          <BookingIsNotEverything
+            origin={origin}
+            echo={draft.painPoint ? painEcho[draft.painPoint] : undefined}
+          />
         );
 
       case 7:
-        return (
-          <section>
-            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
-              Then the nonstop gets worse.
-            </h1>
-            <p aria-hidden className="mt-5 text-center text-5xl">
-              😬
-            </p>
-            <p className="mt-5 text-[15px]">UA222 is still on time.</p>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              But an earlier flight cancels and its availability tightens.
-            </p>
-            <hr className="my-5 border-border" />
-            <p className="text-sm text-muted-foreground">Standbye looks again.</p>
-            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-primary">
-              New best move
-            </p>
-            <div className="mt-2 rounded-2xl border border-border bg-card p-4 shadow-card">
-              <div className="flex items-center gap-2">
-                <JudgmentPill judgment="favorable" size="sm" />
-              </div>
-              <p className="mt-2.5 font-display text-lg font-bold">
-                {origin} → DEN → LAX
-              </p>
-              <p className="mt-1.5 text-sm text-muted-foreground">3 realistic shots into DEN</p>
-              <p className="text-sm text-muted-foreground">5 useful LAX flights after</p>
-            </div>
-            <p className="mt-5 text-[15px] font-semibold">
-              Standbye isn't married to one option.
-            </p>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              It watches your whole plan and helps you get where you're going.
-            </p>
-          </section>
-        );
+        return <TheDayChanges origin={origin} />;
 
       case 8:
-        return (
-          <section>
-            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
-              Can't see that airline's load?
-            </h1>
-            <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">That's normal.</p>
-            <div className="mt-4">
-              <ExampleCard flight={noLoadExample(origin)} />
-            </div>
-            <p className="mt-5 text-sm text-muted-foreground">
-              Standbye can still give you useful context without pretending it knows the standby
-              list.
-            </p>
-          </section>
-        );
+        return <AlreadyStuck />;
 
       case 9:
-        return (
-          <section>
-            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
-              And if you DO have the load… add it.
-            </h1>
-            <div className="mt-5 rounded-2xl border border-border bg-card p-4 shadow-card">
-              <p className="font-display text-base font-bold">AA1375</p>
-              <p className="mt-1.5 text-sm">18 open · 3 listed</p>
-              <p className="text-xs text-muted-foreground">StaffTraveler · 8m ago</p>
-            </div>
-            <p aria-hidden className="py-2 text-center text-muted-foreground">
-              ↓
-            </p>
-            <p className="text-center font-display text-lg font-bold text-fine-foreground">
-              Confidence: High
-            </p>
-            <p className="mt-5 text-sm text-muted-foreground">
-              Standbye combines what you know with what it can see. If that changes the best
-              option, we'll tell you.
-            </p>
-          </section>
-        );
+        return <WidenedResult />;
 
       case 10:
-        return (
-          <section>
-            <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">
-              One thing Standbye won't do: make up your odds.
-            </h1>
-            <div className="relative mx-auto mt-8 w-fit">
-              <span className="font-display text-5xl font-bold text-muted-foreground/40 line-through">
-                72%
-              </span>
-              <X className="absolute -right-7 top-3 h-6 w-6 text-rough" />
-            </div>
-            <p className="mt-8 text-[15px]">We don't know whether you'll clear standby.</p>
-            <p className="mt-3 text-sm text-muted-foreground">
-              If a load is missing, we'll say it's missing. If signals disagree, we'll show that
-              too.
-            </p>
-            <p className="mt-3 text-sm text-muted-foreground">
-              What Standbye gives you is a better read on the decision — not a fake boarding
-              prediction.
-            </p>
-          </section>
-        );
+        return <WhatIsTheBookingCheck />;
 
       case 11:
-        return <SetupStep onDone={next} />;
+        return <WhyTheCheckHelps />;
 
       case 12:
+        return <AddYourLoad origin={origin} />;
+
+      case 13:
+        return <LoadsAreInterpreted />;
+
+      case 14:
+        return <NoFakeOdds />;
+
+      case 15:
+        return <UpdatesPreview />;
+
+      case 16:
+        return <SetupStep onDone={next} />;
+
+      case 17:
         return <RevealStep draft={draft} />;
 
       default:
@@ -349,21 +263,20 @@ function OnboardingFlow() {
     }
   })();
 
-  const cta =
-    step === 1
-      ? "Exactly"
-      : step === 6
-        ? "Got it"
-        : step === 10
-          ? "I like that"
-          : step === 12
-            ? "Create my account"
-            : "Continue";
+  const ctaByStep: Record<number, string> = {
+    1: "Exactly",
+    8: "Show me",
+    11: "Got it",
+    14: "I like that",
+    17: "Save my setup",
+  };
+  const cta = ctaByStep[step] ?? "Continue";
 
-  const hideCta = step === 0 || step === 2 || step === 3 || step === 11;
+  const hideCta = step === 0 || step === 2 || step === 3 || step === 16;
   const disabled =
     (step === 4 && !draft.accessMode) ||
     (step === 5 && draft.homeAirport.trim().length !== 3);
+
 
 
   return (
@@ -521,35 +434,6 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
   );
 }
 
-function ExampleCard({ flight }: { flight: ExampleFlight }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="break-words font-display text-base font-bold leading-snug">
-            {flight.flightLabel}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{flight.depLocal}</p>
-        </div>
-        <JudgmentPill judgment={flight.judgment} size="sm" className="shrink-0" />
-      </div>
-      <dl className="mt-3 space-y-1.5">
-        {flight.rows.map((r) => (
-          <div key={r.label} className="flex items-center justify-between text-sm">
-            <dt className="text-muted-foreground">{r.label}</dt>
-            <dd className={`flex items-center gap-2 font-semibold ${stateText[r.state]}`}>
-              <span aria-hidden className={`h-2 w-2 rounded-full ${stateDot[r.state]}`} />
-              {r.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-3 border-t border-border pt-2.5 text-xs text-muted-foreground">
-        {flight.footnote}
-      </p>
-    </div>
-  );
-}
 
 function RevealStep({ draft }: { draft: OnboardingDraft }) {
   return (

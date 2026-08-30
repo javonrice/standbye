@@ -640,6 +640,7 @@ async function loadsFor(
       standbys: (raw["standbys"] as number | null) ?? null,
       cabin: String(raw["cabin"] ?? "economy"),
       source: String(raw["source"] ?? "employee_system"),
+      partyIncluded: (raw["party_included"] as "yes" | "no" | "unsure" | null) ?? null,
       checkedAt: String(raw["checked_at"]),
     });
   }
@@ -894,6 +895,7 @@ export async function attachLoad(
     standbys: number | null;
     cabin: string;
     source: string;
+    partyIncluded: "yes" | "no" | "unsure" | null;
   },
 ): Promise<{ optionId: string; judgment: string }> {
   const { data: optionRow, error: optionError } = await db(client)
@@ -920,6 +922,7 @@ export async function attachLoad(
       standbys: input.standbys,
       cabin: input.cabin,
       source: input.source,
+      party_included: input.partyIncluded,
       checked_at: new Date().toISOString(),
     })
     .select("*")
@@ -932,6 +935,7 @@ export async function attachLoad(
     standbys: input.standbys,
     cabin: input.cabin,
     source: input.source,
+    partyIncluded: input.partyIncluded,
     checkedAt: String(raw["checked_at"] ?? new Date().toISOString()),
   };
 
