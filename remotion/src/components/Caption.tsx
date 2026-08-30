@@ -48,22 +48,23 @@ export function Caption({
           justifyContent: "center",
         }}
       >
-      <div
-        style={{
-          backgroundColor: "rgba(19,30,54,0.92)",
-          color: "#FFFFFF",
-          padding: "22px 34px",
-          borderRadius: 999,
-          fontSize: 40,
-          fontWeight: 600,
-          letterSpacing: -0.4,
-          textAlign: "center",
-          boxShadow: "0 24px 60px rgba(19,30,54,0.22)",
-        }}
-      >
-        {children}
+        <div
+          style={{
+            backgroundColor: "rgba(19,30,54,0.94)",
+            color: "#FFFFFF",
+            padding: "24px 38px",
+            borderRadius: 999,
+            fontSize: 44,
+            fontWeight: 600,
+            letterSpacing: -0.4,
+            textAlign: "center",
+            boxShadow: "0 24px 60px rgba(19,30,54,0.22)",
+          }}
+        >
+          {children}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
