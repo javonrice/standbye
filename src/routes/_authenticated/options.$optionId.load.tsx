@@ -125,8 +125,20 @@ function AddLoad() {
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
         Standbye uses what you know to improve the whole plan — not just this flight&apos;s card.
-        It stays private to your account.
+        Party listing stays private. Normalized open/listed numbers may help other travelers when
+        your home airline matches this flight.
       </p>
+      {data?.option?.planId && (
+        <p className="mt-2 text-sm">
+          <Link
+            to="/plans/$planId/loads"
+            params={{ planId: data.option.planId }}
+            className="font-medium text-primary"
+          >
+            Add loads for the whole plan →
+          </Link>
+        </p>
+      )}
 
       <form
         className="mt-6 space-y-4"

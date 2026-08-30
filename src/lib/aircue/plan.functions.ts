@@ -286,6 +286,127 @@ export const addReportedLoad = createServerFn({ method: "POST" })
     });
   });
 
+export const addPlanManualLoads = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    planId: string;
+    rows: Array<{
+      segmentKey: string;
+      openSeats: number | null;
+      standbys: number | null;
+      cabin: string;
+    }>;
+    partyIncluded: "yes" | "no" | "unsure" | null;
+    source?: string;
+  }) =>
+    z
+      .object({
+        planId: z.string().uuid(),
+        rows: z
+          .array(
+            z.object({
+              segmentKey: z.string().min(8).max(120),
+              openSeats: z.number().int().min(0).max(400).nullable(),
+              standbys: z.number().int().min(0).max(400).nullable(),
+              cabin: z.string().min(3).max(16),
+            }),
+          )
+          .min(1)
+          .max(20),
+        partyIncluded: z.enum(["yes", "no", "unsure"]).nullable(),
+        source: z.string().min(3).max(24).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { attachManualLoadsForPlan } = await import(
+      "@/lib/aircue/load-screenshot/pipeline.server"
+    );
+    const payload: {
+      planId: string;
+      rows: Array<{
+        segmentKey: string;
+        openSeats: number | null;
+        standbys: number | null;
+        cabin: string;
+      }>;
+      partyIncluded: "yes" | "no" | "unsure" | null;
+      source?: string;
+    } = {
+      planId: data.planId,
+      rows: data.rows,
+      partyIncluded: data.partyIncluded,
+    };
+    if (data.source !== undefined) payload.source = data.source;
+    return attachManualLoadsForPlan(context.supabase, context.userId, payload);
+  });
+
+export const uploadPlanLoadScreenshots = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    planId: string;
+    images: Array<{
+      mimeType: string;
+      base64: string;
+      fileLastModifiedMs?: number | null;
+    }>;
+    partyIncluded?: "yes" | "no" | "unsure" | null;
+    confirmedObservedAt?: string | null;
+  }) =>
+    z
+      .object({
+        planId: z.string().uuid(),
+        images: z
+          .array(
+            z.object({
+              mimeType: z.string().min(3).max(64),
+              base64: z.string().min(32).max(8_000_000),
+              fileLastModifiedMs: z.number().nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(3),
+        partyIncluded: z.enum(["yes", "no", "unsure"]).nullable().optional(),
+        confirmedObservedAt: z.string().datetime().nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { processPlanScreenshotLoads } = await import(
+      "@/lib/aircue/load-screenshot/pipeline.server"
+    );
+    return processPlanScreenshotLoads(context.supabase, context.userId, {
+      planId: data.planId,
+      images: data.images.map((img) => {
+        const out: {
+          mimeType: string;
+          base64: string;
+          fileLastModifiedMs?: number | null;
+        } = { mimeType: img.mimeType, base64: img.base64 };
+        if (img.fileLastModifiedMs !== undefined) {
+          out.fileLastModifiedMs = img.fileLastModifiedMs;
+        }
+        return out;
+      }),
+      ...(data.partyIncluded !== undefined ? { partyIncluded: data.partyIncluded } : {}),
+      ...(data.confirmedObservedAt !== undefined
+        ? { confirmedObservedAt: data.confirmedObservedAt }
+        : {}),
+    });
+  });
+
+export const loadScreenshotStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { isLoadScreenshotParsingConfigured, resolveLoadScreenshotProviderId } = await import(
+      "@/lib/aircue/load-screenshot/index"
+    );
+    return {
+      configured: isLoadScreenshotParsingConfigured(),
+      provider: resolveLoadScreenshotProviderId(),
+    };
+  });
+
 /* -------------------------------- watching -------------------------------- */
 
 export const setPrimaryOptionFn = createServerFn({ method: "POST" })

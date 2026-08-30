@@ -333,6 +333,8 @@ export const loadSourceLabel: Record<string, string> = {
   stafftraveler: "StaffTraveler",
   coworker: "Friend / coworker",
   other: "Other",
+  screenshot: "Screenshot",
+  network_snapshot: "Standbye network",
 };
 
 export function minutesAgo(iso: string | null | undefined, now = Date.now()): number | null {
