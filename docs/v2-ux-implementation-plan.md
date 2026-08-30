@@ -232,3 +232,15 @@ Stories covered: recovery, change → activity, profile.
 - No diff in ranking, scoring, eligibility, provider or gateway/recovery modules, and no
   database migration.
 
+## 6. Guardrails (revision 3)
+
+Documentation-driven rules for the whole pass. Do not:
+
+- modify `PlanSummary`, add `updatedAt`, or add archive columns,
+- add a database migration,
+- invent a watch mode, placeholder option, or fabricated watcher,
+- change ranking, provider behavior, travel eligibility, or gateway/recovery logic,
+- bulk-enroll previously created Plans into monitoring,
+- let `primary_option_id`, preferred ranking, or watch records decide whether a Plan
+  appears in Home or Plans.
+
