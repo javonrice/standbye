@@ -42,6 +42,25 @@ Change `Home / Plans / Updates / You` → `Home / Plans / You`.
 Updates are activity on a Plan, not a product object. Native-size, safe-area-aware
 touch targets.
 
+### Navigation ownership
+
+Plans is the *library*. Viewing one Plan, or doing anything scoped to one Plan, is the
+*current-Plan* experience and belongs to Home.
+
+| URL | Selected tab |
+| --- | --- |
+| `/plan`, `/known-flight` | Home |
+| `/plans/$planId` and every descendant (`/loads`, `/compare`, `/ways`) | Home |
+| `/options/$optionId` and its evidence/load subroutes | Home |
+| `/updates/$watchId` (Activity), `/escape*` | Home |
+| `/plans` (the library index only) | Plans |
+| `/you` and `/how-it-works` | You |
+
+Consequence: `/plans` must match exactly, and the Plans tab must not light up for
+`/plans/…` children. Tab selection is a matcher concern only — no route moves, no URL
+changes, no redirects.
+
+
 ## 1. Marketing entry — `/`
 
 One sentence, one action. No feature carousel, no data-source explanation, no
@@ -86,6 +105,12 @@ Do not delete the educational screens. Move them to contextual first-use educati
 | Monitoring | after first plan |
 | No fake odds | inside How Standbye Works |
 
+Persistence rule: contextual first-use education must not require a database migration.
+Use an existing profile flag where one already fits, otherwise local persistence
+(`localStorage`, alongside the existing onboarding draft) is acceptable for one-time
+teaching. Any proposal to persist new education state server-side is flagged for review
+before it is coded.
+
 ## 3. Auth — `/auth`
 
 Standard. "Save your standby plans across devices." Google button, divider, email,
@@ -96,7 +121,52 @@ Continue, "Already have an account? Sign in."
 Extremely short transition: ✓ / "You're in." / "Your Standbye setup is ready." /
 [Plan my first trip] → `/plan`.
 
-## 5. Home, no active plan — `/plan`
+## 5. Home — `/plan`
+
+Home has two states. It is not always a blank builder.
+
+A Plan is **current** when its travel date is today or later and it has not been
+archived. Home shows the most relevant current Plan (soonest travel date; ties broken by
+most recently updated). There is no "committed" test — a Plan does not need a chosen
+option or an explicit watch to be current.
+
+### 5A. Home with a current Plan (the default returning state)
+
+Plan-first. Home renders the Plan itself, in the same order as Plan Detail:
+
+```text
+STANDBYE                         ◯
+ORD → LAX
+Today · 1 traveler
+● Plan looks workable
+
+YOUR CURRENT PLAN
+┌─────────────────────────────────────┐
+│ United · UA 1847                    │
+│  9:10 AM   ORD  →  LAX   11:35 AM   │
+│ Looks workable                      │
+│              See why →              │
+└─────────────────────────────────────┘
+
+Standbye is watching the day.
+Nothing important has changed.
+Checked 4 minutes ago            Activity →
+
+──────── BACKUP OPTIONS ────────
+2  UA 2201  10:25 AM → 12:44 PM  >
+3  UA 267   11:40 AM → 2:03 PM   >
+
+[ 📷 Add load information ]
+[ ↗ Find another way ]
+See every route →
+
+Plan another trip →
+        HOME   PLANS   YOU
+```
+
+"Plan another trip" is the only secondary action, and it is what reveals the builder.
+
+### 5B. Home with no current Plan (the builder)
 
 ```text
 STANDBYE                         ◯
@@ -112,9 +182,11 @@ Have a flight number?  Check it →
         HOME   PLANS   YOU
 ```
 
-Removed from the primary hierarchy: recent searches, Widen, routing mode, nearby
-airports, cabin, carrier picker. If advanced controls must stay reachable, put them
-behind one quiet "Trip options" sheet.
+The builder is shown when there is no current Plan, or when the user taps "Plan another
+trip" from 5A. Removed from the primary hierarchy either way: recent searches, Widen,
+routing mode, nearby airports, cabin, carrier picker. If advanced controls must stay
+reachable, put them behind one quiet "Trip options" sheet.
+
 
 ## 6. Known flight — `/known-flight`
 
@@ -186,6 +258,31 @@ Plan another trip
 Language: "Your current plan" not "Your primary option"; "Use this option" not "Make
 this my primary option". Do not expose preferredOption vs primaryOption semantics. Watch
 controls are a property of the Plan, not the emotional center.
+
+### 8.1 Plan monitoring lifecycle
+
+There is no Watch CTA in V2. A Plan that is current is monitored — that is what makes
+the line "Standbye is watching the day" honest. So a newly built Plan enters the
+*existing* monitoring lifecycle automatically, using the existing watch infrastructure
+(`startWatchPlan` / `beginWatch`, plan-scoped, existing modes, existing event types).
+
+Rules:
+
+- Monitoring is a property of a current Plan, never a mode the user manages. No start,
+  stop, or "not watching" surface.
+- Monitoring ≠ permission to interrupt. Notification opt-in stays a separate, explicit
+  setting under You → Notifications. Automatic monitoring must not enable any delivery
+  channel the user has not agreed to.
+- Monitoring ends the way it already does when a Plan is no longer current.
+- The watch engine, its cadence, its economics and its event semantics are not
+  redesigned in this pass.
+
+Flagged before implementation: the smallest change that makes this true is calling the
+existing plan-scoped monitoring start once, at Plan creation, with a non-notifying mode,
+instead of behind a user tap. If the existing modes cannot express "monitor without
+notifying", that is a real behavioral question and stops for review rather than being
+solved by inventing a mode.
+
 
 ## 9. Changed-plan state — same route
 
@@ -263,10 +360,19 @@ A task, not a product area.
 
 ## 13. Plans — `/plans`
 
-Only job: my travel plans. Sections ACTIVE / UPCOMING / PAST. Each row: route, date,
-current flight if relevant, one simple state (All quiet · Worth another look · Plan
-looks workable · Completed). Never show committed, watching, not watching, preferred
-option ID, watch ID.
+Only job: my travel plans — **all** of them.
+
+V2 drops the committed/uncommitted split as product behavior, not just as wording. Every
+Plan the user built appears here. A Plan never has to earn its place by having a chosen
+option or an explicit watch, and nothing the user built silently disappears. "Recent
+searches" and "uncommitted exploration" cease to exist as user-facing concepts.
+
+Sections ACTIVE / UPCOMING / PAST, derived from travel date and current plan state. Each
+row: route, date, current flight if relevant, one simple state (All quiet · Worth another
+look · Plan looks workable · Completed). Never show committed, watching, not watching,
+preferred option ID, watch ID.
+
+
 
 ## 14. Compare — `/plans/$planId/compare`
 
@@ -383,4 +489,18 @@ happening, what should I do next.
 - History: Plans → upcoming → past
 - Profile: You → travel setup → update settings
 
+Lifecycle acceptance added in this revision:
+
+- Build a Plan → it appears in Plans immediately, with no "Make primary" and no "Watch".
+- Build a Plan → the existing monitoring lifecycle starts automatically, with no
+  notification permission implied.
+- Reopen the app with a current Plan → Home shows that Plan, not the blank builder.
+- Tap "Plan another trip" → the builder becomes available.
+- `/plans` → the library, and the Plans tab is selected only there.
+- Open a Plan from the library → the experience is current-Plan-centric and the Home tab
+  is selected.
+- No Plan disappears from anywhere simply because no explicit primary/watch action was
+  taken.
+
 Test at iPhone viewport before desktop; run typecheck and tests.
+
