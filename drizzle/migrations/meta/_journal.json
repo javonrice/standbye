@@ -78,6 +78,13 @@
       "when": 1788048774689,
       "tag": "0010_reported_loads_party_included",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788053571931,
+      "tag": "0011_reported_loads_segment_key",
+      "breakpoints": true
     }
   ]
 }
