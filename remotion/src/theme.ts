@@ -25,6 +25,6 @@ export const TIMELINE = {
 
 /** Vertical anchors (in source-image pixels) of real UI blocks. */
 export const ANCHOR = {
-  before: { header: 120, primary: 560, backups: 1330, watch: 1720 },
-  after: { notice: 430, primary: 1180, prefers: 1900, backups: 2280 },
+  before: { header: 120, primary: 560, backups: 1210, watch: 1720 },
+  after: { notice: 430, primary: 1180, prefers: 1860, backups: 2280 },
 } as const;
