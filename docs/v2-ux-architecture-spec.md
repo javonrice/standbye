@@ -181,6 +181,16 @@ Plan another trip →
 
 "Plan another trip" is the only secondary action, and it is what reveals the builder.
 
+Home renders the Plan in one of three content states (§8 details each):
+
+- **Unselected:** the Plan has options but the user has not chosen one → the top-ranked
+  option is labeled RECOMMENDED NOW, with [Use this option]. Never "Your current plan"
+  until the user explicitly chooses.
+- **Selected:** the user has chosen → YOUR CURRENT PLAN shows the chosen option, even if
+  ranking later changes; a newly top-ranked option then appears as RECOMMENDED NOW.
+- **Zero-option:** the Plan has no current options → a clear empty state (§8.3), no
+  monitoring line, Find another way and Try another date as the primary offers.
+
 ### 5B. Home with no current Plan (the builder)
 
 ```text
