@@ -8,16 +8,25 @@ export function Caption({
   children,
   delay = 0,
   bottom = 96,
+  out,
 }: {
   children: React.ReactNode;
   delay?: number;
   bottom?: number;
+  /** Optional [startFade, endFade] frames, relative to the scene. */
+  out?: [number, number];
 }) {
-  const frame = useCurrentFrame() - delay;
-  const opacity = interpolate(frame, [0, 12], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const raw = useCurrentFrame();
+  const frame = raw - delay;
+  const fadeOut = out
+    ? interpolate(raw, out, [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+    : 1;
+  const opacity =
+    fadeOut *
+    interpolate(frame, [0, 12], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
   const lift = interpolate(frame, [0, 16], [18, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
