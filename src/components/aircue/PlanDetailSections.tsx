@@ -121,6 +121,43 @@ export function PlanWatchBlock({ plan }: PlanWatchBlockProps) {
         </button>
       </div>
     </section>
+    </>
+  );
+}
+
+/** Shown once, the first time a plan is being watched. */
+function NotifyPriming() {
+  const queryClient = useQueryClient();
+  const save = useServerFn(saveStandbyProfile);
+  const { data: profile } = useQuery({
+    queryKey: ["standby-profile"],
+    queryFn: () => getStandbyProfile(),
+  });
+
+  const optIn = useMutation({
+    mutationFn: () => save({ data: { ...profile!, notifyOptin: true } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["standby-profile"] }),
+  });
+
+  if (!profile || profile.notifyOptin) return null;
+
+  return (
+    <section className="mt-7 rounded-2xl border border-primary/40 bg-primary/[0.06] p-5">
+      <p className="font-display text-[19px] font-bold leading-tight tracking-tight">
+        Standbye watches the plan, not just one flight
+      </p>
+      <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+        Go do something else. We'll get your attention when the decision deserves another look.
+      </p>
+      <Button
+        variant="secondary"
+        className="mt-4 h-12 w-full rounded-2xl text-[15px]"
+        disabled={optIn.isPending}
+        onClick={() => optIn.mutate()}
+      >
+        Keep me updated
+      </Button>
+    </section>
   );
 }
 
