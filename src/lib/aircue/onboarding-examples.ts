@@ -33,7 +33,7 @@ export function bookingCheckExample(origin: string): ExampleFlight[] {
       depLocal: "7:10 AM",
       judgment: "favorable",
       rows: [
-        { label: "Booking check", value: "3 travelers", state: "fair" },
+        { label: "Booking check", value: "3 travelers", state: "unknown" },
         { label: "Operations", value: "Normal", state: "good" },
         { label: "Recovery", value: "Excellent", state: "good" },
       ],
@@ -44,7 +44,7 @@ export function bookingCheckExample(origin: string): ExampleFlight[] {
       depLocal: "6:45 PM",
       judgment: "favorable",
       rows: [
-        { label: "Booking check", value: "4 travelers", state: "good" },
+        { label: "Booking check", value: "4 travelers", state: "unknown" },
         { label: "Recovery", value: "Poor", state: "poor" },
       ],
       footnote: "Last nonstop tonight",
@@ -58,7 +58,7 @@ export const widenedExample: ExampleFlight = {
   depLocal: "3:15 PM",
   judgment: "favorable",
   rows: [
-    { label: "Booking check", value: "4 travelers", state: "good" },
+    { label: "Booking check", value: "4 travelers", state: "unknown" },
     { label: "Recovery", value: "Good", state: "good" },
   ],
   footnote: "3 later shots remain",

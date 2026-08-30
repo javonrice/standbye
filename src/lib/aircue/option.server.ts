@@ -13,7 +13,7 @@ type Row = Record<string, unknown>;
  * `plan_options.plan_id → plans.id` (`plan_options_plan_id_fkey`).
  */
 const PLAN_EMBED =
-  "plans!plan_options_plan_id_fkey(travel_date,primary_option_id)";
+  "plans!plan_options_plan_id_fkey(travel_date,primary_option_id,travelers)";
 
 export async function loadOption(
   client: unknown,
@@ -73,7 +73,7 @@ export async function loadOption(
   }
 
   return {
-    option: optionFromRow(row, load),
+    option: optionFromRow(row, load, Number(plan["travelers"] ?? 1)),
     planId,
     travelDate,
     watchId: watch ? String((watch as Row)["id"]) : null,

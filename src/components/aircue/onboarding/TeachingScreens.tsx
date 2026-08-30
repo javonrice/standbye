@@ -207,7 +207,7 @@ export function WhatIsTheBookingCheck() {
             className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold"
           >
             {row.party}
-            <Check aria-hidden className="h-4 w-4 text-fine-foreground" />
+            <Check aria-hidden className="h-4 w-4 text-muted-foreground" />
           </li>
         ))}
       </ul>
@@ -403,7 +403,8 @@ export function UpdatesPreview() {
         <p className="mt-3 text-sm font-semibold text-primary">See updated plan →</p>
       </div>
       <p className="mt-5 text-sm text-muted-foreground">
-        We'll get your attention when the decision deserves another look.
+        Standbye keeps re-reading the plan while you're watching it. Every change lands in Updates,
+        so one look tells you whether anything actually moved.
       </p>
     </section>
   );

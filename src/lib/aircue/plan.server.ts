@@ -2,7 +2,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { rankStandbyOptions, type RankedOption, type RankReason } from "@/lib/aircue/ranking.server";
-import { confidenceWithLoad, judgeWithLoad, loadPillar } from "@/lib/aircue/load-adjust";
+import {
+  confidenceWithLoad,
+  judgeWithLoad,
+  loadPillar,
+  readLoad,
+  scoreWithLoad,
+} from "@/lib/aircue/load-adjust";
 import type {
   Confidence,
   GatewayOption,
@@ -268,16 +274,23 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
   };
 }
 
-export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOption {
+export function optionFromRow(
+  row: Row,
+  load: ReportedLoad | null,
+  partySize = 1,
+): StandbyOption {
   const pillars = ((row["pillars"] as Pillar[]) ?? []).slice();
   let judgment = (row["label"] as Judgment) ?? "mixed";
   let confidence = (row["confidence"] as Confidence) ?? "medium";
   let effective = pillars;
 
   if (load) {
-    effective = pillars.map((p) => (p.key === "availability" ? loadPillar(load) : p));
+    const reading = readLoad(load, { partySize });
+    effective = pillars.map((p) =>
+      p.key === "availability" ? loadPillar(load, { partySize }) : p,
+    );
     judgment = judgeWithLoad(effective);
-    confidence = confidenceWithLoad(effective);
+    confidence = confidenceWithLoad(effective, reading);
   }
 
   const evidence = (row["evidence"] as StandbyOption["evidence"]) ?? {
@@ -676,7 +689,10 @@ export async function loadPlan(
     String(plan["travel_date"]),
   );
 
-  const options = rows.map((r) => optionFromRow(r, loads.get(String(r["flight_label"])) ?? null));
+  const partySize = Number(plan["travelers"] ?? 1);
+  const options = rows.map((r) =>
+    optionFromRow(r, loads.get(String(r["flight_label"])) ?? null, partySize),
+  );
   options.sort((a, b) => a.rank - b.rank);
 
   const prefs = (plan["prefs"] ?? {}) as Record<string, unknown>;
@@ -897,10 +913,19 @@ export async function attachLoad(
     source: string;
     partyIncluded: "yes" | "no" | "unsure" | null;
   },
-): Promise<{ optionId: string; judgment: string }> {
+): Promise<{
+  optionId: string;
+  judgment: string;
+  /** Stored ranks moved because of this report. */
+  reranked: boolean;
+  topOptionId: string | null;
+  topFlightLabel: string | null;
+  previousTopOptionId: string | null;
+  primaryOptionId: string | null;
+}> {
   const { data: optionRow, error: optionError } = await db(client)
     .from("plan_options")
-    .select("*, plans!plan_options_plan_id_fkey(travel_date)")
+    .select("*, plans!plan_options_plan_id_fkey(travel_date,travelers,primary_option_id)")
     .eq("id", input.optionId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -939,8 +964,117 @@ export async function attachLoad(
     checkedAt: String(raw["checked_at"] ?? new Date().toISOString()),
   };
 
-  const option = optionFromRow(row, load);
-  return { optionId: option.id, judgment: option.judgment };
+  const planEmbed = (row["plans"] as Row) ?? {};
+  const partySize = Number(planEmbed["travelers"] ?? 1);
+  const primaryOptionId = (planEmbed["primary_option_id"] as string | null) ?? null;
+  const planId = String(row["plan_id"]);
+
+  const option = optionFromRow(row, load, partySize);
+  const newScore = scoreWithLoad(option.pillars);
+
+  const rerank = await rerankPlanAfterLoad(client, userId, planId, {
+    optionId: option.id,
+    score: newScore,
+    judgment: option.judgment,
+  });
+
+  return {
+    optionId: option.id,
+    judgment: option.judgment,
+    reranked: rerank.reranked,
+    topOptionId: rerank.topOptionId,
+    topFlightLabel: rerank.topFlightLabel,
+    previousTopOptionId: rerank.previousTopOptionId,
+    primaryOptionId,
+  };
+}
+
+/**
+ * Re-sort the plan's current options after a reported load changed one
+ * option's score, and persist the new ranks. No provider calls: every other
+ * option keeps its stored score.
+ */
+async function rerankPlanAfterLoad(
+  client: unknown,
+  userId: string,
+  planId: string,
+  changed: { optionId: string; score: number; judgment: Judgment },
+): Promise<{
+  reranked: boolean;
+  topOptionId: string | null;
+  topFlightLabel: string | null;
+  previousTopOptionId: string | null;
+}> {
+  const { data } = await db(client)
+    .from("plan_options")
+    .select("id,rank,score,flight_label")
+    .eq("plan_id", planId)
+    .eq("user_id", userId)
+    .eq("is_current", true)
+    .order("rank");
+
+  const rows = (data ?? []) as Row[];
+  if (rows.length === 0) {
+    return { reranked: false, topOptionId: null, topFlightLabel: null, previousTopOptionId: null };
+  }
+
+  const previousTopOptionId = String(rows[0]!["id"]);
+  const entries = rows.map((r) => {
+    const id = String(r["id"]);
+    return {
+      id,
+      flightLabel: String(r["flight_label"] ?? ""),
+      previousRank: Number(r["rank"] ?? 1),
+      score: id === changed.optionId ? changed.score : Number(r["score"] ?? 0),
+    };
+  });
+
+  entries.sort((a, b) => b.score - a.score || a.previousRank - b.previousRank);
+
+  let reranked = false;
+  for (let i = 0; i < entries.length; i += 1) {
+    const entry = entries[i]!;
+    const nextRank = i + 1;
+    const isChanged = entry.id === changed.optionId;
+    if (!isChanged && entry.previousRank === nextRank) continue;
+    reranked = reranked || entry.previousRank !== nextRank;
+    const update: Record<string, unknown> = { rank: nextRank };
+    if (isChanged) {
+      update["score"] = changed.score;
+      update["label"] = changed.judgment;
+    }
+    await db(client).from("plan_options").update(update).eq("id", entry.id);
+  }
+
+  const top = entries[0]!;
+  if (reranked) {
+    const { data: watchRow } = await db(client)
+      .from("watch_plans")
+      .select("id")
+      .eq("plan_id", planId)
+      .eq("user_id", userId)
+      .eq("state", "active")
+      .maybeSingle();
+    if (watchRow) {
+      await db(client)
+        .from("plan_change_events")
+        .insert({
+          watch_id: String((watchRow as Row)["id"]),
+          user_id: userId,
+          kind: "preferred_option_changed",
+          severity: "meaningful",
+          headline: `${top.flightLabel} is now the strongest option`,
+          detail: "A load you reported changed how this plan ranks.",
+        });
+    }
+  }
+
+  return {
+    reranked,
+    topOptionId: top.id,
+    topFlightLabel: top.flightLabel,
+    previousTopOptionId,
+  };
 }
 
 /* -------------------------------- watching -------------------------------- */

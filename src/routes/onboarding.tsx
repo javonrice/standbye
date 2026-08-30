@@ -16,6 +16,7 @@ import {
   painOptions,
   popularAirlines,
   readDraft,
+  resolvedAccess,
   saveDraft,
   travelerOptions,
   travelerLabel,
@@ -58,7 +59,7 @@ export const Route = createFileRoute("/onboarding")({
   component: OnboardingFlow,
 });
 
-const TOTAL = 18;
+const TOTAL = 17;
 
 function OnboardingFlow() {
   const navigate = useNavigate();
@@ -253,9 +254,6 @@ function OnboardingFlow() {
         return <UpdatesPreview />;
 
       case 16:
-        return <SetupStep onDone={next} />;
-
-      case 17:
         return <RevealStep draft={draft} />;
 
       default:
@@ -268,11 +266,11 @@ function OnboardingFlow() {
     8: "Show me",
     11: "Got it",
     14: "I like that",
-    17: "Save my setup",
+    16: "Save my setup",
   };
   const cta = ctaByStep[step] ?? "Continue";
 
-  const hideCta = step === 0 || step === 2 || step === 3 || step === 16;
+  const hideCta = step === 0 || step === 2 || step === 3;
   const disabled =
     (step === 4 && !draft.accessMode) ||
     (step === 5 && draft.homeAirport.trim().length !== 3);
@@ -436,6 +434,9 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
 
 
 function RevealStep({ draft }: { draft: OnboardingDraft }) {
+  const carriers = resolvedAccess(draft);
+  const home = draft.homeAirline.trim().toUpperCase();
+  const partners = carriers.filter((c) => c !== home);
   return (
     <section className="text-center">
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-fine-soft">
@@ -455,9 +456,15 @@ function RevealStep({ draft }: { draft: OnboardingDraft }) {
           {draft.homeAirport ? ` · ${draft.homeAirport.toUpperCase()}` : ""}
         </p>
         <dl className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
-          <ProfileRow label="Home airline" on={Boolean(draft.homeAirline)} />
-          <ProfileRow label="Partner / ZED" on={draft.accessMode !== "home"} />
-          <ProfileRow label="Connections allowed" on />
+          <ProfileDetail label="Home airline" value={home ? airlineName(home) : "None set"} />
+          <ProfileDetail
+            label="Also usable"
+            value={partners.length > 0 ? partners.join(" · ") : "None added"}
+          />
+          <ProfileDetail
+            label="Default origin"
+            value={draft.homeAirport ? draft.homeAirport.toUpperCase() : "None set"}
+          />
         </dl>
       </div>
 
@@ -468,50 +475,12 @@ function RevealStep({ draft }: { draft: OnboardingDraft }) {
   );
 }
 
-function ProfileRow({ label, on }: { label: string; on: boolean }) {
+function ProfileDetail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-start justify-between gap-4">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={on ? "text-fine-foreground" : "text-muted-foreground"}>{on ? "✓" : "—"}</dd>
+      <dd className="min-w-0 break-words text-right font-medium">{value}</dd>
     </div>
   );
 }
 
-function SetupStep({ onDone }: { onDone: () => void }) {
-  const lines = [
-    "Saving how you travel",
-    "Learning your usual airports",
-    "Getting ready to rank your day",
-  ];
-  const [done, setDone] = useState(0);
-
-  useEffect(() => {
-    if (done >= lines.length) {
-      const t = setTimeout(onDone, 500);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setDone((d) => d + 1), 700);
-    return () => clearTimeout(t);
-  }, [done, lines.length, onDone]);
-
-  return (
-    <section className="pt-6">
-      <h1 className="font-display text-[30px] font-bold leading-[1.12] tracking-tight">Setting up Standbye…</h1>
-      <ul className="mt-6 space-y-3">
-        {lines.map((line, i) => (
-          <li key={line} className="flex items-center gap-3 text-[15px]">
-            <span
-              aria-hidden
-              className={`flex h-6 w-6 items-center justify-center rounded-full border ${
-                i < done ? "border-fine bg-fine-soft" : "border-border"
-              }`}
-            >
-              {i < done ? <Check className="h-3.5 w-3.5 text-fine-foreground" /> : null}
-            </span>
-            <span className={i < done ? "font-semibold" : "text-muted-foreground"}>{line}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
