@@ -34,11 +34,22 @@ audit of the repo. No code has been changed.
 
 `/plan` is not a builder route; it is the current-Plan route that falls back to a
 builder. Implementation: `plan.index.tsx` queries `listPlans()`, picks the current Plan
-(travel date today or later, soonest first, ties by most recently updated). If one
-exists, Home renders the Plan-first layout (spec §5A) by reusing the same section
-components as Plan Detail; otherwise it renders the builder (spec §5B). "Plan another
-trip" flips to the builder via local state (and may set a `?new=1` search param so the
-choice survives a refresh) — it does not navigate to a second route.
+— travel date today or later, soonest travel date first, and **when multiple Plans share
+that date, the most recently created one** (`createdAt`, which `PlanSummary` already
+exposes). `PlanSummary` has no `updatedAt` or archive flag and this pass adds neither —
+no server fields, no migration. If a future explicit archive/current-plan lifecycle is
+added it can replace this heuristic; it is out of scope here.
+
+If a current Plan exists, Home renders the Plan-first layout (spec §5A) by reusing the
+same section components as Plan Detail, in one of three content states: unselected
+(RECOMMENDED NOW), selected (YOUR CURRENT PLAN, possibly plus a RECOMMENDED NOW block
+when ranking changed), or zero-option (spec §8.3). Otherwise it renders the builder
+(spec §5B).
+
+"Plan another trip" flips to the builder via local state (and may set a `?new=1` search
+param so the choice survives a refresh) — it does not navigate to a second route, and it
+never replaces, deletes, archives, or demotes the existing current Plan. The existing
+Plan stays in Home and Plans untouched.
 
 ### 2.2 The committed distinction is removed from behavior
 
@@ -55,6 +66,20 @@ Because the Watch CTA is removed, a newly built Plan must enter the existing mon
 lifecycle on its own, using the existing infrastructure (`startWatchPlan` →
 `beginWatch`, plan-scoped). Monitoring is a property of a current Plan, never a mode the
 user manages.
+
+**Option anchor required.** `beginWatch()` cannot start on a zero-option Plan.
+Automatic monitoring applies only to a current Plan with at least one current option. A
+zero-option Plan is still a real Plan — it appears in Home and Plans and never
+disappears — but it gets no `startWatchPlan` call, no "Standbye is watching the day"
+line, and no fabricated watcher/placeholder/new watch mode. It shows the spec §8.3
+zero-option state (Find another way / Try another date).
+
+**Exact trigger.** Auto-start monitoring only when: (1) Plan creation succeeded,
+(2) the Plan has at least one current option, (3) no active watch already exists for
+that Plan. `beginWatch()` already de-duplicates active Plan watches — reuse that; do not
+add duplicate-prevention logic. The trigger covers normal Plan creation and Known Flight
+flows that result in a Plan. Previously created/historical Plans are **not**
+bulk-enrolled in this pass.
 
 Monitoring ≠ notification. Notification opt-in remains an explicit setting under
 You → Notifications; automatic monitoring must not enable any delivery channel.
@@ -97,11 +122,18 @@ Presentation-only (the vast majority of this work):
 - Loads task split, compare layout, ways/escape copy.
 
 Flags — anything here stops and asks before implementation:
-- **Automatic monitoring on Plan creation** (§2.3). The only behavioral change in the
-  whole pass.
+- **Automatic monitoring on Plan creation** (§2.3, option-anchored trigger). The only
+  behavioral change in the whole pass.
 - **Preferred vs primary option.** The UI stops exposing both, but the Plan payload
   (`plan.primaryOptionId`, `plan.preferredOptionId`, `plan.noStrongSetup`) stays exactly
-  as-is. "Use this option" calls the same set-primary mutation. No ranking change.
+  as-is. "Use this option" calls the same set-primary mutation. No ranking change. The
+  RECOMMENDED NOW vs YOUR CURRENT PLAN distinction (spec §8.2) maps onto these existing
+  fields; it is presentation-only.
+- **Zero-option Plans.** Presentation of the §8.3 state and skipping `startWatchPlan`
+  when a Plan has no options. No new watch mode, no placeholder option, no fabricated
+  watcher.
+- **Current-Plan tie-break uses `createdAt`.** `PlanSummary` is not modified; no
+  `updatedAt`, no archive column, no migration (spec §5 scope note).
 - **Plans ACTIVE / UPCOMING / PAST grouping.** Derived client-side from travel date and
   existing plan state; PAST = travel date in the past. No migration in this pass.
 - **Escape launched from a Plan.** Requires passing plan context (destination, date,
@@ -120,24 +152,30 @@ of the screens it touched.
 ### Pass 1 — Navigation, shell and the Plan spine
 Scope: `MainNav` three items **and the ownership matchers in §2.4**, `/updates` out of
 nav and left as a legacy route, `/plans/$planId` hierarchy rebuild (route →
-date/travelers → plan state → YOUR CURRENT PLAN → monitoring line → backup options →
-plan actions → every route → activity link), "Your current plan" / "Use this option"
+date/travelers → plan state → YOUR CURRENT PLAN *or* RECOMMENDED NOW per spec §8.2 →
+monitoring line → backup options → plan actions → every route → activity link), the
+spec §8.3 zero-option state, "Your current plan" / "Recommended now" / "Use this option"
 language, the changed-plan block at the top of the Plan, and the Plans library reading
 `listPlans()` with ACTIVE / UPCOMING / PAST and system vocabulary removed.
 Why first: it establishes the mental model everything else hangs off, and it is the
 screen the user sees most.
-Stories covered: normal plan, change, history, `/plans` library, no-Plan-disappears.
+Stories covered: normal plan, unselected plan, zero-option plan, change, history,
+`/plans` library, no-Plan-disappears.
 
 ### Pass 2 — Home states, entry and onboarding
-Scope: Home's two states (§2.1) with the Plan-first layout reusing Pass 1's sections and
-"Plan another trip" revealing the builder; builder stripped to from / to / when /
+Scope: Home's two states (§2.1) with the Plan-first layout reusing Pass 1's sections,
+the `createdAt` tie-break for same-date Plans, and "Plan another trip" revealing the
+builder without touching the existing Plan; builder stripped to from / to / when /
 travelers + "Build my plan" + "Have a flight number?"; advanced controls into a "Trip
 options" sheet; recent searches removed; the automatic-monitoring lifecycle change from
-§2.3 **once confirmed**; building-state transitional UI; `/known-flight` copy;
+§2.3 **once confirmed**, wired at the exact trigger (creation succeeded + ≥1 current
+option + no active watch, leaning on `beginWatch()` de-dup) for normal creation and
+Known Flight flows; building-state transitional UI; `/known-flight` copy;
 `/welcome` shortened; `/` copy alignment; onboarding reduced to five required steps with
 the teaching screens preserved and re-mounted as contextual first-use education using
 non-migrating persistence (§2.5).
-Stories covered: first user, returning user, plan another trip, automatic monitoring.
+Stories covered: first user, returning user, plan another trip, automatic monitoring,
+zero-option Plan lifecycle, Known Flight lifecycle parity.
 
 ### Pass 3 — Option detail, evidence sheets and loads
 Scope: flatten `/options/$optionId` into header → "Why this ranks here" rows → reported
@@ -169,14 +207,40 @@ Stories covered: recovery, change → activity, profile.
 - All spec acceptance stories pass manually, including the lifecycle set:
 
   1. Build a Plan → it appears in Plans immediately, with no "Make primary" or "Watch".
-  2. Build a Plan → the existing monitoring lifecycle starts automatically.
+  2. Build a Plan with at least one option → the existing monitoring lifecycle starts
+     exactly once.
   3. Reopen the app with a current Plan → Home shows the Plan, not the blank builder.
-  4. Tap "Plan another trip" → the builder becomes available.
+  4. Tap "Plan another trip" → the builder becomes available, and the existing Plan is
+     not removed, replaced, archived, or demoted.
   5. `/plans` → the library; Plans tab selected only there.
   6. Open a Plan from the library → the experience stays current-Plan-centric, Home tab
      selected.
   7. No Plan disappears because no explicit primary/watch action was taken.
+  8. Build a Plan with options but no selection → it appears in Plans immediately, and
+     Home labels the top-ranked option RECOMMENDED NOW (never "Your current plan").
+  9. Tap "Use this option" → that option becomes YOUR CURRENT PLAN.
+  10. Ranking later changes → the selected option remains YOUR CURRENT PLAN; the new
+      top-ranked option becomes RECOMMENDED NOW.
+  11. Build a Plan with zero options → it still appears in Home and Plans, no watcher is
+      started, and Home offers Find another way and Try another date.
+  12. A weak Plan (options that rank poorly) still shows options and monitoring; a
+      zero-option Plan shows the spec §8.3 state. The two are never merged.
+  13. Known Flight resulting in a Plan follows the same Plan/monitoring lifecycle.
+  14. Multiple Plans on the same date → Home chooses the most recently created one
+      (`createdAt`).
 
 - No diff in ranking, scoring, eligibility, provider or gateway/recovery modules, and no
   database migration.
+
+## 6. Guardrails (revision 3)
+
+Documentation-driven rules for the whole pass. Do not:
+
+- modify `PlanSummary`, add `updatedAt`, or add archive columns,
+- add a database migration,
+- invent a watch mode, placeholder option, or fabricated watcher,
+- change ranking, provider behavior, travel eligibility, or gateway/recovery logic,
+- bulk-enroll previously created Plans into monitoring,
+- let `primary_option_id`, preferred ranking, or watch records decide whether a Plan
+  appears in Home or Plans.
 

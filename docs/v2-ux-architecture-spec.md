@@ -125,10 +125,25 @@ Extremely short transition: ✓ / "You're in." / "Your Standbye setup is ready."
 
 Home has two states. It is not always a blank builder.
 
-A Plan is **current** when its travel date is today or later and it has not been
-archived. Home shows the most relevant current Plan (soonest travel date; ties broken by
-most recently updated). There is no "committed" test — a Plan does not need a chosen
-option or an explicit watch to be current.
+A Plan is **current** when its travel date is today or later. Home shows the most
+relevant current Plan: soonest travel date; if multiple Plans share that date, the most
+recently created one wins (using the existing `createdAt` field on `PlanSummary`).
+There is no "committed" test — a Plan does not need a chosen option or an explicit watch
+to be current.
+
+Scope note: `PlanSummary` exposes no `updatedAt` or archive flag today, and this pass
+adds neither. No server fields and no migration. If a future explicit archive or
+current-plan lifecycle is added, it can replace this heuristic later; it is out of scope
+here.
+
+"Plan another trip" only reveals the builder. It never replaces, deletes, archives, or
+demotes the existing current Plan — that Plan stays in Home and Plans untouched.
+
+Plan existence is independent of Plan state: a Plan is real the moment it is
+successfully built. A selected/current option is optional Plan state; a watch is
+optional system state. Neither determines whether the Plan appears in Home or Plans.
+`primary_option_id`, preferred ranking and watch records may continue to exist
+internally, but they must never decide whether the user perceives a Plan as "real."
 
 ### 5A. Home with a current Plan (the default returning state)
 
@@ -165,6 +180,16 @@ Plan another trip →
 ```
 
 "Plan another trip" is the only secondary action, and it is what reveals the builder.
+
+Home renders the Plan in one of three content states (§8 details each):
+
+- **Unselected:** the Plan has options but the user has not chosen one → the top-ranked
+  option is labeled RECOMMENDED NOW, with [Use this option]. Never "Your current plan"
+  until the user explicitly chooses.
+- **Selected:** the user has chosen → YOUR CURRENT PLAN shows the chosen option, even if
+  ranking later changes; a newly top-ranked option then appears as RECOMMENDED NOW.
+- **Zero-option:** the Plan has no current options → a clear empty state (§8.3), no
+  monitoring line, Find another way and Try another date as the primary offers.
 
 ### 5B. Home with no current Plan (the builder)
 
@@ -213,8 +238,8 @@ The core product. Conceptual order:
 1. Route
 2. Date / travelers
 3. Overall plan state
-4. YOUR CURRENT PLAN (dominant card)
-5. Monitoring state / important changes
+4. YOUR CURRENT PLAN or RECOMMENDED NOW (dominant card, §8.2)
+5. Monitoring state / important changes (omitted entirely on zero-option Plans)
 6. Backup options
 7. Add load
 8. Find another way
@@ -259,17 +284,93 @@ Language: "Your current plan" not "Your primary option"; "Use this option" not "
 this my primary option". Do not expose preferredOption vs primaryOption semantics. Watch
 controls are a property of the Plan, not the emotional center.
 
+### 8.2 Selected vs unselected option — "Your current plan" vs "Recommended now"
+
+A Plan may exist with options but no user-selected option yet. Home and Plan Detail then
+present Standbye's top-ranked option as RECOMMENDED NOW — never "Your current plan":
+
+```text
+RECOMMENDED NOW
+UA 1847
+9:10 AM → 11:35 AM
+[        Use this option        ]
+```
+
+Once the user taps "Use this option", that option becomes YOUR CURRENT PLAN. If Standbye
+later ranks a different option above the selected one, the selected option stays YOUR
+CURRENT PLAN and the new top-ranked option is shown as RECOMMENDED NOW:
+
+```text
+YOUR CURRENT PLAN
+UA 1847
+
+RECOMMENDED NOW
+UA 2201
+Standbye prefers this now because…
+[        Use this option        ]
+```
+
+This preserves the difference between system recommendation and user intent without
+exposing "primary" or "preferred" terminology. Internally this still maps to the
+existing `plan.primaryOptionId` / set-primary mutation; only the presentation changes.
+
+### 8.3 Zero-option Plans
+
+A zero-option Plan is a distinct state, never merged with a weak Plan. A weak Plan still
+has options: it shows them, is monitored, and ranks them. A zero-option Plan has no
+current options to anchor anything to.
+
+A zero-option Plan:
+
+- is still a real Plan — it appears in Home and Plans and never disappears for lacking a
+  primary or a watch,
+- does not call `startWatchPlan` and never shows "Standbye is watching the day",
+- never gets a fabricated watcher, placeholder option, or new watch mode,
+- prioritizes Find another way, Try another date, and (when relevant) changing Trip
+  options.
+
+```text
+ORD → LAX
+Today
+
+No useful option yet
+
+Standbye couldn't find a setup
+we'd recommend trying right now.
+
+[      Find another way      ]
+        Try another date
+```
+
 ### 8.1 Plan monitoring lifecycle
 
-There is no Watch CTA in V2. A Plan that is current is monitored — that is what makes
-the line "Standbye is watching the day" honest. So a newly built Plan enters the
-*existing* monitoring lifecycle automatically, using the existing watch infrastructure
-(`startWatchPlan` / `beginWatch`, plan-scoped, existing modes, existing event types).
+There is no Watch CTA in V2. A current Plan with at least one current option is
+monitored — that is what makes the line "Standbye is watching the day" honest. So such a
+Plan enters the *existing* monitoring lifecycle automatically, using the existing watch
+infrastructure (`startWatchPlan` / `beginWatch`, plan-scoped, existing modes, existing
+event types).
+
+The watch infrastructure requires at least one option to anchor to; `beginWatch()`
+cannot start on a zero-option Plan. So automatic monitoring applies **only when a Plan
+has an option to anchor**. A zero-option Plan gets no watcher, no monitoring line, and
+no fabricated placeholder (see §8.3).
+
+**Exact trigger.** Automatic monitoring happens only when all of the following hold:
+
+1. Plan creation succeeded,
+2. the Plan contains at least one current option,
+3. no active watch already exists for that Plan.
+
+`beginWatch()` already de-duplicates active Plan watches, so point 3 reuses that
+behavior — no separate duplicate-prevention logic. The trigger applies to normal Plan
+creation and to Known Flight flows that result in a Plan. It does **not** mean every
+historical or previously created Plan is bulk-enrolled during this pass; that is out of
+scope.
 
 Rules:
 
-- Monitoring is a property of a current Plan, never a mode the user manages. No start,
-  stop, or "not watching" surface.
+- Monitoring is a property of a current Plan with options, never a mode the user
+  manages. No start, stop, or "not watching" surface.
 - Monitoring ≠ permission to interrupt. Notification opt-in stays a separate, explicit
   setting under You → Notifications. Automatic monitoring must not enable any delivery
   channel the user has not agreed to.
@@ -501,6 +602,25 @@ Lifecycle acceptance added in this revision:
   is selected.
 - No Plan disappears from anywhere simply because no explicit primary/watch action was
   taken.
+
+Final lifecycle set (added 2026-08-30 revision 3):
+
+- Build a Plan with options but no selection → it immediately appears in Plans.
+- Home with an unselected Plan → the top-ranked option is labeled RECOMMENDED NOW.
+- Tap "Use this option" → it becomes YOUR CURRENT PLAN.
+- Ranking later changes → the selected option remains YOUR CURRENT PLAN and the new
+  top-ranked option becomes RECOMMENDED NOW.
+- Build a Plan with zero options → it still appears in Home and Plans.
+- Zero-option Plan → no watcher is started.
+- Zero-option Plan → Home offers Find another way and Try another date.
+- Build a Plan with at least one option → the existing monitoring lifecycle starts
+  exactly once.
+- Known Flight resulting in a Plan follows the same Plan/monitoring lifecycle.
+- Multiple Plans on the same date → Home chooses the most recently created one
+  (`createdAt`).
+- "Plan another trip" reveals the builder without removing the existing Plan.
+- A weak Plan (options that rank poorly) still shows options and monitoring; a
+  zero-option Plan shows the §8.3 state instead. The two are never merged.
 
 Test at iPhone viewport before desktop; run typecheck and tests.
 
