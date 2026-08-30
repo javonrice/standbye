@@ -78,6 +78,8 @@ export function PlanWatchBlock({ plan }: PlanWatchBlockProps) {
   const changed = plan.planVerdict === "changed";
 
   return (
+    <>
+    <NotifyPriming />
     <section className="mt-7 rounded-2xl border border-border bg-card p-5 shadow-card">
       <p className="flex items-center gap-2 text-[13px] font-semibold text-primary">
         <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
