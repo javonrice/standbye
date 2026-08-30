@@ -433,6 +433,9 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
 
 
 function RevealStep({ draft }: { draft: OnboardingDraft }) {
+  const carriers = resolvedAccess(draft);
+  const home = draft.homeAirline.trim().toUpperCase();
+  const partners = carriers.filter((c) => c !== home);
   return (
     <section className="text-center">
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-fine-soft">
