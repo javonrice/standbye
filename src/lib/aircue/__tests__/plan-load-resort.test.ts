@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import { computeLoadEvidence, loadPillarFromEvidence } from "@/lib/aircue/load-evidence";
+import {
+  computeLoadEvidence,
+  cushionScoreAdjustment,
+  loadPillarFromEvidence,
+} from "@/lib/aircue/load-evidence";
+import { scoreFromPillars } from "@/lib/aircue/option-scoring";
 import { buildSegmentKey } from "@/lib/aircue/option-key";
 import { rescoreStoredOption, resortScoredOptions } from "@/lib/aircue/plan-load-resort";
 import type { ReportedLoad } from "@/lib/aircue/standby";
@@ -186,5 +191,120 @@ describe("plan load resort", () => {
 
     expect(early.judgment).toBe("riskier");
     expect(late.judgment).not.toBe("riskier");
+  });
+
+  it("does not rank partial load (unknown standbys) above modest complete load", () => {
+    const keyA = "UA123:ORD-DEN:2026-09-01T10:00";
+    const keyB = "UA456:ORD-DEN:2026-09-01T12:00";
+    const partial = rescoreStoredOption({
+      row: optionRow({ id: "opt-a" }),
+      loadsBySegment: new Map([
+        [keyA, load({ segmentKey: keyA, openSeats: 8, standbys: null, alreadyListed: true })],
+      ]),
+      partySize: 1,
+    });
+    const modest = rescoreStoredOption({
+      row: optionRow({
+        id: "opt-b",
+        option_key: keyB,
+        sched_dep_utc: "2026-09-01T12:00:00Z",
+        segments: [
+          {
+            carrier: "UA",
+            flightNumber: "456",
+            flightLabel: "UA456",
+            origin: "ORD",
+            dest: "DEN",
+            schedDepUtc: "2026-09-01T12:00:00Z",
+            depLocal: "7:00 AM",
+          },
+        ],
+      }),
+      loadsBySegment: new Map([
+        [keyB, load({ segmentKey: keyB, openSeats: 6, standbys: 5, alreadyListed: false })],
+      ]),
+      partySize: 1,
+    });
+
+    expect(partial.pillars.find((p) => p.key === "availability")?.state).toBe("unknown");
+    expect(modest.score).toBeGreaterThan(partial.score);
+  });
+
+  it("excellent load does not beat excellent recovery when cushion adjustment is capped", () => {
+    const key = buildSegmentKey({
+      carrier: "UA",
+      flightNumber: "999",
+      origin: "ORD",
+      dest: "DEN",
+      schedDepUtc: "2026-09-01T22:00:00Z",
+    });
+    const greatLoad = rescoreStoredOption({
+      row: optionRow({
+        id: "last-flight",
+        pillars: [
+          { key: "availability", state: "good", label: "Strong", detail: "Public" },
+          { key: "operations", state: "good", label: "Normal", detail: "Normal" },
+          { key: "history", state: "fair", label: "Fuller", detail: "History" },
+          { key: "recovery", state: "poor", label: "Poor", detail: "Last flight" },
+        ],
+      }),
+      loadsBySegment: new Map([
+        [key, load({ segmentKey: key, openSeats: 25, standbys: 2, alreadyListed: true })],
+      ]),
+      partySize: 1,
+    });
+    const modestLoadStrongRecovery = rescoreStoredOption({
+      row: optionRow({
+        id: "earlier",
+        pillars: [
+          { key: "availability", state: "fair", label: "Tight", detail: "Public" },
+          { key: "operations", state: "good", label: "Normal", detail: "Normal" },
+          { key: "history", state: "fair", label: "Fuller", detail: "History" },
+          { key: "recovery", state: "good", label: "Good", detail: "6 later" },
+        ],
+      }),
+      loadsBySegment: new Map([
+        [
+          buildSegmentKey({
+            carrier: "UA",
+            flightNumber: "123",
+            origin: "ORD",
+            dest: "DEN",
+            schedDepUtc: "2026-09-01T10:00:00Z",
+          }),
+          load({ openSeats: 6, standbys: 5, alreadyListed: false }),
+        ],
+      ]),
+      partySize: 1,
+    });
+
+    expect(greatLoad.pillars.find((p) => p.key === "availability")?.state).toBe("good");
+    expect(modestLoadStrongRecovery.score).toBeGreaterThan(greatLoad.score);
+  });
+
+  it("does not double-count cushion via pillar state and a second raw score pass", () => {
+    const key = buildSegmentKey({
+      carrier: "UA",
+      flightNumber: "123",
+      origin: "ORD",
+      dest: "DEN",
+      schedDepUtc: "2026-09-01T10:00:00Z",
+    });
+    const withExtremeLoad = rescoreStoredOption({
+      row: optionRow({ id: "loaded" }),
+      loadsBySegment: new Map([
+        [key, load({ segmentKey: key, openSeats: 28, standbys: 0, alreadyListed: true })],
+      ]),
+      partySize: 1,
+    });
+    const withoutLoad = rescoreStoredOption({
+      row: optionRow({ id: "baseline" }),
+      loadsBySegment: new Map(),
+      partySize: 1,
+    });
+    const delta = withExtremeLoad.score - withoutLoad.score;
+    expect(delta).toBeLessThan(Math.round(20 * 1.5));
+    expect(cushionScoreAdjustment(20, 1)).toBe(12);
+    expect(cushionScoreAdjustment(-15, 1)).toBe(-12);
   });
 });

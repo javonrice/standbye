@@ -26,6 +26,21 @@ const SOURCE_STRENGTH: Record<string, number> = {
   gate_agent: 0.85,
 };
 
+/** Bounded nudge on top of availability pillar state — not a second full cushion pass. */
+export const CUSHION_SCORE_CAP = 12;
+
+export function cushionScoreAdjustment(
+  cushion: number | null,
+  freshnessMultiplier = 1,
+): number {
+  if (cushion === null) return 0;
+  const scaled =
+    cushion >= 0
+      ? Math.min(CUSHION_SCORE_CAP, Math.round(cushion * 0.75))
+      : Math.max(-CUSHION_SCORE_CAP, Math.floor(cushion * 0.75));
+  return Math.round(scaled * freshnessMultiplier);
+}
+
 function freshnessFor(minutes: number): {
   tier: LoadFreshnessTier;
   multiplier: number;
@@ -43,12 +58,23 @@ export function computeLoadEvidence(
   const partySize = Math.max(1, Math.floor(ctx.partySize));
   const open = load.openSeats;
   const listedRaw = load.standbys;
-  const effectiveListed = load.alreadyListed
-    ? (listedRaw ?? 0)
-    : (listedRaw ?? 0) + partySize;
+
+  let effectiveListed: number | null = null;
+  let cushion: number | null = null;
+
+  if (listedRaw === null) {
+    // Unknown standby count is not zero demand.
+    effectiveListed = null;
+    cushion = null;
+  } else if (open === null) {
+    effectiveListed = load.alreadyListed ? listedRaw : listedRaw + partySize;
+    cushion = null;
+  } else {
+    effectiveListed = load.alreadyListed ? listedRaw : listedRaw + partySize;
+    cushion = open - effectiveListed;
+  }
+
   const effectiveOpen = open;
-  const cushion =
-    effectiveOpen === null ? null : effectiveOpen - effectiveListed;
   const checkedAt = Date.parse(load.checkedAt);
   const freshnessMinutes = Number.isFinite(checkedAt)
     ? Math.max(0, Math.round(((ctx.now ?? Date.now()) - checkedAt) / 60_000))
@@ -77,33 +103,62 @@ export function loadEvidenceMultiplier(evidence: LoadEvidence): number {
 
 export function cushionToAvailabilityState(cushion: number | null): PillarState {
   if (cushion === null) return "unknown";
-  if (cushion <= 0) return "poor";
+  if (cushion < 0) return "poor";
   if (cushion <= 2) return "fair";
   return "good";
 }
 
 export function loadPillarFromEvidence(evidence: LoadEvidence): Pillar {
-  const open = evidence.effectiveOpen ?? 0;
-  const listed = evidence.effectiveListed ?? 0;
+  const open = evidence.effectiveOpen;
+  const listed = evidence.effectiveListed;
   const cushion = evidence.cushion;
+  const listedWasProvided = listed !== null;
+
+  if (cushion === null) {
+    const partyNote =
+      !evidence.userAlreadyListed && evidence.partySize > 1 && listedWasProvided
+        ? ` (${evidence.partySize} travelers in your party counted against open seats)`
+        : "";
+    if (open !== null && !listedWasProvided) {
+      return {
+        key: "availability",
+        state: "unknown",
+        label: "Partial",
+        detail: `${open} open seat${open === 1 ? "" : "s"} reported; standby count unavailable.`,
+      };
+    }
+    if (open === null && listedWasProvided) {
+      return {
+        key: "availability",
+        state: "unknown",
+        label: "Partial",
+        detail: `${listed} listed standby${listed === 1 ? "" : "s"} reported; open seat count unavailable${partyNote}.`,
+      };
+    }
+    return {
+      key: "availability",
+      state: "unknown",
+      label: "Partial",
+      detail: "Reported load on file, but open seats and standby count are incomplete.",
+    };
+  }
 
   let state = cushionToAvailabilityState(cushion);
   let label = "Strong";
   if (state === "poor") label = "Oversubscribed";
   else if (state === "fair") label = "Tight";
-  else if (cushion !== null && cushion <= 6) label = "Workable";
+  else if (cushion <= 6) label = "Workable";
 
   const partyNote =
     !evidence.userAlreadyListed && evidence.partySize > 1
       ? ` (${evidence.partySize} travelers in your party counted against open seats)`
       : "";
 
+  const openCount = open ?? 0;
   const detail =
-    evidence.effectiveListed === null && evidence.effectiveOpen === null
-      ? "Reported load on file."
-      : evidence.userAlreadyListed || listed === 0
-        ? `${open} open seat${open === 1 ? "" : "s"} reported${partyNote}.`
-        : `${open} open seat${open === 1 ? "" : "s"} against ${listed} effective standby demand${partyNote}.`;
+    evidence.userAlreadyListed || listed === 0
+      ? `${openCount} open seat${openCount === 1 ? "" : "s"} reported${partyNote}.`
+      : `${openCount} open seat${openCount === 1 ? "" : "s"} against ${listed} effective standby demand${partyNote}.`;
 
   return { key: "availability", state, label, detail };
 }

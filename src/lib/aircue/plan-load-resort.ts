@@ -154,11 +154,21 @@ export function rescoreStoredOption(input: {
   });
 
   const effective = pillars.map((p) => (p.key === "availability" ? pillar : p));
-  const scoreBase = scoreFromPillars(effective, access, standbyClears, hasLoad ? loadMultiplier : 1);
-  const score =
-    worstCushion === null
-      ? scoreBase
-      : Math.max(0, Math.min(100, scoreBase + Math.round(worstCushion * 1.5)));
+  // Partial loads stay visible as Partial/unknown but score conservatively — no fake cushion.
+  const scorePillars =
+    hasLoad && worstCushion === null
+      ? effective.map((p) =>
+          p.key === "availability" ? { ...p, state: "poor" as const } : p,
+        )
+      : effective;
+  // Cushion is reflected in the availability pillar state; do not add a second raw cushion pass.
+  const scoreBase = scoreFromPillars(
+    scorePillars,
+    access,
+    standbyClears,
+    hasLoad ? loadMultiplier : 1,
+  );
+  const score = Math.max(0, Math.min(100, scoreBase));
   const judgment = judgmentFromScore(
     score,
     pillar.state,

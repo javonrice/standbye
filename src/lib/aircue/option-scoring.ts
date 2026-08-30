@@ -46,6 +46,7 @@ export function judgmentFromScore(
   recovery: PillarState,
 ): Judgment {
   if (availability === "poor" && recovery === "poor") return "riskier";
+  if (availability === "poor") return score >= 76 ? "mixed" : "riskier";
   if (score >= 76) return "favorable";
   if (score >= 52) return "mixed";
   return "riskier";
