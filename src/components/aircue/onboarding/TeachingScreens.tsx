@@ -403,7 +403,8 @@ export function UpdatesPreview() {
         <p className="mt-3 text-sm font-semibold text-primary">See updated plan →</p>
       </div>
       <p className="mt-5 text-sm text-muted-foreground">
-        We'll get your attention when the decision deserves another look.
+        Standbye keeps re-reading the plan while you're watching it. Every change lands in Updates,
+        so one look tells you whether anything actually moved.
       </p>
     </section>
   );
