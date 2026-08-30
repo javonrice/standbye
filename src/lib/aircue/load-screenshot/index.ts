@@ -1,20 +1,22 @@
 /**
  * Factory for LoadScreenshotParser.
- * LOAD_SCREENSHOT_PROVIDER = gemini_flash | lovable | mock
+ * LOAD_SCREENSHOT_PROVIDER = gateway | gemini_flash | lovable | mock
+ * Default: gateway (Lovable AI Gateway, cheapest vision model).
  */
 import type { LoadScreenshotParser } from "@/lib/aircue/load-screenshot/types";
+import { GatewayLoadScreenshotParser } from "@/lib/aircue/load-screenshot/providers/gateway";
 import { GeminiFlashLoadScreenshotParser } from "@/lib/aircue/load-screenshot/providers/gemini-flash";
 import { LovableLoadScreenshotParser } from "@/lib/aircue/load-screenshot/providers/lovable";
 import { MockLoadScreenshotParser } from "@/lib/aircue/load-screenshot/providers/mock";
 
-export type LoadScreenshotProviderId = "gemini_flash" | "lovable" | "mock";
+export type LoadScreenshotProviderId = "gateway" | "gemini_flash" | "lovable" | "mock";
 
 export function resolveLoadScreenshotProviderId(
   raw = process.env["LOAD_SCREENSHOT_PROVIDER"],
 ): LoadScreenshotProviderId {
-  const v = (raw ?? "gemini_flash").trim().toLowerCase();
-  if (v === "lovable" || v === "mock" || v === "gemini_flash") return v;
-  return "gemini_flash";
+  const v = (raw ?? "gateway").trim().toLowerCase();
+  if (v === "lovable" || v === "mock" || v === "gemini_flash" || v === "gateway") return v;
+  return "gateway";
 }
 
 export function getLoadScreenshotParser(): LoadScreenshotParser {
@@ -32,11 +34,19 @@ export function getLoadScreenshotParser(): LoadScreenshotParser {
     return new LovableLoadScreenshotParser(url, key);
   }
 
-  const geminiKey = process.env["GEMINI_API_KEY"]?.trim();
-  if (!geminiKey) {
-    throw new Error("LOAD_SCREENSHOT_PROVIDER=gemini_flash requires GEMINI_API_KEY");
+  if (id === "gemini_flash") {
+    const geminiKey = process.env["GEMINI_API_KEY"]?.trim();
+    if (!geminiKey) {
+      throw new Error("LOAD_SCREENSHOT_PROVIDER=gemini_flash requires GEMINI_API_KEY");
+    }
+    return new GeminiFlashLoadScreenshotParser(geminiKey);
   }
-  return new GeminiFlashLoadScreenshotParser(geminiKey);
+
+  const gatewayKey = process.env["LOVABLE_API_KEY"]?.trim();
+  if (!gatewayKey) {
+    throw new Error("Load screenshot parsing requires LOVABLE_API_KEY");
+  }
+  return new GatewayLoadScreenshotParser(gatewayKey);
 }
 
 export function isLoadScreenshotParsingConfigured(): boolean {
@@ -47,5 +57,7 @@ export function isLoadScreenshotParsingConfigured(): boolean {
       process.env["LOVABLE_VISION_URL"]?.trim() && process.env["LOVABLE_VISION_API_KEY"]?.trim(),
     );
   }
-  return Boolean(process.env["GEMINI_API_KEY"]?.trim());
+  if (id === "gemini_flash") return Boolean(process.env["GEMINI_API_KEY"]?.trim());
+  return Boolean(process.env["LOVABLE_API_KEY"]?.trim());
 }
+

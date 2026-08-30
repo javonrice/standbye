@@ -216,10 +216,10 @@ describe("mergePersonalAndNetworkLoads", () => {
 });
 
 describe("LoadScreenshotParser factory / mock", () => {
-  it("defaults provider id to gemini_flash", () => {
+  it("defaults provider id to gateway", () => {
     const prev = process.env["LOAD_SCREENSHOT_PROVIDER"];
     delete process.env["LOAD_SCREENSHOT_PROVIDER"];
-    expect(resolveLoadScreenshotProviderId()).toBe("gemini_flash");
+    expect(resolveLoadScreenshotProviderId()).toBe("gateway");
     process.env["LOAD_SCREENSHOT_PROVIDER"] = "lovable";
     expect(resolveLoadScreenshotProviderId()).toBe("lovable");
     process.env["LOAD_SCREENSHOT_PROVIDER"] = "mock";
