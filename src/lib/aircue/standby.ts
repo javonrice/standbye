@@ -119,11 +119,15 @@ export interface RecoveryEvidence {
 
 export interface ReportedLoad {
   id: string;
+  /** Canonical segment identity — one leg of an option_key. */
+  segmentKey: string;
+  /** Display-only; not used for load lookup. */
+  flightLabel: string;
   openSeats: number | null;
   standbys: number | null;
   cabin: string;
   source: string;
-  /** Did the reporter's own party already appear in the standby count? */
+  /** Whether the reporter's party is already counted in standbys. */
   partyIncluded: "yes" | "no" | "unsure" | null;
   checkedAt: string;
 }
@@ -270,6 +274,8 @@ export interface StandbyPlan {
     zedCount?: number;
     otherCount?: number;
   };
+  /** Set after a reported load changes rank #1; cleared on next plan read after display. */
+  loadResortNotice?: { headline: string; detail: string } | null;
 }
 
 export const judgmentFace: Record<Judgment, string> = {

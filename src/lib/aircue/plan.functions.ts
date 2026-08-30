@@ -258,6 +258,7 @@ export const addReportedLoad = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: {
     optionId: string;
+    segmentKey?: string;
     openSeats: number | null;
     standbys: number | null;
     cabin: string;
@@ -267,6 +268,7 @@ export const addReportedLoad = createServerFn({ method: "POST" })
     z
       .object({
         optionId: z.string().uuid(),
+        segmentKey: z.string().min(8).max(120).optional(),
         openSeats: z.number().int().min(0).max(400).nullable(),
         standbys: z.number().int().min(0).max(400).nullable(),
         cabin: z.string().min(3).max(16),
@@ -275,17 +277,13 @@ export const addReportedLoad = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{
-    optionId: string;
-    judgment: string;
-    reranked: boolean;
-    topOptionId: string | null;
-    topFlightLabel: string | null;
-    previousTopOptionId: string | null;
-    primaryOptionId: string | null;
-  }> => {
+  .handler(async ({ data, context }) => {
     const { attachLoad } = await import("@/lib/aircue/plan.server");
-    return attachLoad(context.supabase, context.userId, data);
+    const { segmentKey, ...rest } = data;
+    return attachLoad(context.supabase, context.userId, {
+      ...rest,
+      ...(segmentKey !== undefined ? { segmentKey } : {}),
+    });
   });
 
 /* -------------------------------- watching -------------------------------- */

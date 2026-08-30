@@ -54,7 +54,7 @@ await mockModuleIsolated("@/lib/aircue/plan.server", () => ({
     load: null,
     refreshedAt: new Date().toISOString(),
   }),
-  latestLoadFor: async () => null,
+  loadsForOptionRow: async () => new Map(),
 }));
 
 function makeOptionRow(overrides: Record<string, unknown> = {}) {

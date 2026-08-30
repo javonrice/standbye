@@ -2,13 +2,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { rankStandbyOptions, type RankedOption, type RankReason } from "@/lib/aircue/ranking.server";
+import { buildSegmentKey, buildOptionKey } from "@/lib/aircue/option-key";
 import {
-  confidenceWithLoad,
-  judgeWithLoad,
-  loadPillar,
-  readLoad,
-  scoreWithLoad,
-} from "@/lib/aircue/load-adjust";
+  rescoreStoredOption,
+  resortScoredOptions,
+  segmentsFromRow,
+  type ResortResult,
+} from "@/lib/aircue/plan-load-resort";
 import type {
   Confidence,
   GatewayOption,
@@ -41,7 +41,6 @@ import {
   detectPlanChangeEvents,
   spilloverFromOption,
 } from "@/lib/aircue/plan-watch-events.server";
-import { buildOptionKey } from "@/lib/aircue/option-key";
 import {
   accessTypeForCarrier,
   effectiveStaffTravelCarriers,
@@ -276,22 +275,17 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
 
 export function optionFromRow(
   row: Row,
-  load: ReportedLoad | null,
-  partySize = 1,
+  ctx: {
+    loadsBySegment?: Map<string, ReportedLoad>;
+    partySize?: number;
+  } = {},
 ): StandbyOption {
-  const pillars = ((row["pillars"] as Pillar[]) ?? []).slice();
-  let judgment = (row["label"] as Judgment) ?? "mixed";
-  let confidence = (row["confidence"] as Confidence) ?? "medium";
-  let effective = pillars;
-
-  if (load) {
-    const reading = readLoad(load, { partySize });
-    effective = pillars.map((p) =>
-      p.key === "availability" ? loadPillar(load, { partySize }) : p,
-    );
-    judgment = judgeWithLoad(effective);
-    confidence = confidenceWithLoad(effective, reading);
-  }
+  const partySize = ctx.partySize ?? 1;
+  const loadsBySegment = ctx.loadsBySegment ?? new Map<string, ReportedLoad>();
+  const rescored = rescoreStoredOption({ row, loadsBySegment, partySize });
+  const pillars = rescored.pillars;
+  const judgment = rescored.judgment;
+  const confidence = rescored.confidence;
 
   const evidence = (row["evidence"] as StandbyOption["evidence"]) ?? {
     availability: { checked: false, tested: [], largestShowing: null, checkedAt: null },
@@ -327,13 +321,13 @@ export function optionFromRow(
     schedDepUtc: (row["sched_dep_utc"] as string | null) ?? null,
     schedArrUtc: (row["sched_arr_utc"] as string | null) ?? null,
     segments: (row["segments"] as StandbyOption["segments"]) ?? [],
-    pillars: effective,
+    pillars,
     reasons: (row["reasons"] as Reason[]) ?? [],
     evidence: {
       ...evidence,
       recovery: (row["recovery"] as StandbyOption["evidence"]["recovery"]) ?? evidence.recovery,
     },
-    load,
+    load: rescored.primaryLoad,
     refreshedAt: String(row["refreshed_at"] ?? new Date().toISOString()),
   };
   const ev = evidence as StandbyOption["evidence"];
@@ -628,34 +622,50 @@ export async function checkEscapeViaAirport(
 }
 
 
-async function loadsFor(
+function parseReportedLoadRow(raw: Row): ReportedLoad {
+  return {
+    id: String(raw["id"]),
+    segmentKey: String(raw["segment_key"] ?? ""),
+    flightLabel: String(raw["flight_label"] ?? ""),
+    openSeats: (raw["open_seats"] as number | null) ?? null,
+    standbys: (raw["standbys"] as number | null) ?? null,
+    cabin: String(raw["cabin"] ?? "economy"),
+    source: String(raw["source"] ?? "employee_system"),
+    partyIncluded: (raw["party_included"] as "yes" | "no" | "unsure" | null) ?? null,
+    checkedAt: String(raw["checked_at"]),
+  };
+}
+
+function segmentKeysForRows(rows: Row[]): string[] {
+  const keys = new Set<string>();
+  for (const row of rows) {
+    for (const segment of segmentsFromRow(row)) {
+      keys.add(buildSegmentKey(segment));
+    }
+  }
+  return [...keys];
+}
+
+async function loadsForSegments(
   client: unknown,
   userId: string,
-  labels: string[],
+  segmentKeys: string[],
   travelDate: string,
 ): Promise<Map<string, ReportedLoad>> {
   const map = new Map<string, ReportedLoad>();
-  if (labels.length === 0) return map;
+  if (segmentKeys.length === 0) return map;
   const { data } = await db(client)
     .from("reported_loads")
     .select("*")
     .eq("user_id", userId)
     .eq("travel_date", travelDate)
-    .in("flight_label", labels)
+    .in("segment_key", segmentKeys)
     .order("checked_at", { ascending: false });
 
   for (const raw of (data ?? []) as Row[]) {
-    const label = String(raw["flight_label"]);
-    if (map.has(label)) continue;
-    map.set(label, {
-      id: String(raw["id"]),
-      openSeats: (raw["open_seats"] as number | null) ?? null,
-      standbys: (raw["standbys"] as number | null) ?? null,
-      cabin: String(raw["cabin"] ?? "economy"),
-      source: String(raw["source"] ?? "employee_system"),
-      partyIncluded: (raw["party_included"] as "yes" | "no" | "unsure" | null) ?? null,
-      checkedAt: String(raw["checked_at"]),
-    });
+    const key = String(raw["segment_key"] ?? "");
+    if (!key || map.has(key)) continue;
+    map.set(key, parseReportedLoadRow(raw));
   }
   return map;
 }
@@ -682,20 +692,21 @@ export async function loadPlan(
     .order("rank");
 
   const rows = (optionRows ?? []) as Row[];
-  const loads = await loadsFor(
+  const travelers = Number(plan["travelers"] ?? 1);
+  const loads = await loadsForSegments(
     client,
     userId,
-    rows.map((r) => String(r["flight_label"])),
+    segmentKeysForRows(rows),
     String(plan["travel_date"]),
   );
 
-  const partySize = Number(plan["travelers"] ?? 1);
-  const options = rows.map((r) =>
-    optionFromRow(r, loads.get(String(r["flight_label"])) ?? null, partySize),
-  );
+  const options = rows.map((r) => optionFromRow(r, { loadsBySegment: loads, partySize: travelers }));
   options.sort((a, b) => a.rank - b.rank);
 
   const prefs = (plan["prefs"] ?? {}) as Record<string, unknown>;
+  const loadResort = prefs["lastLoadResort"] as
+    | { headline?: string; detail?: string; at?: string }
+    | undefined;
   const scanned = (prefs["scanned"] ?? {}) as { origins?: string[]; dests?: string[] };
   const primaryOptionId = (plan["primary_option_id"] as string | null) ?? null;
   const preferredOptionId = options[0]?.id ?? null;
@@ -740,6 +751,10 @@ export async function loadPlan(
     lastCheckedAt: watchRow ? String((watchRow as Row)["last_checked_at"] ?? "") : null,
     preferredOptionId,
     backupRunway,
+    loadResortNotice:
+      loadResort?.headline && loadResort.detail
+        ? { headline: loadResort.headline, detail: loadResort.detail }
+        : null,
   };
 }
 
@@ -902,30 +917,105 @@ export async function planFromFlightNumber(
 
 /* --------------------------------- loads --------------------------------- */
 
+export interface AttachLoadResult {
+  optionId: string;
+  planId: string;
+  judgment: string;
+  bestOptionChanged: boolean;
+  previousPreferredId: string | null;
+  newPreferredId: string | null;
+  resortNotice: { headline: string; detail: string } | null;
+}
+
+async function rescoreAndResortPlanOptions(
+  client: unknown,
+  userId: string,
+  planId: string,
+): Promise<ResortResult & { planId: string }> {
+  const { data: planRow } = await db(client)
+    .from("plans")
+    .select("travelers,travel_date")
+    .eq("id", planId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!planRow) throw new Error("That plan is no longer available.");
+  const travelers = Number((planRow as Row)["travelers"] ?? 1);
+  const travelDate = String((planRow as Row)["travel_date"]);
+
+  const { data: optionRows } = await db(client)
+    .from("plan_options")
+    .select("*")
+    .eq("plan_id", planId)
+    .eq("is_current", true);
+  const rows = (optionRows ?? []) as Row[];
+  const sortedBefore = [...rows].sort((a, b) => Number(a["rank"]) - Number(b["rank"]));
+  const previousPreferredId = sortedBefore[0] ? String(sortedBefore[0]["id"]) : null;
+
+  const loads = await loadsForSegments(client, userId, segmentKeysForRows(rows), travelDate);
+  const scored = rows.map((row) => {
+    const rescored = rescoreStoredOption({ row, loadsBySegment: loads, partySize: travelers });
+    return {
+      id: String(row["id"]),
+      score: rescored.score,
+      schedDepUtc: (row["sched_dep_utc"] as string | null) ?? null,
+      judgment: rescored.judgment,
+      confidence: rescored.confidence,
+      pillars: rescored.pillars,
+      primaryLoad: rescored.primaryLoad,
+    };
+  });
+
+  const resort = resortScoredOptions(scored, previousPreferredId);
+  for (const opt of resort.options) {
+    await db(client)
+      .from("plan_options")
+      .update({
+        rank: opt.rank,
+        score: opt.score,
+        label: opt.judgment,
+        confidence: opt.confidence,
+        pillars: opt.pillars,
+        refreshed_at: new Date().toISOString(),
+      })
+      .eq("id", opt.id)
+      .eq("user_id", userId);
+  }
+
+  return { ...resort, planId };
+}
+
+function buildLoadResortNotice(
+  resort: ResortResult,
+  rows: Row[],
+  triggeringLabel: string,
+): { headline: string; detail: string } | null {
+  if (!resort.bestOptionChanged || !resort.newPreferredId) return null;
+  const previous = rows.find((r) => String(r["id"]) === resort.previousPreferredId);
+  const next = rows.find((r) => String(r["id"]) === resort.newPreferredId);
+  const prevLabel = previous ? String(previous["flight_label"]) : "your previous top pick";
+  const nextLabel = next ? String(next["flight_label"]) : "another option";
+  return {
+    headline: "Your best option changed",
+    detail: `A fresh reported load on ${triggeringLabel} changed the picture. ${nextLabel} now has the stronger overall setup${prevLabel !== nextLabel ? ` ahead of ${prevLabel}` : ""}.`,
+  };
+}
+
 export async function attachLoad(
   client: unknown,
   userId: string,
   input: {
     optionId: string;
+    segmentKey?: string;
     openSeats: number | null;
     standbys: number | null;
     cabin: string;
     source: string;
     partyIncluded: "yes" | "no" | "unsure" | null;
   },
-): Promise<{
-  optionId: string;
-  judgment: string;
-  /** Stored ranks moved because of this report. */
-  reranked: boolean;
-  topOptionId: string | null;
-  topFlightLabel: string | null;
-  previousTopOptionId: string | null;
-  primaryOptionId: string | null;
-}> {
+): Promise<AttachLoadResult> {
   const { data: optionRow, error: optionError } = await db(client)
     .from("plan_options")
-    .select("*, plans!plan_options_plan_id_fkey(travel_date,travelers,primary_option_id)")
+    .select("*, plans!plan_options_plan_id_fkey(travel_date,travelers,prefs)")
     .eq("id", input.optionId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -935,13 +1025,38 @@ export async function attachLoad(
   }
   if (!optionRow) throw new Error("That option is no longer available.");
   const row = optionRow as Row;
-  const travelDate = String(((row["plans"] as Row) ?? {})["travel_date"] ?? "");
+  const planId = String(row["plan_id"]);
+  const planEmbed = (row["plans"] as Row) ?? {};
+  const travelDate = String(planEmbed["travel_date"] ?? "");
+  const prefs = (planEmbed["prefs"] ?? {}) as Record<string, unknown>;
+
+  const segments = segmentsFromRow(row);
+  const validSegmentKeys = new Set(segments.map((segment) => buildSegmentKey(segment)));
+  let segmentKey = (input.segmentKey ?? "").trim();
+  if (!segmentKey) {
+    if (segments.length === 1) {
+      segmentKey = buildSegmentKey(segments[0]!);
+    } else {
+      throw new Error("Choose which flight segment this load is for.");
+    }
+  } else if (!validSegmentKeys.has(segmentKey)) {
+    throw new Error("That load segment does not match this option.");
+  }
+  const targetSegment = segments.find((segment) => buildSegmentKey(segment) === segmentKey);
+  if (!targetSegment) {
+    throw new Error("That load segment does not match this option.");
+  }
+  const flightLabel =
+    targetSegment.carrier && targetSegment.flightNumber
+      ? `${targetSegment.carrier}${targetSegment.flightNumber}`
+      : String(row["flight_label"]);
 
   const { data: inserted } = await db(client)
     .from("reported_loads")
     .insert({
       user_id: userId,
-      flight_label: String(row["flight_label"]),
+      segment_key: segmentKey,
+      flight_label: flightLabel,
       travel_date: travelDate,
       open_seats: input.openSeats,
       standbys: input.standbys,
@@ -954,126 +1069,42 @@ export async function attachLoad(
     .single();
 
   const raw = (inserted ?? {}) as Row;
-  const load: ReportedLoad = {
-    id: String(raw["id"] ?? ""),
-    openSeats: input.openSeats,
-    standbys: input.standbys,
-    cabin: input.cabin,
-    source: input.source,
-    partyIncluded: input.partyIncluded,
-    checkedAt: String(raw["checked_at"] ?? new Date().toISOString()),
-  };
+  const load = parseReportedLoadRow(raw);
 
-  const planEmbed = (row["plans"] as Row) ?? {};
-  const partySize = Number(planEmbed["travelers"] ?? 1);
-  const primaryOptionId = (planEmbed["primary_option_id"] as string | null) ?? null;
-  const planId = String(row["plan_id"]);
-
-  const option = optionFromRow(row, load, partySize);
-  const newScore = scoreWithLoad(option.pillars);
-
-  const rerank = await rerankPlanAfterLoad(client, userId, planId, {
-    optionId: option.id,
-    score: newScore,
-    judgment: option.judgment,
-  });
-
-  return {
-    optionId: option.id,
-    judgment: option.judgment,
-    reranked: rerank.reranked,
-    topOptionId: rerank.topOptionId,
-    topFlightLabel: rerank.topFlightLabel,
-    previousTopOptionId: rerank.previousTopOptionId,
-    primaryOptionId,
-  };
-}
-
-/**
- * Re-sort the plan's current options after a reported load changed one
- * option's score, and persist the new ranks. No provider calls: every other
- * option keeps its stored score.
- */
-async function rerankPlanAfterLoad(
-  client: unknown,
-  userId: string,
-  planId: string,
-  changed: { optionId: string; score: number; judgment: Judgment },
-): Promise<{
-  reranked: boolean;
-  topOptionId: string | null;
-  topFlightLabel: string | null;
-  previousTopOptionId: string | null;
-}> {
-  const { data } = await db(client)
+  const { data: allRows } = await db(client)
     .from("plan_options")
-    .select("id,rank,score,flight_label")
+    .select("*")
     .eq("plan_id", planId)
-    .eq("user_id", userId)
-    .eq("is_current", true)
-    .order("rank");
+    .eq("is_current", true);
+  const resort = await rescoreAndResortPlanOptions(client, userId, planId);
+  const resortNotice = buildLoadResortNotice(resort, (allRows ?? []) as Row[], flightLabel);
 
-  const rows = (data ?? []) as Row[];
-  if (rows.length === 0) {
-    return { reranked: false, topOptionId: null, topFlightLabel: null, previousTopOptionId: null };
+  if (resortNotice) {
+    await db(client)
+      .from("plans")
+      .update({
+        prefs: {
+          ...prefs,
+          lastLoadResort: { ...resortNotice, at: new Date().toISOString() },
+        },
+      })
+      .eq("id", planId)
+      .eq("user_id", userId);
   }
 
-  const previousTopOptionId = String(rows[0]!["id"]);
-  const entries = rows.map((r) => {
-    const id = String(r["id"]);
-    return {
-      id,
-      flightLabel: String(r["flight_label"] ?? ""),
-      previousRank: Number(r["rank"] ?? 1),
-      score: id === changed.optionId ? changed.score : Number(r["score"] ?? 0),
-    };
+  const updatedOption = optionFromRow(row, {
+    loadsBySegment: new Map([[segmentKey, load]]),
+    partySize: Number(planEmbed["travelers"] ?? 1),
   });
 
-  entries.sort((a, b) => b.score - a.score || a.previousRank - b.previousRank);
-
-  let reranked = false;
-  for (let i = 0; i < entries.length; i += 1) {
-    const entry = entries[i]!;
-    const nextRank = i + 1;
-    const isChanged = entry.id === changed.optionId;
-    if (!isChanged && entry.previousRank === nextRank) continue;
-    reranked = reranked || entry.previousRank !== nextRank;
-    const update: Record<string, unknown> = { rank: nextRank };
-    if (isChanged) {
-      update["score"] = changed.score;
-      update["label"] = changed.judgment;
-    }
-    await db(client).from("plan_options").update(update).eq("id", entry.id);
-  }
-
-  const top = entries[0]!;
-  if (reranked) {
-    const { data: watchRow } = await db(client)
-      .from("watch_plans")
-      .select("id")
-      .eq("plan_id", planId)
-      .eq("user_id", userId)
-      .eq("state", "active")
-      .maybeSingle();
-    if (watchRow) {
-      await db(client)
-        .from("plan_change_events")
-        .insert({
-          watch_id: String((watchRow as Row)["id"]),
-          user_id: userId,
-          kind: "preferred_option_changed",
-          severity: "meaningful",
-          headline: `${top.flightLabel} is now the strongest option`,
-          detail: "A load you reported changed how this plan ranks.",
-        });
-    }
-  }
-
   return {
-    reranked,
-    topOptionId: top.id,
-    topFlightLabel: top.flightLabel,
-    previousTopOptionId,
+    optionId: updatedOption.id,
+    planId,
+    judgment: updatedOption.judgment,
+    bestOptionChanged: resort.bestOptionChanged,
+    previousPreferredId: resort.previousPreferredId,
+    newPreferredId: resort.newPreferredId,
+    resortNotice,
   };
 }
 
@@ -1098,18 +1129,36 @@ async function syncPlanOptionsFromRanked(
 
   const existing = (existingRows ?? []) as Row[];
   const claimedIds = new Set<string>();
-
-  const loads = await loadsFor(
-    client,
-    userId,
-    ranked.options.map((o) => o.flightLabel),
-    travelDate,
-  );
-
   const syncedIds = new Set<string>();
   const synced: StandbyOption[] = [];
 
   const persistable = await retainCanonicalSegmentOptions(client, ranked.options);
+  const loads = await loadsForSegments(
+    client,
+    userId,
+    [
+      ...segmentKeysForRows(existing),
+      ...persistable.flatMap((option) =>
+        option.segments.map((segment) =>
+          buildSegmentKey({
+            carrier: segment.carrier,
+            flightNumber: segment.flightNumber,
+            origin: segment.origin,
+            dest: segment.dest,
+            schedDepUtc: segment.schedDepUtc,
+            depLocal: segment.depLocal,
+          }),
+        ),
+      ),
+    ],
+    travelDate,
+  );
+  const { data: planMeta } = await db(client)
+    .from("plans")
+    .select("travelers")
+    .eq("id", planId)
+    .maybeSingle();
+  const partySize = Number((planMeta as Row | null)?.["travelers"] ?? 1);
 
   for (const option of persistable) {
     const payload = optionInsert(planId, userId, option);
@@ -1130,10 +1179,10 @@ async function syncPlanOptionsFromRanked(
       await db(client).from("plan_options").update(payload).eq("id", id);
       syncedIds.add(id);
       synced.push(
-        optionFromRow(
-          { ...priorRow, ...payload, id, recovery: payload.recovery },
-          loads.get(option.flightLabel) ?? null,
-        ),
+        optionFromRow({ ...priorRow, ...payload, id, recovery: payload.recovery }, {
+          loadsBySegment: loads,
+          partySize,
+        }),
       );
     } else {
       const { data: inserted } = await db(client)
@@ -1144,7 +1193,7 @@ async function syncPlanOptionsFromRanked(
       if (inserted) {
         const row = inserted as Row;
         syncedIds.add(String(row["id"]));
-        synced.push(optionFromRow(row, loads.get(option.flightLabel) ?? null));
+        synced.push(optionFromRow(row, { loadsBySegment: loads, partySize }));
       }
     }
   }
@@ -1170,6 +1219,25 @@ async function syncPlanOptionsFromRanked(
       },
     })
     .eq("id", planId);
+
+  if (loads.size > 0) {
+    await rescoreAndResortPlanOptions(client, userId, planId);
+    const { data: freshRows } = await db(client)
+      .from("plan_options")
+      .select("*")
+      .eq("plan_id", planId)
+      .eq("is_current", true)
+      .order("rank");
+    const freshLoads = await loadsForSegments(
+      client,
+      userId,
+      segmentKeysForRows((freshRows ?? []) as Row[]),
+      travelDate,
+    );
+    return ((freshRows ?? []) as Row[]).map((row) =>
+      optionFromRow(row, { loadsBySegment: freshLoads, partySize }),
+    );
+  }
 
   synced.sort((a, b) => a.rank - b.rank);
   return synced;
@@ -1224,7 +1292,7 @@ export async function setPrimaryOption(
       .maybeSingle();
     if (planRow) {
       const prefs = ((planRow as Row)["prefs"] ?? {}) as Record<string, unknown>;
-      const option = optionFromRow(optionRow as Row, null);
+      const option = optionFromRow(optionRow as Row, {});
       const identity = watchFlightIdentity(option);
       if (identity) {
         const allowed = effectiveCarriersFromPrefs(prefs);
@@ -1298,7 +1366,7 @@ export async function beginWatch(
       .eq("user_id", userId)
       .maybeSingle();
     if (!optionRow) throw new Error("That option is no longer available.");
-    anchorOption = optionFromRow(optionRow as Row, null);
+    anchorOption = optionFromRow(optionRow as Row, {});
     planId = anchorOption.planId;
     anchorOptionId = anchorOption.id;
     const plan = await loadPlan(client, userId, planId);
@@ -1472,8 +1540,14 @@ export async function loadWatchTimeline(
       .eq("id", watch.optionId)
       .maybeSingle();
     if (optionRow) {
-      const loads = await loadsFor(client, userId, [watch.flightLabel], watch.travelDate);
-      option = optionFromRow(optionRow as Row, loads.get(watch.flightLabel) ?? null);
+      const row = optionRow as Row;
+      const loads = await loadsForSegments(
+        client,
+        userId,
+        segmentKeysForRows([row]),
+        watch.travelDate,
+      );
+      option = optionFromRow(row, { loadsBySegment: loads, partySize: 1 });
     }
   }
 
@@ -1546,7 +1620,7 @@ export async function recheckWatch(
   const row = watchRow as Row;
   const anchorRow = (row["plan_options"] as Row) ?? {};
   const planRow = (row["plans"] as Row) ?? {};
-  const anchorBefore = optionFromRow(anchorRow, null);
+  const anchorBefore = optionFromRow(anchorRow, {});
   const prev = ((row["snapshot"] as WatchSnapshot | null) ??
     initialWatchSnapshot(anchorBefore, null, [anchorBefore])) as WatchSnapshot;
   let flightState: WatchFlightState = prev.flightState ?? "unknown";
@@ -1964,13 +2038,34 @@ export async function recheckWatch(
   };
 }
 
-/** Most recent reported load for one flight on one date, if any. */
+/** Loads keyed by segment for one persisted option row. */
+export async function loadsForOptionRow(
+  client: unknown,
+  userId: string,
+  row: Row,
+  travelDate: string,
+): Promise<Map<string, ReportedLoad>> {
+  return loadsForSegments(client, userId, segmentKeysForRows([row]), travelDate);
+}
+
+/** @deprecated Prefer segment-key lookup via loadsForOptionRow. */
 export async function latestLoadFor(
   client: unknown,
   userId: string,
   flightLabel: string,
   travelDate: string,
 ): Promise<ReportedLoad | null> {
-  const loads = await loadsFor(client, userId, [flightLabel], travelDate);
-  return loads.get(flightLabel) ?? null;
+  const { data } = await db(client)
+    .from("reported_loads")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("travel_date", travelDate)
+    .eq("flight_label", flightLabel)
+    .order("checked_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  const raw = data as Row;
+  if (!raw["segment_key"]) return null;
+  return parseReportedLoadRow(raw);
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { buildSegmentKey } from "@/lib/aircue/option-key";
 import { addReportedLoad } from "@/lib/aircue/plan.functions";
 import { useOption } from "@/lib/aircue/use-option";
 
@@ -24,10 +25,10 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/load")({
       {
         name: "description",
         content:
-          "Enter the open seats and listed standbys you can see, and Standbye re-reads the whole setup around it.",
+          "Enter the open seats and listed standbys you can see, and Standbye re-scores your whole plan.",
       },
       { property: "og:title", content: "Add a load — Standbye" },
-      { property: "og:description", content: "Employee-entered loads are the strongest evidence." },
+      { property: "og:description", content: "Employee-entered loads improve the whole plan ranking." },
     ],
   }),
   component: AddLoad,
@@ -40,17 +41,51 @@ function AddLoad() {
   const { data } = useOption(optionId);
   const add = useServerFn(addReportedLoad);
 
+  const segmentChoices = useMemo(() => {
+    const segments = data?.option?.segments ?? [];
+    if (segments.length === 0 && data?.option) {
+      return [
+        {
+          key: buildSegmentKey({
+            carrier: data.option.carrier,
+            flightNumber: data.option.flightNumber,
+            origin: data.option.origin,
+            dest: data.option.dest,
+            schedDepUtc: data.option.schedDepUtc,
+            depLocal: data.option.depLocal,
+          }),
+          label: data.option.flightLabel,
+        },
+      ];
+    }
+    return segments.map((segment) => ({
+      key: buildSegmentKey({
+        carrier: segment.carrier,
+        flightNumber: segment.flightNumber,
+        origin: segment.origin,
+        dest: segment.dest,
+        schedDepUtc: segment.schedDepUtc,
+        depLocal: segment.depLocal,
+      }),
+      label: `${segment.flightLabel} · ${segment.origin} → ${segment.dest}`,
+    }));
+  }, [data?.option]);
+
+  const [segmentKey, setSegmentKey] = useState("");
   const [openSeats, setOpenSeats] = useState("");
   const [standbys, setStandbys] = useState("");
   const [cabin, setCabin] = useState("economy");
   const [source, setSource] = useState("employee_system");
   const [partyIncluded, setPartyIncluded] = useState("unsure");
 
+  const activeSegmentKey = segmentKey || segmentChoices[0]?.key || "";
+
   const submit = useMutation({
     mutationFn: () =>
       add({
         data: {
           optionId,
+          ...(segmentChoices.length > 1 ? { segmentKey: activeSegmentKey } : {}),
           openSeats: openSeats === "" ? null : Number(openSeats),
           standbys: standbys === "" ? null : Number(standbys),
           cabin,
@@ -60,15 +95,12 @@ function AddLoad() {
       }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["option", optionId] });
-      const planId = data?.planId ?? null;
-      if (planId) {
-        await queryClient.invalidateQueries({ queryKey: ["plan", planId] });
+      if (result.planId) {
+        await queryClient.invalidateQueries({ queryKey: ["plan", result.planId] });
         await queryClient.invalidateQueries({ queryKey: ["committed-plans"] });
       }
-      // A load that moved the ranking is a plan-level change, so land where
-      // the new order and the "make this my primary" prompt are visible.
-      if (planId && result?.reranked) {
-        navigate({ to: "/plans/$planId", params: { planId } });
+      if (result.bestOptionChanged && result.planId) {
+        navigate({ to: "/plans/$planId", params: { planId: result.planId } });
         return;
       }
       navigate({ to: "/options/$optionId", params: { optionId } });
@@ -92,7 +124,7 @@ function AddLoad() {
           : "Loading…"}
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
-        What you can see in your employee system beats anything Standbye can infer from public data.
+        Standbye uses what you know to improve the whole plan — not just this flight&apos;s card.
         It stays private to your account.
       </p>
 
@@ -103,6 +135,24 @@ function AddLoad() {
           submit.mutate();
         }}
       >
+        {segmentChoices.length > 1 && (
+          <div>
+            <Label>Which flight segment?</Label>
+            <Select value={activeSegmentKey} onValueChange={setSegmentKey}>
+              <SelectTrigger className="mt-1.5 h-12">
+                <SelectValue placeholder="Choose segment" />
+              </SelectTrigger>
+              <SelectContent>
+                {segmentChoices.map((choice) => (
+                  <SelectItem key={choice.key} value={choice.key}>
+                    {choice.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <div className="flex gap-3">
           <div className="flex-1">
             <Label htmlFor="open">Open seats</Label>
@@ -139,11 +189,14 @@ function AddLoad() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="yes">Yes, we're already listed</SelectItem>
-              <SelectItem value="no">No, we're not listed yet</SelectItem>
+              <SelectItem value="yes">Yes, we&apos;re already listed</SelectItem>
+              <SelectItem value="no">No, we&apos;re not listed yet</SelectItem>
               <SelectItem value="unsure">Not sure</SelectItem>
             </SelectContent>
           </Select>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            If you&apos;re not listed yet, Standbye counts your party size against the open seats.
+          </p>
         </div>
 
         <div>
@@ -176,7 +229,7 @@ function AddLoad() {
         </div>
 
         <Button type="submit" className="h-12 w-full" disabled={submit.isPending}>
-          {submit.isPending ? "Re-reading the setup…" : "Save load and update the cue"}
+          {submit.isPending ? "Updating your plan…" : "Save load and update the plan"}
         </Button>
 
         {submit.isError && (

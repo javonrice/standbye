@@ -33,15 +33,23 @@ export function depKeyFromSched(schedDepUtc: string | null | undefined, depLocal
   return "UNKNOWN";
 }
 
+/** Canonical identity for one flight segment (one leg of an option_key). */
+export function buildSegmentKey(segment: OptionKeySegment): string {
+  const carrier = normalizeCarrier(segment.carrier);
+  const num = normalizeFlightNumber(segment.flightNumber);
+  const od = `${segment.origin.toUpperCase()}-${segment.dest.toUpperCase()}`;
+  const dep = depKeyFromSched(segment.schedDepUtc, segment.depLocal);
+  return `${carrier}${num}:${od}:${dep}`;
+}
+
 export function buildOptionKey(segments: OptionKeySegment[]): string {
   if (!segments.length) return "EMPTY";
-  return segments
-    .map((s) => {
-      const carrier = normalizeCarrier(s.carrier);
-      const num = normalizeFlightNumber(s.flightNumber);
-      const od = `${s.origin.toUpperCase()}-${s.dest.toUpperCase()}`;
-      const dep = depKeyFromSched(s.schedDepUtc, s.depLocal);
-      return `${carrier}${num}:${od}:${dep}`;
-    })
-    .join("|");
+  return segments.map((s) => buildSegmentKey(s)).join("|");
+}
+
+/** Split a persisted option_key into segment keys. */
+export function segmentKeysFromOptionKey(optionKey: string | null | undefined): string[] {
+  const raw = (optionKey ?? "").trim();
+  if (!raw || raw === "EMPTY") return [];
+  return raw.split("|").map((s) => s.trim()).filter(Boolean);
 }

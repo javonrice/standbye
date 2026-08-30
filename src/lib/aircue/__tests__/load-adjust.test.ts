@@ -1,16 +1,17 @@
-/** Party-aware interpretation of an employee-reported load. */
+/** Party-aware load display helpers (thin wrappers over load-evidence). */
 import { describe, expect, it } from "bun:test";
 
-import { loadPillar, readLoad, scoreWithLoad } from "@/lib/aircue/load-adjust";
+import { computeLoadEvidence } from "@/lib/aircue/load-evidence";
+import { judgeWithLoad, loadPillar, scoreFromPillars } from "@/lib/aircue/load-adjust";
 import type { Pillar, ReportedLoad } from "@/lib/aircue/standby";
 
-const NOW = "2026-08-30T18:00:00.000Z";
+const NOW = Date.parse("2026-08-30T18:00:00.000Z");
 
 function load(overrides: Partial<ReportedLoad> = {}): ReportedLoad {
   return {
     id: "load-1",
+    segmentKey: "UA222:ORD-DEN:2026-08-30T17:45",
     flightLabel: "UA222",
-    travelDate: "2026-08-30",
     openSeats: 4,
     standbys: 3,
     cabin: "economy",
@@ -18,55 +19,51 @@ function load(overrides: Partial<ReportedLoad> = {}): ReportedLoad {
     checkedAt: "2026-08-30T17:45:00.000Z",
     partyIncluded: "yes",
     ...overrides,
-  } as ReportedLoad;
+  };
 }
 
-describe("readLoad", () => {
-  it("counts the traveller's party when they are not listed yet", () => {
-    const solo = readLoad(load({ partyIncluded: "no" }), { partySize: 1, now: NOW });
-    const family = readLoad(load({ partyIncluded: "no" }), { partySize: 4, now: NOW });
-    expect(solo.effectiveDemand).toBe(4);
-    expect(family.effectiveDemand).toBe(7);
+describe("load-adjust party semantics", () => {
+  it("counts the traveller party when they are not listed yet", () => {
+    const solo = computeLoadEvidence(load({ partyIncluded: "no" }), { partySize: 1, now: NOW });
+    const family = computeLoadEvidence(load({ partyIncluded: "no" }), { partySize: 4, now: NOW });
+    expect(solo.effectiveListed).toBe(4);
+    expect(family.effectiveListed).toBe(7);
     expect(family.cushion).toBe(-3);
   });
 
-  it("flags unknown inclusion as uncertain without changing demand", () => {
-    const reading = readLoad(load({ partyIncluded: "unsure" }), { partySize: 2, now: NOW });
-    expect(reading.effectiveDemand).toBe(3);
-    expect(reading.uncertain).toBe(true);
-  });
-
-  it("marks reports older than six hours as stale", () => {
-    const reading = readLoad(load({ checkedAt: "2026-08-30T08:00:00.000Z" }), {
-      partySize: 1,
+  it("treats unsure inclusion as partial evidence", () => {
+    const evidence = computeLoadEvidence(load({ partyIncluded: "unsure" }), {
+      partySize: 2,
       now: NOW,
     });
-    expect(reading.stale).toBe(true);
+    expect(evidence.effectiveListed).toBeNull();
+    expect(evidence.cushion).toBeNull();
   });
-});
 
-describe("loadPillar", () => {
   it("reads the same load differently for a solo traveller and a family of four", () => {
-    const solo = loadPillar(load({ partyIncluded: "no" }), { partySize: 1, now: NOW });
-    const family = loadPillar(load({ partyIncluded: "no" }), { partySize: 4, now: NOW });
+    const solo = loadPillar(load({ partyIncluded: "no" }), 1);
+    const family = loadPillar(load({ partyIncluded: "no" }), 4);
     expect(solo.state).toBe("fair");
     expect(family.state).toBe("poor");
     expect(family.label).toBe("Oversubscribed");
   });
 
-  it("scores a stronger load above a tighter one so ranking can move", () => {
+  it("scores a stronger load above a tighter one", () => {
     const base: Pillar[] = [
       { key: "operations", state: "good", label: "Normal", detail: "" },
       { key: "recovery", state: "good", label: "Good", detail: "" },
     ];
-    const strong = scoreWithLoad([
-      loadPillar(load({ openSeats: 18, standbys: 3 }), { partySize: 1, now: NOW }),
+    const strong = scoreFromPillars([
+      loadPillar(load({ openSeats: 18, standbys: 3, partyIncluded: "yes" }), 1),
       ...base,
     ]);
-    const tight = scoreWithLoad([
-      loadPillar(load({ openSeats: 2, standbys: 3 }), { partySize: 1, now: NOW }),
+    const tight = scoreFromPillars([
+      loadPillar(load({ openSeats: 2, standbys: 3, partyIncluded: "yes" }), 1),
       ...base,
     ]);
     expect(strong).toBeGreaterThan(tight);
+    expect(judgeWithLoad([...base, loadPillar(load({ openSeats: 18, standbys: 3 }), 1)])).toBe(
+      "favorable",
+    );
   });
 });

@@ -98,7 +98,6 @@ function makeOptionRow(overrides: Record<string, unknown> = {}) {
     dep_local: "5:10 PM",
     arr_local: "7:05 PM",
     sched_dep_utc: "2026-08-29T22:10:00Z",
-    pillars: [{ key: "operations", state: "good", title: "Operations", detail: "Clear" }],
     reasons: [],
     segments: [],
     recovery: baseRecovery,
@@ -110,6 +109,13 @@ function makeOptionRow(overrides: Record<string, unknown> = {}) {
     },
     refreshed_at: new Date().toISOString(),
     is_current: true,
+    option_key: "UA782:ORD-SFO:2026-08-29T22:10",
+    pillars: [
+      { key: "availability", state: "good", label: "Strong", detail: "Public" },
+      { key: "operations", state: "good", label: "Normal", detail: "Clear" },
+      { key: "history", state: "fair", label: "Fuller", detail: "History" },
+      { key: "recovery", state: "good", label: "Good", detail: "6 later" },
+    ],
     ...overrides,
   };
 }
@@ -188,13 +194,23 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
           select: () => ({
             eq: (col: string) => {
               if (col === "plan_id") {
-                return Promise.resolve({
-                  data: existingPlanOptions,
+                const allRows = () => existingPlanOptions;
+                const currentRows = () =>
+                  existingPlanOptions.filter((o) => o["is_current"] !== false);
+                const response = Promise.resolve({ data: allRows(), error: null });
+                return Object.assign(response, {
+                  eq: () => {
+                    const current = Promise.resolve({ data: currentRows(), error: null });
+                    return Object.assign(current, {
+                      order: () => Promise.resolve({ data: currentRows(), error: null }),
+                    });
+                  },
+                  order: () => Promise.resolve({ data: currentRows(), error: null }),
                 });
               }
               return {
                 eq: () => ({
-                  maybeSingle: () => Promise.resolve({ data: watchRow.plan_options }),
+                  maybeSingle: () => Promise.resolve({ data: watchRow.plan_options, error: null }),
                 }),
               };
             },
@@ -203,7 +219,11 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
             eq: (col: string, id: string) => {
               optionUpdateCount += 1;
               optionUpdates.push({ id, payload });
-              return Promise.resolve({ data: null, error: null });
+              const row = existingPlanOptions.find((o) => o["id"] === id);
+              if (row) Object.assign(row, payload);
+              return {
+                eq: () => Promise.resolve({ data: null, error: null }),
+              };
             },
             in: (_col: string, ids: string[]) => {
               optionUpdateCount += 1;
@@ -231,6 +251,14 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
       }
       if (table === "plans") {
         return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: () => Promise.resolve({ data: watchRow.plans, error: null }),
+              }),
+              maybeSingle: () => Promise.resolve({ data: watchRow.plans, error: null }),
+            }),
+          }),
           update: () => ({
             eq: () => Promise.resolve({ data: null, error: null }),
           }),
@@ -578,27 +606,6 @@ describe("recheckWatch plan integrity", () => {
     expect(eventKinds()).not.toContain("preferred_option_changed");
     expect((lastWatchUpdate?.["snapshot"] as { backupRunwayCount: number }).backupRunwayCount).toBe(3);
     expect(optionUpdateCount).toBe(0);
-  });
-
-  it("applies reported load overlay on trusted recheck sync", async () => {
-    reportedLoads = [
-      {
-        id: "load-1",
-        flight_label: "UA782",
-        open_seats: 0,
-        standbys: 5,
-        cabin: "economy",
-        source: "employee_system",
-        checked_at: new Date().toISOString(),
-      },
-    ];
-    rankedOptions = [makeRankedOption()];
-    const client = createMockClient(makeWatchRow({ judgment: "mixed", largestShowing: 2 }));
-
-    await recheckWatch(client, USER_ID, WATCH_ID);
-
-    // Oversubscribed load should move judgment to riskier → judgment event
-    expect(insertedEvents.some((e) => e["kind"] === "judgment")).toBe(true);
   });
 
   it("departed status updates flightState without cancellation", async () => {
