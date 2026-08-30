@@ -22,6 +22,111 @@ Network philosophy:
 | 3 | **United-only interpreter** for MVP. Parser/provider interfaces stay airline-neutral. |
 | 4 | **Memory/temp processing**; discard raw image immediately. No permanent screenshot library. Storage+TTL only if later needed. |
 | 5 | **Contribution ≠ consumption.** Contributor `home_airline` must match extracted flight airline to create a shared snapshot. Any eligible traveler may **consume** a valid snapshot for a flight on their plan — home airline does **not** gate consumption. |
+| 6 | **Vision provider (MVP):** RapidAPI **JSON OCR** (`zeroteam` / `json-ocr`) as primary `LoadScreenshotParser` implementation — schema-in, structured JSON-out, base64. Keep abstraction swappable. |
+| 7 | **Manual entry stays first-class** and must become **more open** than today’s option-scoped single-flight form (plan-level multi-row entry; not screenshot-only). |
+
+---
+
+## RapidAPI vision provider selection
+
+Architecture still uses `LoadScreenshotParser`. This section picks the **first** RapidAPI implementation.
+
+### What we need from the provider
+
+| Requirement | Why |
+|---|---|
+| Image in (base64 / multipart) | Ephemeral memory upload — no public URL required |
+| Structured multi-flight out | One UA board screenshot → many rows |
+| Custom schema / JSON Schema | Map to `ExtractedFlightLoad[]` without brittle regex |
+| Measurable cost on RapidAPI | Same billing surface as GF8/ADB |
+| Swappable | Vendor can be replaced behind the interface |
+
+### Candidates compared
+
+| API | Fit | Cost shape (RapidAPI, as of research) | Risk |
+|---|---|---|---|
+| **JSON OCR** ([zeroteam / json-ocr](https://rapidapi.com/zeroteam-zeroteam-default/api/json-ocr)) | **Best product fit.** Vision LLM → schema-valid JSON; base64/url/multipart; nested arrays for flight lists | Free 30/mo; Pro **$29 / 500** (+ ~$0.07 overage); Ultra $99 / 2k | Higher $/image; validate quality on real UA boards before Mega |
+| **OCR Wizard** ([ai-engine / ocr-wizard](https://rapidapi.com/ai-engine-ai-engine-default/api/ocr-wizard)) | Strong **cheap text** extraction; we structure in `UnitedLoadInterpreter` | Free 30; Pro **$12.99 / 5k** pages | Layout/table → fields is our problem; more brittle for messy employee UIs |
+| **ChatGPT 4 aggregator** ([PR Labs / chatgpt-42](https://rapidapi.com/rphrp1985/api/chatgpt-42)) | Vision chat (`/matagvision`); very cheap Pro **$5.99** | Aggregator; weaker schema guarantee; model/routing opacity |
+| InvoiceAI / Receipt parsers | Structured JSON but **domain-locked** to invoices/receipts | N/A for load boards | Wrong product shape |
+| Direct OpenAI outside RapidAPI | Excellent vision + structured outputs | Separate billing from RapidAPI stack | Violates “prefer RapidAPI measurable usage” unless we explicitly leave RapidAPI later |
+
+### Recommendation
+
+**Primary MVP provider: JSON OCR on RapidAPI.**
+
+Reasons:
+
+1. One call: screenshot → `flights: [...]` matching our extraction schema (open seats, standbys, flight number, times, cabin, optional timestamp).
+2. Fits `LoadScreenshotParser` without a two-step OCR→LLM pipeline.
+3. Base64 input matches ephemeral memory processing (no Storage URL).
+4. Cost is predictable per image (~$0.05–0.07 at Pro overage; ~500 images/mo on $29) — enough to validate product before scaling.
+5. United interpreter still owns airline-specific normalization and contribution auth; provider stays airline-neutral.
+
+**Cost-control fallback (same abstraction):** if JSON OCR quality/price disappoints after United fixture tests, implement `OcrWizardParser` (text) + heuristic/`UnitedLoadInterpreter` structuring — or a second vision vendor — without rewriting the pipeline.
+
+**Do not** hardcode invoice/receipt APIs. **Do not** couple to Lovable vision.
+
+### Provider validation gate (before paying Ultra/Mega)
+
+1. Collect real United employee load screenshots (private fixtures; not committed to git).  
+2. Run JSON OCR with our `ExtractedFlightLoad` JSON Schema via mock→live provider flag.  
+3. Score: flights recovered, open/listed accuracy, false flights, latency, $/successful snapshot.  
+4. Only then lock Pro/Ultra in production env.
+
+---
+
+## Manual entry — keep and open it up
+
+Screenshot upload must not be the only path. Manual entry already exists but is **too closed** for the new product.
+
+### What exists today
+
+Route: [`/options/$optionId/load`](../src/routes/_authenticated/options.$optionId.load.tsx) → `addReportedLoad` → `attachLoad`.
+
+| Constraint | Today |
+|---|---|
+| Scope | **Single plan option only** — must already be on the plan |
+| Flights per submit | **One** segment |
+| Multi-flight paste | **None** |
+| Open / listed | Optional (nullable) — keep |
+| `partyIncluded` | yes / no / unsure — keep (personal only; never shared) |
+| Cabin / source | UI dropdowns locked; server accepts free strings |
+| Discovery | Mostly option cue / availability — easy to miss from plan |
+
+Server contribution to the **shared network** from manual entry should follow the same rule as screenshots: mint `LoadSnapshot` only when `home_airline` matches the flight airline.
+
+### How “more open” should work (MVP)
+
+Still helping **this traveler’s plan** — not a free-for-all flight wiki UI.
+
+1. **Plan-level “Add loads”** entry (alongside screenshot upload), not only buried on one option.  
+2. **Multi-row manual form:** add N flights in one submit (flight number, origin, dest, date/time or pick from plan board, open, listed, cabin).  
+3. **Match to plan/board segments** the same way screenshots do (`segment_key`); unmatched rows → confirm / don’t invent.  
+4. **Partial rows OK** (open-only or listed-only) — same partial neutrality as today.  
+5. **Prefill from plan options** (checkbox list of UA123 / UA456…) so typing is optional when the flight is already ranked.  
+6. **Optional freer flight identity** when needed: type `UA123` + times if the user has a load for a flight on today’s board that wasn’t the option they tapped — still must resolve to a canonical segment on the plan/search board for MVP (don’t accept arbitrary off-plan worldwide flights yet).  
+7. Simple disclosure when a row will enter the reusable network (home-airline match).  
+8. Keep typed path as **correction** after screenshot (“fix this one”) without re-upload.
+
+### Explicitly not “more open” in MVP
+
+- StaffTraveler-style answer someone else’s request  
+- Manual entry for airlines ≠ contributor `home_airline` into the **shared** network (own-plan-only personal `reported_loads` may still be allowed if we want; recommend **same home-airline rule for shared writes**)  
+- Permanent screenshot-derived PII fields in the form  
+
+### UX sketch
+
+```text
+Add your loads
+  [ Upload screenshot ]   [ Enter manually ]
+
+Enter manually
+  Rows: Flight | Open | Listed | Cabin | [on plan ▾]
+  + Add another flight
+  Party included? (once per submit, personal only)
+  → Save → same snapshot + resort pipeline as screenshot (minus vision)
+```
 
 ---
 
@@ -426,14 +531,18 @@ Tone: conditions changed — not “help the community.”
 ```text
 Search OD/date → results (load freshness when known)
   → Build my plan
-  → Add your loads (screenshot) + one-line network disclosure
-  → Found N flights; confirm only uncertain fields
+  → Add your loads
+        ├─ Upload screenshot(s)  → JSON OCR parse → confirm uncertain
+        └─ Enter manually (multi-row, plan/board matched)
+  → one-line network disclosure when shared snapshots will be created
   → plan updates
   → Watch this plan
 Watch → rare Refresh your loads (if contributable)
 ```
 
 Best / Backup / Keep an eye on + one sentence.
+
+Manual entry is always available — including as correction after a partial screenshot parse.
 
 ---
 
@@ -448,22 +557,25 @@ src/lib/aircue/load-screenshot/
   contribute-auth.ts       // home_airline === flight.airline
   policy.ts                // AirlineVisibilityPolicy lookup
   providers/
-    rapidapi-….ts
+    json-ocr.rapidapi.ts   // MVP primary (RapidAPI JSON OCR)
+    ocr-wizard.rapidapi.ts // optional cheap fallback later
     mock.ts
-  pipeline.server.ts       // sequential images, hash, delete bytes
+  pipeline.server.ts       // sequential images, hash, discard bytes
   cost.server.ts
 ```
 
+Env: `LOAD_SCREENSHOT_PROVIDER=json_ocr` (default), provider keys/caps mirror GF8/ADB.
 ---
 
 ## 11. Cost model
 
 | Costly | Mitigation |
 |---|---|
-| Vision per image | sha256 dedupe |
-| Multi-image | Sequential processing; cap count/upload |
+| JSON OCR per image (~$0.05–0.07 at Pro overage; 500 incl. on $29) | sha256 dedupe; sequential uploads; validate before Ultra |
+| Multi-image | Cap count/upload; process one-at-a-time |
 | GF8 / ADB | Unchanged; attach/resort local |
 | Storage | None in MVP |
+| Manual multi-row | **Free** (no vision) — prefer shipping this early |
 
 Log: images, units, success/fail, extracted vs accepted vs rejected_airline, snapshots created.
 
@@ -499,7 +611,7 @@ Log: images, units, success/fail, extracted vs accepted vs rejected_airline, sna
 
 ### MVP
 
-1. Parser abstraction + RapidAPI provider + **UnitedLoadInterpreter**  
+1. Parser abstraction + **JSON OCR (RapidAPI)** provider + **UnitedLoadInterpreter**  
 2. Memory/temp sequential upload → extract → contribution auth → `load_snapshots` (`eligible_reuse` for UA) + personal plan resort  
 3. Network read path for eligible snapshots on any traveler’s plan  
 4. Confirm-only-uncertain UI + simple disclosure  
@@ -508,11 +620,13 @@ Log: images, units, success/fail, extracted vs accepted vs rejected_airline, sna
 7. Freshness UI + smart refresh (contributable airlines only)  
 8. `airline_load_policies` seeded UA=`eligible_reuse`  
 9. Declared `home_airline` as contribution auth  
-10. Typed form remains  
+10. **Open manual entry** (plan-level multi-row) sharing the same snapshot/resort path — not option-only single form  
+11. Keep typed correction after screenshot  
 
 ### Later
 
 - AA/DL interpreters  
+- OCR Wizard (or other) fallback provider if JSON OCR cost/quality warrants  
 - `home_airline_verified_at` / method  
 - `aggregate_only` bands  
 - Async Storage+TTL for large batches  
@@ -527,11 +641,13 @@ Log: images, units, success/fail, extracted vs accepted vs rejected_airline, sna
 2. Policy + contribution-auth helpers + unit tests.  
 3. Parser interface + mock + United interpreter fixtures.  
 4. Match + `observed_at` derivation tests.  
-5. Pipeline server fn (sequential, memory discard) → snapshots + personal resort.  
-6. Network load resolution in `loadsForSegments` / scoring path (eligible snapshots).  
-7. UI: Add your loads + disclosure + uncertain confirm.  
-8. Freshness + smart refresh.  
-9. Real RapidAPI provider + cost logging behind flag.  
+5. **Open manual multi-row entry** → shared snapshot path (no vision) — ships value before paying for OCR.  
+6. Pipeline server fn (sequential, memory discard) + **JSON OCR provider** behind flag → snapshots + personal resort.  
+7. Provider validation on private UA screenshots; then enable in prod.  
+8. Network load resolution in scoring path (eligible snapshots).  
+9. UI: Add your loads (screenshot **and** manual) + disclosure + uncertain confirm.  
+10. Freshness + smart refresh.  
+11. Cost logging / caps.  
 
 Each step keeps GF8/ADB/cheap-watch intact.
 
@@ -547,14 +663,17 @@ Each step keeps GF8/ADB/cheap-watch intact.
 6. **Don’t ask “when did you check?” by default.**  
 7. **No screenshot warehouse in MVP.**  
 8. No Lovable vision to remove.  
-9. No StaffTraveler credits.
+9. No StaffTraveler credits.  
+10. **Best RapidAPI fit is JSON OCR (schema→JSON), not raw OCR alone and not invoice parsers.**  
+11. **Manual entry must widen** (plan-level multi-row); today’s option-only form is too closed.
 
 ---
 
 ## Remaining non-blocking recommendations (not open product forks)
 
-1. **MVP contribution auth = declared `standby_profiles.home_airline`.** Real employment verification is a later additive column pair; do not block screenshot MVP on it.  
-2. **Manual typed loads** for the contributor’s own plan may still record personal `reported_loads` without minting shared snapshots when airline ≠ home (or always require home match for snapshot minting — recommend **always require home match for shared writes**).  
-3. **Policy default for unknown airlines** = `restricted` until an interpreter ships.
+1. **MVP contribution auth = declared `standby_profiles.home_airline`.** Real employment verification is a later additive column pair.  
+2. **Shared writes always require home-airline match** (screenshot and manual).  
+3. **Policy default for unknown airlines** = `restricted` until an interpreter ships.  
+4. **Validate JSON OCR on real UA boards** before upgrading RapidAPI tier; keep OCR Wizard as documented fallback, not built on day one.  
 
-No further blocking product decisions are required to write the implementation brief for slice 1 (schema + mock parser + United contribution path + eligible_reuse read path).
+No further blocking product decisions are required to write the implementation brief for slice 1 (schema + open manual multi-row + mock parser), then slice 2 (JSON OCR + United screenshots).
