@@ -56,13 +56,72 @@ export function confidenceFromPillars(
   pillars: Pillar[],
   hasSegmentLoad: boolean,
   staffEligibility: StaffEligibility = "uncertain",
+  hasPartialLoad = false,
 ): Confidence {
   const unknowns = pillars.filter((p) => p.state === "unknown").length;
+  if (hasPartialLoad) {
+    if (staffEligibility === "eligible") return "medium";
+    return "low";
+  }
   if (staffEligibility === "uncertain" && unknowns >= 1) return "low";
   if (hasSegmentLoad && unknowns <= 1 && staffEligibility === "eligible") return "high";
   if (hasSegmentLoad && unknowns <= 1) return "medium";
   if (unknowns >= 2) return "low";
   return staffEligibility === "uncertain" ? "medium" : "medium";
+}
+
+function worstPillar(a: Pillar, b: Pillar): Pillar {
+  const state = worstState(a.state, b.state);
+  return {
+    key: "availability",
+    state,
+    label: state === b.state ? b.label : a.label,
+    detail: a.detail.includes("across") ? a.detail : b.detail || a.detail,
+  };
+}
+
+function availabilityFromSegmentLoad(
+  publicPillar: Pillar,
+  load: ReportedLoad | null | undefined,
+  partySize: number,
+  now?: number,
+): {
+  displayPillar: Pillar;
+  rankingPillar: Pillar;
+  evidence: LoadEvidence | null;
+  loadMultiplier: number;
+  hasLoad: boolean;
+  isPartial: boolean;
+  worstCushion: number | null;
+} {
+  if (!load) {
+    return {
+      displayPillar: publicPillar,
+      rankingPillar: publicPillar,
+      evidence: null,
+      loadMultiplier: 1,
+      hasLoad: false,
+      isPartial: false,
+      worstCushion: null,
+    };
+  }
+
+  const evidence = computeLoadEvidence(load, {
+    partySize,
+    ...(now !== undefined ? { now } : {}),
+  });
+  const displayPillar = loadPillarFromEvidence(evidence);
+  const isPartial = evidence.cushion === null;
+
+  return {
+    displayPillar,
+    rankingPillar: isPartial ? publicPillar : displayPillar,
+    evidence,
+    loadMultiplier: isPartial ? 1 : loadEvidenceMultiplier(evidence),
+    hasLoad: true,
+    isPartial,
+    worstCushion: evidence.cushion,
+  };
 }
 
 const worstState = (a: PillarState, b: PillarState): PillarState => {
@@ -82,53 +141,89 @@ export interface SegmentAvailabilityInput {
   now?: number;
 }
 
-/** Worst leg wins for connections — load on one segment overrides that leg only. */
+/** Worst leg wins for connections — complete load on one segment overrides that leg only. */
 export function availabilityPillarForSegments(
   legs: SegmentAvailabilityInput[],
-): { pillar: Pillar; loadEvidence: LoadEvidence | null; loadMultiplier: number; hasLoad: boolean } {
-  let worst: Pillar | null = null;
+): {
+  pillar: Pillar;
+  rankingPillar: Pillar;
+  loadEvidence: LoadEvidence | null;
+  loadMultiplier: number;
+  hasLoad: boolean;
+  hasPartialLoad: boolean;
+  worstCushion: number | null;
+  primaryLoad: ReportedLoad | null;
+} {
+  let displayWorst: Pillar | null = null;
+  let rankingWorst: Pillar | null = null;
   let combinedEvidence: LoadEvidence | null = null;
   let multiplier = 1;
   let hasLoad = false;
+  let hasPartialLoad = false;
+  let worstCushion: number | null = null;
+  let primaryLoad: ReportedLoad | null = null;
 
   for (const leg of legs) {
-    let legPillar = leg.publicPillar;
-    let legEvidence: LoadEvidence | null = null;
-    let legMultiplier = 1;
+    const legResult = availabilityFromSegmentLoad(
+      leg.publicPillar,
+      leg.load,
+      leg.partySize,
+      leg.now,
+    );
 
-    if (leg.load) {
-      legEvidence = computeLoadEvidence(leg.load, {
-        partySize: leg.partySize,
-        ...(leg.now !== undefined ? { now: leg.now } : {}),
-      });
-      legPillar = loadPillarFromEvidence(legEvidence);
-      legMultiplier = loadEvidenceMultiplier(legEvidence);
+    if (legResult.hasLoad) {
       hasLoad = true;
-      if (!combinedEvidence || legEvidence.freshnessMinutes < combinedEvidence.freshnessMinutes) {
-        combinedEvidence = legEvidence;
+      primaryLoad = leg.load ?? null;
+      if (legResult.isPartial) hasPartialLoad = true;
+      if (
+        legResult.evidence &&
+        (!combinedEvidence || legResult.evidence.freshnessMinutes < combinedEvidence.freshnessMinutes)
+      ) {
+        combinedEvidence = legResult.evidence;
+      }
+      if (legResult.worstCushion !== null) {
+        worstCushion =
+          worstCushion === null ? legResult.worstCushion : Math.min(worstCushion, legResult.worstCushion);
+      }
+      if (!legResult.isPartial) {
+        multiplier = Math.min(multiplier, legResult.loadMultiplier);
       }
     }
 
-    if (!worst) worst = legPillar;
-    else {
-      worst = {
-        key: "availability",
-        state: worstState(worst.state, legPillar.state),
-        label: worstState(worst.state, legPillar.state) === legPillar.state ? legPillar.label : worst.label,
-        detail:
-          legs.length > 1
-            ? `${worst.label} overall across ${legs.length} clears.`
-            : legPillar.detail,
-      };
+    if (!displayWorst) {
+      displayWorst = legResult.displayPillar;
+      rankingWorst = legResult.rankingPillar;
+    } else {
+      displayWorst = worstPillar(displayWorst!, legResult.displayPillar);
+      rankingWorst = worstPillar(rankingWorst!, legResult.rankingPillar);
     }
-    multiplier = Math.min(multiplier, legMultiplier);
+  }
+
+  const fallback: Pillar = {
+    key: "availability",
+    state: "unknown",
+    label: "Not available",
+    detail: "",
+  };
+  let pillar = displayWorst ?? fallback;
+  const rankingPillar = rankingWorst ?? fallback;
+
+  if (legs.length > 1 && hasLoad) {
+    pillar = {
+      ...pillar,
+      detail: `${pillar.label} across ${legs.length} clears (reported loads where available).`,
+    };
   }
 
   return {
-    pillar: worst ?? { key: "availability", state: "unknown", label: "Not available", detail: "" },
+    pillar,
+    rankingPillar,
     loadEvidence: combinedEvidence,
-    loadMultiplier: hasLoad ? multiplier : 1,
+    loadMultiplier: worstCushion !== null ? multiplier : 1,
     hasLoad,
+    hasPartialLoad,
+    worstCushion,
+    primaryLoad,
   };
 }
 
@@ -159,20 +254,22 @@ export function rescoreOptionPillars(input: {
     ...(input.now !== undefined ? { now: input.now } : {}),
   }));
 
-  const { pillar: availability, loadEvidence, loadMultiplier, hasLoad } =
+  const { pillar: availability, rankingPillar, loadEvidence, loadMultiplier, hasLoad, hasPartialLoad } =
     availabilityPillarForSegments(legs);
 
   const pillars = input.pillars.map((p) => (p.key === "availability" ? availability : p));
-  const score = scoreFromPillars(pillars, input.access, input.standbyClears, loadMultiplier);
+  const scorePillars = input.pillars.map((p) => (p.key === "availability" ? rankingPillar : p));
+  const score = scoreFromPillars(scorePillars, input.access, input.standbyClears, loadMultiplier);
   const judgment = judgmentFromScore(
     score,
-    availability.state,
+    rankingPillar.state,
     pillars.find((p) => p.key === "recovery")?.state ?? "unknown",
   );
   const confidence = confidenceFromPillars(
     pillars,
     hasLoad,
     input.staffEligibility ?? "uncertain",
+    hasPartialLoad,
   );
 
   return {

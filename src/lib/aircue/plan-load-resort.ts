@@ -1,9 +1,9 @@
 /**
  * Load-aware local rescore/resort for persisted plan options (no provider calls).
  */
-import { computeLoadEvidence, loadEvidenceMultiplier, loadPillarFromEvidence } from "@/lib/aircue/load-evidence";
 import { buildSegmentKey, segmentKeysFromOptionKey, type OptionKeySegment } from "@/lib/aircue/option-key";
 import {
+  availabilityPillarForSegments,
   confidenceFromPillars,
   judgmentFromScore,
   scoreFromPillars,
@@ -12,28 +12,12 @@ import type {
   Confidence,
   Judgment,
   Pillar,
-  PillarState,
   ReportedLoad,
   StaffEligibility,
 } from "@/lib/aircue/standby";
 import type { AccessType } from "@/lib/aircue/travel-access";
 
 type Row = Record<string, unknown>;
-
-const worstState = (a: PillarState, b: PillarState): PillarState => {
-  const order: PillarState[] = ["poor", "fair", "unknown", "good"];
-  return order.indexOf(a) <= order.indexOf(b) ? a : b;
-};
-
-function worstPillar(a: Pillar, b: Pillar): Pillar {
-  const state = worstState(a.state, b.state);
-  return {
-    key: "availability",
-    state,
-    label: state === b.state ? b.label : a.label,
-    detail: a.detail.includes("across") ? a.detail : b.detail || a.detail,
-  };
-}
 
 export function segmentsFromRow(row: Row): OptionKeySegment[] {
   const stored = (row["segments"] as OptionKeySegment[] | null) ?? [];
@@ -76,53 +60,6 @@ export function segmentsFromRow(row: Row): OptionKeySegment[] {
   });
 }
 
-export function availabilityPillarWithSegmentLoads(input: {
-  segments: OptionKeySegment[];
-  publicPillar: Pillar;
-  loadsBySegment: Map<string, ReportedLoad>;
-  partySize: number;
-  now?: number;
-}): { pillar: Pillar; loadMultiplier: number; hasLoad: boolean; primaryLoad: ReportedLoad | null; worstCushion: number | null } {
-  let pillar = input.publicPillar;
-  let loadMultiplier = 1;
-  let hasLoad = false;
-  let primaryLoad: ReportedLoad | null = null;
-  let worstCushion: number | null = null;
-
-  for (const segment of input.segments) {
-    const key = buildSegmentKey(segment);
-    const load = input.loadsBySegment.get(key);
-    if (!load) {
-      if (input.segments.length > 1) {
-        pillar = worstPillar(pillar, input.publicPillar);
-      }
-      continue;
-    }
-    const evidence = computeLoadEvidence(load, {
-      partySize: input.partySize,
-      ...(input.now !== undefined ? { now: input.now } : {}),
-    });
-    const loadPillar = loadPillarFromEvidence(evidence);
-    pillar = input.segments.length > 1 ? worstPillar(pillar, loadPillar) : loadPillar;
-    loadMultiplier = Math.min(loadMultiplier, loadEvidenceMultiplier(evidence));
-    hasLoad = true;
-    primaryLoad = load;
-    if (evidence.cushion !== null) {
-      worstCushion =
-        worstCushion === null ? evidence.cushion : Math.min(worstCushion, evidence.cushion);
-    }
-  }
-
-  if (input.segments.length > 1 && hasLoad) {
-    pillar = {
-      ...pillar,
-      detail: `${pillar.label} across ${input.segments.length} clears (reported loads where available).`,
-    };
-  }
-
-  return { pillar, loadMultiplier, hasLoad, primaryLoad, worstCushion };
-}
-
 export function rescoreStoredOption(input: {
   row: Row;
   loadsBySegment: Map<string, ReportedLoad>;
@@ -148,36 +85,29 @@ export function rescoreStoredOption(input: {
       : Math.max(1, segments.length);
   const staffEligibility = (evidence["staffEligibility"] as StaffEligibility | undefined) ?? "uncertain";
 
-  const { pillar, loadMultiplier, hasLoad, primaryLoad, worstCushion } = availabilityPillarWithSegmentLoads({
-    segments,
+  const legs = segments.map((segment) => ({
+    segment,
     publicPillar,
-    loadsBySegment: input.loadsBySegment,
+    load: input.loadsBySegment.get(buildSegmentKey(segment)) ?? null,
     partySize: input.partySize,
     ...(input.now !== undefined ? { now: input.now } : {}),
-  });
+  }));
+
+  const { pillar, rankingPillar, loadMultiplier, hasLoad, hasPartialLoad, primaryLoad } =
+    availabilityPillarForSegments(legs);
 
   const effective = pillars.map((p) => (p.key === "availability" ? pillar : p));
-  // Partial loads stay visible as Partial/unknown but score conservatively — no fake cushion.
-  const scorePillars =
-    hasLoad && worstCushion === null
-      ? effective.map((p) =>
-          p.key === "availability" ? { ...p, state: "poor" as const } : p,
-        )
-      : effective;
-  // Cushion is reflected in the availability pillar state; do not add a second raw cushion pass.
-  const scoreBase = scoreFromPillars(
-    scorePillars,
-    access,
-    standbyClears,
-    hasLoad ? loadMultiplier : 1,
+  const scorePillars = pillars.map((p) => (p.key === "availability" ? rankingPillar : p));
+  const score = Math.max(
+    0,
+    Math.min(100, scoreFromPillars(scorePillars, access, standbyClears, loadMultiplier)),
   );
-  const score = Math.max(0, Math.min(100, scoreBase));
   const judgment = judgmentFromScore(
     score,
-    pillar.state,
+    rankingPillar.state,
     effective.find((p) => p.key === "recovery")?.state ?? "unknown",
   );
-  const confidence = confidenceFromPillars(effective, hasLoad, staffEligibility);
+  const confidence = confidenceFromPillars(effective, hasLoad, staffEligibility, hasPartialLoad);
 
   return { pillars: effective, score, judgment, confidence, primaryLoad };
 }

@@ -5,10 +5,10 @@ import {
   cushionScoreAdjustment,
   loadPillarFromEvidence,
 } from "@/lib/aircue/load-evidence";
-import { scoreFromPillars } from "@/lib/aircue/option-scoring";
+import { rescoreOptionPillars } from "@/lib/aircue/option-scoring";
 import { buildSegmentKey } from "@/lib/aircue/option-key";
 import { rescoreStoredOption, resortScoredOptions } from "@/lib/aircue/plan-load-resort";
-import type { ReportedLoad } from "@/lib/aircue/standby";
+import type { Pillar, ReportedLoad } from "@/lib/aircue/standby";
 
 function load(overrides: Partial<ReportedLoad>): ReportedLoad {
   return {
@@ -194,7 +194,173 @@ describe("plan load resort", () => {
     expect(late.judgment).not.toBe("riskier");
   });
 
-  it("does not rank partial load (unknown standbys) above modest complete load", () => {
+  it("partial load is neutral: strong public availability stays Strong for ranking", () => {
+    const key = "UA123:ORD-DEN:2026-09-01T10:00";
+    const row = optionRow({ id: "opt-a" });
+    const baseline = rescoreStoredOption({ row, loadsBySegment: new Map(), partySize: 1 });
+    const withPartial = rescoreStoredOption({
+      row,
+      loadsBySegment: new Map([
+        [key, load({ segmentKey: key, openSeats: 8, standbys: null, alreadyListed: true })],
+      ]),
+      partySize: 1,
+    });
+
+    expect(withPartial.score).toBe(baseline.score);
+    expect(withPartial.pillars.find((p) => p.key === "availability")?.label).toBe("Partial");
+    expect(withPartial.pillars.find((p) => p.key === "availability")?.state).toBe("unknown");
+    expect(withPartial.confidence).toBe("medium");
+  });
+
+  it("partial load is neutral: poor public availability is not improved", () => {
+    const key = "UA123:ORD-DEN:2026-09-01T10:00";
+    const row = optionRow({
+      id: "opt-a",
+      pillars: [
+        { key: "availability", state: "poor", label: "Oversubscribed", detail: "Public poor" },
+        { key: "operations", state: "good", label: "Normal", detail: "Normal" },
+        { key: "history", state: "fair", label: "Fuller", detail: "History" },
+        { key: "recovery", state: "good", label: "Good", detail: "6 later" },
+      ],
+    });
+    const baseline = rescoreStoredOption({ row, loadsBySegment: new Map(), partySize: 1 });
+    const withPartial = rescoreStoredOption({
+      row,
+      loadsBySegment: new Map([
+        [key, load({ segmentKey: key, openSeats: 8, standbys: null, alreadyListed: true })],
+      ]),
+      partySize: 1,
+    });
+
+    expect(withPartial.score).toBe(baseline.score);
+    expect(withPartial.judgment).toBe(baseline.judgment);
+    expect(withPartial.pillars.find((p) => p.key === "availability")?.label).toBe("Partial");
+  });
+
+  it("connection keeps public availability on a segment with partial load", () => {
+    const leg1Key = "UA123:ORD-DEN:2026-09-01T10:00";
+    const leg2Key = "UA456:DEN-LAX:2026-09-01T14:00";
+    const row = optionRow({
+      id: "connect",
+      option_key: `${leg1Key}|${leg2Key}`,
+      segments: [
+        {
+          carrier: "UA",
+          flightNumber: "123",
+          flightLabel: "UA123",
+          origin: "ORD",
+          dest: "DEN",
+          schedDepUtc: "2026-09-01T10:00:00Z",
+          depLocal: "5:00 AM",
+        },
+        {
+          carrier: "UA",
+          flightNumber: "456",
+          flightLabel: "UA456",
+          origin: "DEN",
+          dest: "LAX",
+          schedDepUtc: "2026-09-01T14:00:00Z",
+          depLocal: "7:00 AM",
+        },
+      ],
+    });
+    const baseline = rescoreStoredOption({ row, loadsBySegment: new Map(), partySize: 1 });
+    const withPartial = rescoreStoredOption({
+      row,
+      loadsBySegment: new Map([
+        [leg1Key, load({ segmentKey: leg1Key, openSeats: 8, standbys: null, alreadyListed: true })],
+      ]),
+      partySize: 1,
+    });
+
+    expect(withPartial.score).toBe(baseline.score);
+    expect(withPartial.pillars.find((p) => p.key === "availability")?.label).toBe("Partial");
+  });
+
+  it("complete 8 open / 0 listed still overrides public availability", () => {
+    const key = "UA123:ORD-DEN:2026-09-01T10:00";
+    const row = optionRow({
+      id: "opt-a",
+      pillars: [
+        { key: "availability", state: "fair", label: "Tight", detail: "Public" },
+        { key: "operations", state: "good", label: "Normal", detail: "Normal" },
+        { key: "history", state: "fair", label: "Fuller", detail: "History" },
+        { key: "recovery", state: "good", label: "Good", detail: "6 later" },
+      ],
+    });
+    const baseline = rescoreStoredOption({ row, loadsBySegment: new Map(), partySize: 1 });
+    const withComplete = rescoreStoredOption({
+      row,
+      loadsBySegment: new Map([
+        [key, load({ segmentKey: key, openSeats: 8, standbys: 0, alreadyListed: true })],
+      ]),
+      partySize: 1,
+    });
+
+    expect(withComplete.score).toBeGreaterThan(baseline.score);
+    expect(withComplete.pillars.find((p) => p.key === "availability")?.state).toBe("good");
+    expect(withComplete.pillars.find((p) => p.key === "availability")?.label).toBe("Strong");
+  });
+
+  it("shared rescoreOptionPillars keeps public availability when load is partial", () => {
+    const key = buildSegmentKey({
+      carrier: "UA",
+      flightNumber: "123",
+      origin: "ORD",
+      dest: "DEN",
+      schedDepUtc: "2026-09-01T10:00:00Z",
+    });
+    const publicAvailability: Pillar = {
+      key: "availability",
+      state: "good",
+      label: "Strong",
+      detail: "Public",
+    };
+    const pillars: Pillar[] = [
+      publicAvailability,
+      { key: "operations", state: "good", label: "Normal", detail: "Normal" },
+      { key: "history", state: "fair", label: "Fuller", detail: "History" },
+      { key: "recovery", state: "good", label: "Good", detail: "6 later" },
+    ];
+    const segments = [
+      {
+        carrier: "UA",
+        flightNumber: "123",
+        origin: "ORD",
+        dest: "DEN",
+        schedDepUtc: "2026-09-01T10:00:00Z",
+        depLocal: "5:00 AM",
+      },
+    ];
+    const baseline = rescoreOptionPillars({
+      pillars,
+      segments,
+      publicAvailability,
+      loadsBySegment: new Map(),
+      partySize: 1,
+      access: "home",
+      standbyClears: 1,
+      staffEligibility: "eligible",
+    });
+    const withPartial = rescoreOptionPillars({
+      pillars,
+      segments,
+      publicAvailability,
+      loadsBySegment: new Map([
+        [key, load({ segmentKey: key, openSeats: 8, standbys: null, alreadyListed: true })],
+      ]),
+      partySize: 1,
+      access: "home",
+      standbyClears: 1,
+      staffEligibility: "eligible",
+    });
+
+    expect(withPartial.score).toBe(baseline.score);
+    expect(withPartial.pillars.find((p) => p.key === "availability")?.label).toBe("Partial");
+    expect(withPartial.confidence).toBe("medium");
+  });
+
+  it("partial load does not change score relative to public-only baseline", () => {
     const keyA = "UA123:ORD-DEN:2026-09-01T10:00";
     const keyB = "UA456:ORD-DEN:2026-09-01T12:00";
     const partial = rescoreStoredOption({
@@ -228,7 +394,10 @@ describe("plan load resort", () => {
     });
 
     expect(partial.pillars.find((p) => p.key === "availability")?.state).toBe("unknown");
-    expect(modest.score).toBeGreaterThan(partial.score);
+    expect(partial.score).toBe(
+      rescoreStoredOption({ row: optionRow({ id: "opt-a" }), loadsBySegment: new Map(), partySize: 1 }).score,
+    );
+    expect(modest.score).toBeLessThan(partial.score);
   });
 
   it("excellent load does not beat excellent recovery when cushion adjustment is capped", () => {
