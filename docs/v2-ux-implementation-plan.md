@@ -34,11 +34,22 @@ audit of the repo. No code has been changed.
 
 `/plan` is not a builder route; it is the current-Plan route that falls back to a
 builder. Implementation: `plan.index.tsx` queries `listPlans()`, picks the current Plan
-(travel date today or later, soonest first, ties by most recently updated). If one
-exists, Home renders the Plan-first layout (spec §5A) by reusing the same section
-components as Plan Detail; otherwise it renders the builder (spec §5B). "Plan another
-trip" flips to the builder via local state (and may set a `?new=1` search param so the
-choice survives a refresh) — it does not navigate to a second route.
+— travel date today or later, soonest travel date first, and **when multiple Plans share
+that date, the most recently created one** (`createdAt`, which `PlanSummary` already
+exposes). `PlanSummary` has no `updatedAt` or archive flag and this pass adds neither —
+no server fields, no migration. If a future explicit archive/current-plan lifecycle is
+added it can replace this heuristic; it is out of scope here.
+
+If a current Plan exists, Home renders the Plan-first layout (spec §5A) by reusing the
+same section components as Plan Detail, in one of three content states: unselected
+(RECOMMENDED NOW), selected (YOUR CURRENT PLAN, possibly plus a RECOMMENDED NOW block
+when ranking changed), or zero-option (spec §8.3). Otherwise it renders the builder
+(spec §5B).
+
+"Plan another trip" flips to the builder via local state (and may set a `?new=1` search
+param so the choice survives a refresh) — it does not navigate to a second route, and it
+never replaces, deletes, archives, or demotes the existing current Plan. The existing
+Plan stays in Home and Plans untouched.
 
 ### 2.2 The committed distinction is removed from behavior
 
