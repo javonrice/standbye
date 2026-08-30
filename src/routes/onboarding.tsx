@@ -12,8 +12,6 @@ import {
   accessModeLabel,
   accessModeHint,
   emptyDraft,
-  painEcho,
-  painOptions,
   popularAirlines,
   readDraft,
   resolvedAccess,
