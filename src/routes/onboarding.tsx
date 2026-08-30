@@ -521,35 +521,6 @@ function AirlineStep({ value, onPick }: { value: string; onPick: (code: string) 
   );
 }
 
-function ExampleCard({ flight }: { flight: ExampleFlight }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="break-words font-display text-base font-bold leading-snug">
-            {flight.flightLabel}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{flight.depLocal}</p>
-        </div>
-        <JudgmentPill judgment={flight.judgment} size="sm" className="shrink-0" />
-      </div>
-      <dl className="mt-3 space-y-1.5">
-        {flight.rows.map((r) => (
-          <div key={r.label} className="flex items-center justify-between text-sm">
-            <dt className="text-muted-foreground">{r.label}</dt>
-            <dd className={`flex items-center gap-2 font-semibold ${stateText[r.state]}`}>
-              <span aria-hidden className={`h-2 w-2 rounded-full ${stateDot[r.state]}`} />
-              {r.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-3 border-t border-border pt-2.5 text-xs text-muted-foreground">
-        {flight.footnote}
-      </p>
-    </div>
-  );
-}
 
 function RevealStep({ draft }: { draft: OnboardingDraft }) {
   return (
