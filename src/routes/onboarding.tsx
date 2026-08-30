@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { ChoiceButton, OnboardingShell } from "@/components/aircue/OnboardingShell";
-import { JudgmentPill } from "@/components/aircue/JudgmentPill";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,13 +23,19 @@ import {
   type OnboardingDraft,
 } from "@/lib/aircue/onboarding";
 import {
-  exampleOrigin,
-  noLoadExample,
-  recoveryExample,
-  stateDot,
-  stateText,
-  type ExampleFlight,
-} from "@/lib/aircue/onboarding-examples";
+  AddYourLoad,
+  AlreadyStuck,
+  BookingIsNotEverything,
+  LoadsAreInterpreted,
+  NoFakeOdds,
+  TheDayChanges,
+  UpdatesPreview,
+  WhatIsTheBookingCheck,
+  WhyTheCheckHelps,
+  WidenedResult,
+} from "@/components/aircue/onboarding/TeachingScreens";
+import { exampleOrigin } from "@/lib/aircue/onboarding-examples";
+
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
