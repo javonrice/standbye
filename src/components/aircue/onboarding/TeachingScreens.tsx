@@ -166,22 +166,27 @@ export function WidenedResult() {
         <ExampleCard flight={widenedExample} />
       </div>
       <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Other realistic ways
+        Other ways from DEN
       </p>
       <ul className="mt-2 space-y-2">
         {widenedAlternates.map((route) => (
           <li
             key={route}
-            className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold"
           >
-            {route}
-            <ArrowRight aria-hidden className="h-4 w-4 text-muted-foreground" />
+            <span className="min-w-0 break-words">{route}</span>
+            <ArrowRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
           </li>
         ))}
       </ul>
-      <p className="mt-5 text-sm text-muted-foreground">
+      <p className="mt-3 text-xs text-muted-foreground">
+        Every leg still starts where you are — connections you probably wouldn't have thought to
+        check.
+      </p>
+      <p className="mt-4 text-sm text-muted-foreground">
         You don't have to rebuild the trip in your head from scratch.
       </p>
+
     </section>
   );
 }
