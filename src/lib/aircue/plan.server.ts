@@ -2,7 +2,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { rankStandbyOptions, type RankedOption, type RankReason } from "@/lib/aircue/ranking.server";
-import { confidenceWithLoad, judgeWithLoad, loadPillar } from "@/lib/aircue/load-adjust";
+import {
+  confidenceWithLoad,
+  judgeWithLoad,
+  loadPillar,
+  readLoad,
+  scoreWithLoad,
+} from "@/lib/aircue/load-adjust";
 import type {
   Confidence,
   GatewayOption,
@@ -268,16 +274,23 @@ function optionInsert(planId: string, userId: string, option: RankedOption) {
   };
 }
 
-export function optionFromRow(row: Row, load: ReportedLoad | null): StandbyOption {
+export function optionFromRow(
+  row: Row,
+  load: ReportedLoad | null,
+  partySize = 1,
+): StandbyOption {
   const pillars = ((row["pillars"] as Pillar[]) ?? []).slice();
   let judgment = (row["label"] as Judgment) ?? "mixed";
   let confidence = (row["confidence"] as Confidence) ?? "medium";
   let effective = pillars;
 
   if (load) {
-    effective = pillars.map((p) => (p.key === "availability" ? loadPillar(load) : p));
+    const reading = readLoad(load, { partySize });
+    effective = pillars.map((p) =>
+      p.key === "availability" ? loadPillar(load, { partySize }) : p,
+    );
     judgment = judgeWithLoad(effective);
-    confidence = confidenceWithLoad(effective);
+    confidence = confidenceWithLoad(effective, reading);
   }
 
   const evidence = (row["evidence"] as StandbyOption["evidence"]) ?? {
