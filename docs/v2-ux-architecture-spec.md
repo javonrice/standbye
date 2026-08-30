@@ -360,10 +360,19 @@ A task, not a product area.
 
 ## 13. Plans — `/plans`
 
-Only job: my travel plans. Sections ACTIVE / UPCOMING / PAST. Each row: route, date,
-current flight if relevant, one simple state (All quiet · Worth another look · Plan
-looks workable · Completed). Never show committed, watching, not watching, preferred
-option ID, watch ID.
+Only job: my travel plans — **all** of them.
+
+V2 drops the committed/uncommitted split as product behavior, not just as wording. Every
+Plan the user built appears here. A Plan never has to earn its place by having a chosen
+option or an explicit watch, and nothing the user built silently disappears. "Recent
+searches" and "uncommitted exploration" cease to exist as user-facing concepts.
+
+Sections ACTIVE / UPCOMING / PAST, derived from travel date and current plan state. Each
+row: route, date, current flight if relevant, one simple state (All quiet · Worth another
+look · Plan looks workable · Completed). Never show committed, watching, not watching,
+preferred option ID, watch ID.
+
+
 
 ## 14. Compare — `/plans/$planId/compare`
 
