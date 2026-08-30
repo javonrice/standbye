@@ -489,4 +489,18 @@ happening, what should I do next.
 - History: Plans → upcoming → past
 - Profile: You → travel setup → update settings
 
+Lifecycle acceptance added in this revision:
+
+- Build a Plan → it appears in Plans immediately, with no "Make primary" and no "Watch".
+- Build a Plan → the existing monitoring lifecycle starts automatically, with no
+  notification permission implied.
+- Reopen the app with a current Plan → Home shows that Plan, not the blank builder.
+- Tap "Plan another trip" → the builder becomes available.
+- `/plans` → the library, and the Plans tab is selected only there.
+- Open a Plan from the library → the experience is current-Plan-centric and the Home tab
+  is selected.
+- No Plan disappears from anywhere simply because no explicit primary/watch action was
+  taken.
+
 Test at iPhone viewport before desktop; run typecheck and tests.
+
