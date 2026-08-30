@@ -952,7 +952,8 @@ async function rescoreAndResortPlanOptions(
   const previousPreferredId = sortedBefore[0] ? String(sortedBefore[0]["id"]) : null;
 
   const loads = await loadsForSegments(client, userId, segmentKeysForRows(rows), travelDate);
-  const scored = rows.map((row) => {
+  // Iterate in existing rank order so equal scores keep their current order.
+  const scored = sortedBefore.map((row) => {
     const rescored = rescoreStoredOption({ row, loadsBySegment: loads, partySize: travelers });
     return {
       id: String(row["id"]),
