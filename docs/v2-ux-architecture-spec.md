@@ -105,6 +105,12 @@ Do not delete the educational screens. Move them to contextual first-use educati
 | Monitoring | after first plan |
 | No fake odds | inside How Standbye Works |
 
+Persistence rule: contextual first-use education must not require a database migration.
+Use an existing profile flag where one already fits, otherwise local persistence
+(`localStorage`, alongside the existing onboarding draft) is acceptable for one-time
+teaching. Any proposal to persist new education state server-side is flagged for review
+before it is coded.
+
 ## 3. Auth — `/auth`
 
 Standard. "Save your standby plans across devices." Google button, divider, email,
@@ -115,7 +121,52 @@ Continue, "Already have an account? Sign in."
 Extremely short transition: ✓ / "You're in." / "Your Standbye setup is ready." /
 [Plan my first trip] → `/plan`.
 
-## 5. Home, no active plan — `/plan`
+## 5. Home — `/plan`
+
+Home has two states. It is not always a blank builder.
+
+A Plan is **current** when its travel date is today or later and it has not been
+archived. Home shows the most relevant current Plan (soonest travel date; ties broken by
+most recently updated). There is no "committed" test — a Plan does not need a chosen
+option or an explicit watch to be current.
+
+### 5A. Home with a current Plan (the default returning state)
+
+Plan-first. Home renders the Plan itself, in the same order as Plan Detail:
+
+```text
+STANDBYE                         ◯
+ORD → LAX
+Today · 1 traveler
+● Plan looks workable
+
+YOUR CURRENT PLAN
+┌─────────────────────────────────────┐
+│ United · UA 1847                    │
+│  9:10 AM   ORD  →  LAX   11:35 AM   │
+│ Looks workable                      │
+│              See why →              │
+└─────────────────────────────────────┘
+
+Standbye is watching the day.
+Nothing important has changed.
+Checked 4 minutes ago            Activity →
+
+──────── BACKUP OPTIONS ────────
+2  UA 2201  10:25 AM → 12:44 PM  >
+3  UA 267   11:40 AM → 2:03 PM   >
+
+[ 📷 Add load information ]
+[ ↗ Find another way ]
+See every route →
+
+Plan another trip →
+        HOME   PLANS   YOU
+```
+
+"Plan another trip" is the only secondary action, and it is what reveals the builder.
+
+### 5B. Home with no current Plan (the builder)
 
 ```text
 STANDBYE                         ◯
@@ -131,9 +182,11 @@ Have a flight number?  Check it →
         HOME   PLANS   YOU
 ```
 
-Removed from the primary hierarchy: recent searches, Widen, routing mode, nearby
-airports, cabin, carrier picker. If advanced controls must stay reachable, put them
-behind one quiet "Trip options" sheet.
+The builder is shown when there is no current Plan, or when the user taps "Plan another
+trip" from 5A. Removed from the primary hierarchy either way: recent searches, Widen,
+routing mode, nearby airports, cabin, carrier picker. If advanced controls must stay
+reachable, put them behind one quiet "Trip options" sheet.
+
 
 ## 6. Known flight — `/known-flight`
 
