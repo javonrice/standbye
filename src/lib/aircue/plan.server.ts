@@ -689,7 +689,10 @@ export async function loadPlan(
     String(plan["travel_date"]),
   );
 
-  const options = rows.map((r) => optionFromRow(r, loads.get(String(r["flight_label"])) ?? null));
+  const partySize = Number(plan["travelers"] ?? 1);
+  const options = rows.map((r) =>
+    optionFromRow(r, loads.get(String(r["flight_label"])) ?? null, partySize),
+  );
   options.sort((a, b) => a.rank - b.rank);
 
   const prefs = (plan["prefs"] ?? {}) as Record<string, unknown>;
