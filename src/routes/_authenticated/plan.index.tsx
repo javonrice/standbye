@@ -9,7 +9,7 @@ import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Screen } from "@/components/aircue/Layout";
 import { PlanBuildingState } from "@/components/aircue/PlanBuildingState";
-import { PlanView } from "@/components/aircue/PlanView";
+import { PlanSnapshot } from "@/components/aircue/PlanSnapshot";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
