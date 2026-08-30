@@ -67,6 +67,20 @@ lifecycle on its own, using the existing infrastructure (`startWatchPlan` →
 `beginWatch`, plan-scoped). Monitoring is a property of a current Plan, never a mode the
 user manages.
 
+**Option anchor required.** `beginWatch()` cannot start on a zero-option Plan.
+Automatic monitoring applies only to a current Plan with at least one current option. A
+zero-option Plan is still a real Plan — it appears in Home and Plans and never
+disappears — but it gets no `startWatchPlan` call, no "Standbye is watching the day"
+line, and no fabricated watcher/placeholder/new watch mode. It shows the spec §8.3
+zero-option state (Find another way / Try another date).
+
+**Exact trigger.** Auto-start monitoring only when: (1) Plan creation succeeded,
+(2) the Plan has at least one current option, (3) no active watch already exists for
+that Plan. `beginWatch()` already de-duplicates active Plan watches — reuse that; do not
+add duplicate-prevention logic. The trigger covers normal Plan creation and Known Flight
+flows that result in a Plan. Previously created/historical Plans are **not**
+bulk-enrolled in this pass.
+
 Monitoring ≠ notification. Notification opt-in remains an explicit setting under
 You → Notifications; automatic monitoring must not enable any delivery channel.
 
@@ -108,11 +122,18 @@ Presentation-only (the vast majority of this work):
 - Loads task split, compare layout, ways/escape copy.
 
 Flags — anything here stops and asks before implementation:
-- **Automatic monitoring on Plan creation** (§2.3). The only behavioral change in the
-  whole pass.
+- **Automatic monitoring on Plan creation** (§2.3, option-anchored trigger). The only
+  behavioral change in the whole pass.
 - **Preferred vs primary option.** The UI stops exposing both, but the Plan payload
   (`plan.primaryOptionId`, `plan.preferredOptionId`, `plan.noStrongSetup`) stays exactly
-  as-is. "Use this option" calls the same set-primary mutation. No ranking change.
+  as-is. "Use this option" calls the same set-primary mutation. No ranking change. The
+  RECOMMENDED NOW vs YOUR CURRENT PLAN distinction (spec §8.2) maps onto these existing
+  fields; it is presentation-only.
+- **Zero-option Plans.** Presentation of the §8.3 state and skipping `startWatchPlan`
+  when a Plan has no options. No new watch mode, no placeholder option, no fabricated
+  watcher.
+- **Current-Plan tie-break uses `createdAt`.** `PlanSummary` is not modified; no
+  `updatedAt`, no archive column, no migration (spec §5 scope note).
 - **Plans ACTIVE / UPCOMING / PAST grouping.** Derived client-side from travel date and
   existing plan state; PAST = travel date in the past. No migration in this pass.
 - **Escape launched from a Plan.** Requires passing plan context (destination, date,
