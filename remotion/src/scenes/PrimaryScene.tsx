@@ -14,7 +14,7 @@ export function PrimaryScene() {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const scale = interpolate(frame, [0, durationInFrames], [1.04, 1.0], {
+  const zoom = interpolate(frame, [0, durationInFrames], [1.18, 1.12], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
