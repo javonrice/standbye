@@ -174,12 +174,14 @@ export function PlanMonitoringSection({ plan }: { plan: StandbyPlan }) {
   // Zero-option plans are never monitored and never show a monitoring line.
   if (plan.options.length === 0) return null;
 
+  // Monitoring is automatic for a plan with options. If setup did not take,
+  // say so quietly and let it be retried — the plan itself is unaffected.
   if (!plan.watching) {
     return (
       <section className="mt-6 rounded-2xl border border-border bg-card px-4 py-3.5 shadow-card">
-        <p className="text-[14px] font-semibold">Standbye can watch this day for you</p>
+        <p className="text-[14px] font-semibold">Standbye isn't watching this day yet</p>
         <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-          We keep checking the day and only surface changes that could change what you should do.
+          Your plan is saved either way. We'll keep checking the day once monitoring is set up.
         </p>
         <button
           type="button"
@@ -187,11 +189,12 @@ export function PlanMonitoringSection({ plan }: { plan: StandbyPlan }) {
           disabled={start.isPending}
           onClick={() => start.mutate()}
         >
-          {start.isPending ? "Setting up…" : "Watch the day"}
+          {start.isPending ? "Setting up…" : "Try again"}
         </button>
       </section>
     );
   }
+
 
   const changed = plan.planVerdict === "changed";
 
