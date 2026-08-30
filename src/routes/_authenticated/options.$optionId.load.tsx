@@ -58,8 +58,19 @@ function AddLoad() {
           partyIncluded: partyIncluded as "yes" | "no" | "unsure",
         },
       }),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["option", optionId] });
+      const planId = data?.planId ?? null;
+      if (planId) {
+        await queryClient.invalidateQueries({ queryKey: ["plan", planId] });
+        await queryClient.invalidateQueries({ queryKey: ["committed-plans"] });
+      }
+      // A load that moved the ranking is a plan-level change, so land where
+      // the new order and the "make this my primary" prompt are visible.
+      if (planId && result?.reranked) {
+        navigate({ to: "/plans/$planId", params: { planId } });
+        return;
+      }
       navigate({ to: "/options/$optionId", params: { optionId } });
     },
   });
