@@ -262,6 +262,7 @@ export const addReportedLoad = createServerFn({ method: "POST" })
     standbys: number | null;
     cabin: string;
     source: string;
+    partyIncluded: "yes" | "no" | "unsure" | null;
   }) =>
     z
       .object({
@@ -270,6 +271,7 @@ export const addReportedLoad = createServerFn({ method: "POST" })
         standbys: z.number().int().min(0).max(400).nullable(),
         cabin: z.string().min(3).max(16),
         source: z.string().min(3).max(24),
+        partyIncluded: z.enum(["yes", "no", "unsure"]).nullable(),
       })
       .parse(input),
   )
