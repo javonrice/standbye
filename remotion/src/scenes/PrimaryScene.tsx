@@ -25,7 +25,7 @@ export function PrimaryScene() {
 
   return (
     <AbsoluteFill style={{ opacity: fadeIn }}>
-      <Screenshot src="detail-before" y={y} scale={scale} />
+      <Screenshot src="detail-before" y={y} zoom={zoom} />
       <Caption delay={46}>Your primary option</Caption>
     </AbsoluteFill>
   );
