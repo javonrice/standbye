@@ -25,7 +25,7 @@ import {
   confidenceLabel,
   loadIsStale,
   loadSourceLabel,
-  pillarTitle,
+  pillarDisplayTitle,
   type Confidence,
 } from "@/lib/aircue/standby";
 
@@ -192,7 +192,7 @@ function CueScreen() {
               {option.load.partyIncluded === "yes"
                 ? "Your travelers were already in that standby count."
                 : option.load.partyIncluded === "no"
-                  ? "Your travelers were not listed yet when this was checked."
+                  ? "Your travelers were not included in that standby count when this was checked."
                   : "Unsure whether your travelers were already in that count."}
             </p>
           )}
@@ -222,7 +222,7 @@ function CueScreen() {
                 <SignalLinkRow
                   key={p.key}
                   state={p.state}
-                  title={pillarTitle[p.key]}
+                  title={pillarDisplayTitle(p.key, option)}
                   detail={`${p.label} — ${p.detail}`}
                   to={link.to}
                   params={{ optionId }}
@@ -231,7 +231,7 @@ function CueScreen() {
                 <SignalRow
                   key={p.key}
                   state={p.state}
-                  title={pillarTitle[p.key]}
+                  title={pillarDisplayTitle(p.key, option)}
                   detail={`${p.label} — ${p.detail}`}
                 />
               );
@@ -282,8 +282,9 @@ function CueScreen() {
       </div>
 
       <p className="mt-5 text-xs text-muted-foreground">
-        Standbye reads public availability and operating conditions. It is not airline load data and
-        never predicts whether you will clear.
+        Standbye combines public booking, operating conditions, history, recovery, and any reported
+        load you add. Public booking is not airline load data, and Standbye never predicts whether
+        you&apos;ll clear.
       </p>
     </Screen>
   );

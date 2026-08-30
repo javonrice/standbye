@@ -343,8 +343,11 @@ export function detectAnchorOptionEvents(
       kind: "availability",
       severity: nextLargest === 0 ? "meaningful" : "context",
       headline:
-        nextLargest === 0 ? "Public availability has closed" : "Public availability tightened",
-      detail: `Booking now shows for parties up to ${nextLargest}, down from ${prevLargest}. This is a demand signal, not a load.`,
+        nextLargest === 0 ? "No public booking found" : "Public booking tightened",
+      detail:
+        nextLargest === 0
+          ? "Standbye no longer found a public booking for the tested party size. That does not prove the flight is full or oversold."
+          : `Public booking now shows for parties up to ${nextLargest}, down from ${prevLargest}. This is a commercial booking signal, not the standby load.`,
     });
   }
 

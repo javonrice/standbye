@@ -315,6 +315,18 @@ export const pillarTitle: Record<PillarKey, string> = {
   recovery: "Recovery",
 };
 
+/**
+ * Source-aware pillar title for option surfaces.
+ * Internal key stays `availability`; display distinguishes public booking vs reported load.
+ */
+export function pillarDisplayTitle(
+  key: PillarKey,
+  option?: { load?: unknown } | null,
+): string {
+  if (key !== "availability") return pillarTitle[key];
+  return option?.load ? "Reported load" : "Public booking";
+}
+
 export const pillarDot: Record<PillarState, string> = {
   good: "bg-fine",
   fair: "bg-watch",

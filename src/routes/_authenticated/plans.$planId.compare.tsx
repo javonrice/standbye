@@ -14,6 +14,7 @@ import {
   type PillarState,
   type StandbyOption,
 } from "@/lib/aircue/standby";
+import { loadBookingCompareCell } from "@/lib/aircue/public-booking-presentation";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
@@ -63,10 +64,16 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
       }),
     },
     {
-      label: "Availability",
+      label: "Load / booking",
       cells: options.map((o) => {
         const p = pillar(o, "availability");
-        return { text: p?.label ?? "Unknown", state: p?.state };
+        return {
+          text: loadBookingCompareCell({
+            hasReportedLoad: Boolean(o.load),
+            pillarLabel: p?.label,
+          }),
+          state: p?.state,
+        };
       }),
     },
     {

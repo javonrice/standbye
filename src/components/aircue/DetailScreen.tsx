@@ -159,7 +159,11 @@ export function PartyScale({
               "h-4 w-4 rounded-full",
               t.showing ? "bg-primary" : "border border-border bg-transparent",
             )}
-            aria-label={t.showing ? "still selling" : "not selling"}
+            aria-label={
+              t.showing
+                ? `${t.adults} traveler${t.adults === 1 ? "" : "s"}: booking shown`
+                : `${t.adults} traveler${t.adults === 1 ? "" : "s"}: no booking shown`
+            }
           />
           <span
             className={cn(

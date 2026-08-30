@@ -77,11 +77,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Standbye — Know your standby odds before you go" },
+      { title: "Standbye — Plan standby without the constant checking" },
       {
         name: "description",
         content:
-          "Standbye reads seat availability, operations and recovery room so you know which standby flight is worth trying.",
+          "Standbye combines public booking, operating conditions, recovery options, history, and any reported load you add to help you decide which standby option is worth another look.",
       },
       { name: "author", content: "Standbye" },
       { property: "og:type", content: "website" },

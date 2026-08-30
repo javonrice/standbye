@@ -2,13 +2,23 @@
 
 Status: **Phases A–D implemented** (Phase E watch snapshot deferred)
 
+Presentation of the GF8 / public-booking pillar is documented in
+[`public-booking-truthfulness.md`](./public-booking-truthfulness.md). This file
+covers **load evidence and scoring**. Public booking is commercial sellability —
+not physical seats or standby load.
+
 ## Problem
 
-Reported loads today are a **read-time overlay** (`optionFromRow` + `load-adjust.ts`). They can change judgment on a card while `plan_options.rank` stays frozen from public-signal ranking — rank #1 can show **Riskier** after a fresh load.
+Reported loads were once a **read-time overlay**. They could change judgment on a
+card while `plan_options.rank` stayed frozen from public-signal ranking — rank #1
+could show **Riskier** after a fresh load.
 
 ## Goal
 
-User-entered loads become **first-class plan evidence**: same deterministic scoring path as availability, operations, recovery, history, and access. Adding a load **locally rescores and resorts** the existing plan with **zero new GF8/provider calls**.
+User-entered loads are **first-class plan evidence**: same deterministic scoring
+path as public booking, operations, recovery, history, and access. Adding a load
+**locally rescores and resorts** the existing plan with **zero new GF8/provider
+calls**.
 
 ## Non-goals
 
@@ -40,8 +50,9 @@ Implementation:
 - `buildSegmentKey()` in `option-key.ts` (one segment)
 - `reported_loads.segment_key` — primary lookup key
 - `reported_loads.flight_label` — display / legacy fallback only
+- `reported_loads.party_included` — `yes` / `no` / `unsure` (or null)
 - `loadsForSegments()` — `Map<segmentKey, ReportedLoad>`
-- Itinerary availability = **worst** segment load state among legs (same pattern as connection public availability)
+- Itinerary availability pillar = **worst** segment load state among legs (same pattern as connection public booking)
 
 Never merge loads across distinct `option_key` rows because `flight_label` matches.
 
@@ -49,18 +60,9 @@ Never merge loads across distinct `option_key` rows because `flight_label` match
 
 ## Data model
 
-### `reported_loads` (migration)
+### `reported_loads`
 
-```sql
-ALTER TABLE reported_loads
-  ADD COLUMN segment_key text,
-  ADD COLUMN already_listed boolean NOT NULL DEFAULT false;
-
-CREATE INDEX reported_loads_segment_lookup_idx
-  ON reported_loads (user_id, segment_key, travel_date, checked_at DESC);
-```
-
-### `ReportedLoad` type
+Segment-scoped loads with tri-state party inclusion (not a boolean “already listed”).
 
 ```typescript
 interface ReportedLoad {
@@ -69,7 +71,7 @@ interface ReportedLoad {
   flightLabel: string;      // display
   openSeats: number | null;
   standbys: number | null;
-  alreadyListed: boolean;
+  partyIncluded: "yes" | "no" | "unsure" | null;
   cabin: string;
   source: string;
   checkedAt: string;
@@ -80,7 +82,7 @@ interface ReportedLoad {
 
 ## `LoadEvidence` (internal)
 
-Not shown as probability. Drives availability pillar + score multiplier.
+Not shown as probability. Drives the availability pillar (display title **Reported load** when a load exists) + score multiplier.
 
 ```typescript
 interface LoadEvidence {
@@ -89,7 +91,7 @@ interface LoadEvidence {
   effectiveListed: number | null;
   cushion: number | null;
   partySize: number;
-  userAlreadyListed: boolean;
+  partyIncluded: "yes" | "no" | "unsure" | null;
   sourceStrength: number;       // 0–1
   freshnessMinutes: number;
   freshnessMultiplier: number;  // 0–1
@@ -97,16 +99,27 @@ interface LoadEvidence {
 }
 ```
 
-Party math:
+Party math (`computeLoadEvidence`):
 
 ```text
-if userAlreadyListed:
-  effectiveListed = reportedStandbys ?? 0
-else:
-  effectiveListed = (reportedStandbys ?? 0) + partySize
+partyIncluded yes:
+  effectiveListed = reportedStandbys
+  cushion = open - effectiveListed   (when open known)
 
-cushion = effectiveOpen - effectiveListed
+partyIncluded no:
+  effectiveListed = reportedStandbys + partySize
+  cushion = open - effectiveListed   (when open known)
+
+partyIncluded unsure / null:
+  effectiveListed = null
+  cushion = null
+  → partial reported evidence
+  → public booking preserved for ranking
+  → confidence lowered
+  display: Reported load · Partial
 ```
+
+When `standbys` is null, cushion stays null regardless of `partyIncluded` (unknown demand is not zero).
 
 Freshness tiers (availability score multiplier):
 
@@ -132,7 +145,7 @@ confidenceFromPillars(pillars, hasSegmentLoad, staffEligibility)
 availabilityPillarForOption(segments, publicPillar, loadsMap, travelers)
 ```
 
-Weights match `ranking.server.ts` `scoreOf` (availability × 1.2). Load replaces availability **pillar state** when a fresh-enough segment load exists; recovery/ops/history unchanged.
+Weights match `ranking.server.ts` `scoreOf` (availability × 1.2). Complete load replaces availability **pillar state** when a fresh-enough segment load exists; recovery/ops/history unchanged. Partial load keeps public booking for ranking and shows **Partial** for display.
 
 Load does **not** automatically win: a great load on a last-flight option can still rank below a tighter load + excellent recovery.
 
@@ -149,8 +162,8 @@ travelers: number; // already present
 
 In `scoreLeg` / connection / GF8 paths:
 
-1. Compute public availability pillar (unchanged)
-2. If segment load exists → replace leg availability with load-derived pillar
+1. Compute public booking pillar (internal key `availability`; labels from `publicBookingPresentation`)
+2. If complete segment load exists → replace leg availability with load-derived pillar
 3. Connection: `worst()` across leg availability states
 4. Unified score → sort → assign rank
 
@@ -162,7 +175,7 @@ In `scoreLeg` / connection / GF8 paths:
 
 ```text
 1. Resolve target segment_key (form input or sole segment)
-2. INSERT reported_loads (segment_key, already_listed, flight_label for display)
+2. INSERT reported_loads (segment_key, party_included, flight_label for display)
 3. Load all current plan_options + plan.travelers
 4. loadsForSegments(all segment keys on plan)
 5. rescoreAndResortPlanOptions() — no network
@@ -180,7 +193,7 @@ Event kind (client + optional plan prefs banner): `best_option_changed_from_load
 
 ### Add Load form
 
-- **Are you already on the standby list?** Yes / Not yet → `alreadyListed`
+- **Are your travelers already included in that standby count?** Yes / No / Unsure → `partyIncluded`
 - **Segment picker** when `segments.length > 1`
 - Post-submit: navigate to plan detail with banner if `bestOptionChanged`
 
@@ -195,6 +208,10 @@ Primary unchanged; banner does not auto-switch Primary.
 When public booking and fresh load conflict on a segment, show on option cue:
 
 > Signals disagree. Your fresh employee-reported load is stronger evidence right now.
+
+### Source-aware titles
+
+When `option.load` exists, the availability pillar titles as **Reported load**. Otherwise **Public booking**. Compare uses a neutral **Load / booking** row with per-cell sources. See [`public-booking-truthfulness.md`](./public-booking-truthfulness.md).
 
 ---
 
@@ -212,7 +229,7 @@ When public booking and fresh load conflict on a segment, show on option cue:
 
 ## Tests (required)
 
-- `load-evidence`: party size, alreadyListed, cushion, freshness decay
+- `load-evidence`: party size, `partyIncluded` yes/no/unsure, cushion, freshness decay, partial neutrality
 - `option-scoring`: load overrides public; recovery beats great load on last flight
 - `rescore plan`: UA123 2/15 drops from #1; AA789 21/4 jumps to #1
 - Segment identity: two UA1448 departures — load on one segment does not affect the other
@@ -225,9 +242,10 @@ When public booking and fresh load conflict on a segment, show on option cue:
 
 | Behavior | After |
 |----------|-------|
-| Availability / judgment / confidence / score | Load-driven |
-| Rank order | Load-driven |
+| Availability / judgment / confidence / score | Load-driven when complete |
+| Rank order | Load-driven when complete |
 | Best option (#1) | Matches rescored sort |
 | Primary | User-controlled only |
 | attachLoad cost | No GF8 calls |
 | Boarding probability | Never |
+| Public booking labels | Party-size commercial signal only — never seats/odds |

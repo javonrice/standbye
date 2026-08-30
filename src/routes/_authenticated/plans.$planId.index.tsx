@@ -202,7 +202,7 @@ function PlanDetailScreen() {
           )}
 
           <p className="mt-6 text-xs text-muted-foreground">
-            Public availability is a demand signal, not airline load. Standbye never predicts whether
+            Public booking is a commercial signal, not airline load. Standbye never predicts whether
             you will clear.
           </p>
         </>

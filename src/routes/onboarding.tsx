@@ -45,7 +45,7 @@ export const Route = createFileRoute("/onboarding")({
       {
         name: "description",
         content:
-          "A few quick questions and four short examples, then Standbye is ready to rank your standby day.",
+          "A few quick questions, then Standbye shows how it builds and watches a standby plan.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Set up Standbye for how you nonrev" },

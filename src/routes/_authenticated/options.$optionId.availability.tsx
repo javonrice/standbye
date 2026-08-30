@@ -9,31 +9,27 @@ import {
 } from "@/components/aircue/DetailScreen";
 import { StandbyeTake } from "@/components/aircue/StandbyeTake";
 import { useOption } from "@/lib/aircue/use-option";
-import { agoLabel, type PillarState } from "@/lib/aircue/standby";
+import { agoLabel } from "@/lib/aircue/standby";
+import {
+  publicBookingPresentation,
+  publicBookingTake,
+} from "@/lib/aircue/public-booking-presentation";
 
 export const Route = createFileRoute("/_authenticated/options/$optionId/availability")({
   head: () => ({
     meta: [
-      { title: "Public availability — Standbye" },
+      { title: "Public booking — Standbye" },
       {
         name: "description",
         content:
-          "Exactly what the public booking check showed for this flight, and why it is a demand signal rather than a load.",
+          "How large a party the public booking flow still shows as bookable for this flight — a commercial signal, not airline load.",
       },
-      { property: "og:title", content: "Public availability — Standbye" },
-      { property: "og:description", content: "What the public availability check found." },
+      { property: "og:title", content: "Public booking — Standbye" },
+      { property: "og:description", content: "What the public booking check found." },
     ],
   }),
   component: AvailabilityDetail,
 });
-
-function readSignal(largest: number | null): { state: PillarState; label: string } {
-  if (largest === null) return { state: "unknown", label: "Public signal unclear" };
-  if (largest >= 4) return { state: "good", label: "Strong public signal" };
-  if (largest >= 2) return { state: "fair", label: "Softening public signal" };
-  if (largest >= 1) return { state: "poor", label: "Tight public signal" };
-  return { state: "poor", label: "Nothing selling publicly" };
-}
 
 function AvailabilityDetail() {
   const { optionId } = Route.useParams();
@@ -41,26 +37,29 @@ function AvailabilityDetail() {
   const option = data?.option;
   const availability = option?.evidence.availability;
   const largest = availability?.largestShowing ?? null;
-  const signal = readSignal(largest);
+  const checked = Boolean(availability?.checked);
+  const signal = publicBookingPresentation({
+    largestShowing: largest,
+    checked: availability ? availability.checked : false,
+  });
 
   return (
     <DetailShell
       optionId={optionId}
-      title="Public availability"
+      title="Public booking"
       subtitle={option ? `${option.flightLabel} · ${option.origin} → ${option.dest}` : "Loading…"}
     >
       {availability && !availability.checked && (
         <DetailModule title="We could not check this one" className="mt-5">
-          The public availability check did not return a usable answer. Standbye treats that as
-          unknown — not as full.
+          The public booking check did not return a usable answer. Standbye treats that as unknown —
+          not as full.
         </DetailModule>
       )}
 
       {availability?.checked && (
         <>
-          <DetailLead state={signal.state} label={signal.label} />
+          <DetailLead state={signalState(largest)} label={signal.label} />
 
-          {/* The count is the point of the screen — make it the hero. */}
           <div className="mt-4 rounded-2xl border border-border bg-card p-5 text-center">
             <p className="font-display text-5xl font-bold tracking-tight">
               {largest === null ? "?" : largest >= 4 ? "4+" : largest}
@@ -69,13 +68,13 @@ function AvailabilityDetail() {
               {largest === null
                 ? "Largest party still bookable is unclear"
                 : largest >= 4
-                  ? "Still bookable for a party of 4 or more"
-                  : `Still bookable for a party of ${largest}`}
+                  ? "Public booking still shows for a party of 4"
+                  : `Public booking still shows for a party of ${largest}`}
             </p>
             {largest !== null && largest >= 4 && (
               <p className="mt-1 text-xs text-muted-foreground">
-                4+ is the most we can verify — the airline stops confirming exact space beyond a
-                party of 4, so it could be wide open.
+                Standbye currently checks up to 4 travelers. So 4+ means the check reached our
+                current ceiling — not that four or more physical seats are open.
               </p>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
@@ -85,32 +84,27 @@ function AvailabilityDetail() {
             <div className="mt-5 border-t border-border/70 pt-4">
               <PartyScale tested={availability.tested} />
               <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
-                Each dot is a party size we tried. Filled means the airline still shows a bookable
-                seat at that party size.
+                Each dot is a party size Standbye checked. Filled means that party size still
+                appeared bookable.
               </p>
             </div>
           </div>
 
           <DetailHeading>What this means</DetailHeading>
           <DetailModule className="mt-2">
-            This is what the airline is still willing to sell to the public. It moves with demand
-            and revenue management, so it is an early read on whether a flight is filling up.
+            This is a commercial booking signal. It tells Standbye how open or constrained public
+            selling appears right now. Changes over time can show public booking tightening or
+            loosening.
           </DetailModule>
 
-          <DetailHeading>What this doesn't mean</DetailHeading>
+          <DetailHeading>What this doesn&apos;t mean</DetailHeading>
           <DetailModule className="mt-2">
-            It is not the airline's load, not your position on the standby list, and not a count of
-            seats you could clear into. A real load from your employee system is stronger evidence
-            and will override this.
+            It is not the airline&apos;s load, not your standby-list position, and not a count of
+            seats you could clear into. A complete reported load is stronger evidence and can
+            replace this signal in the Plan.
           </DetailModule>
 
-          <StandbyeTake className="mt-5">
-            {signal.state === "good"
-              ? "The airline is still selling this flight freely, which usually means the cabin has not tightened yet."
-              : signal.state === "fair"
-                ? "Selling has started to narrow. Worth pairing with a real load before you commit."
-                : "Public selling is tight, so treat this one as a flight that is filling — a reported load matters more here."}
-          </StandbyeTake>
+          <StandbyeTake className="mt-5">{publicBookingTake(largest, checked)}</StandbyeTake>
 
           <Link
             to="/options/$optionId/load"
@@ -123,4 +117,12 @@ function AvailabilityDetail() {
       )}
     </DetailShell>
   );
+}
+
+/** Map largestShowing to a lead tone without inventing seats language. */
+function signalState(largest: number | null) {
+  if (largest === null) return "unknown" as const;
+  if (largest >= 4) return "good" as const;
+  if (largest >= 1) return "fair" as const;
+  return "poor" as const;
 }

@@ -27,29 +27,33 @@ const judgments: { judgment: Judgment; meaning: string }[] = [
   {
     judgment: "favorable",
     meaning:
-      "Seats still look open, the day is running normally, and there is another flight behind this one if it slips. This is the kind of setup most people clear on.",
+      "The overall setup looks stronger right now: public booking, operations, history, recovery, and any reported load are working more in your favor.",
   },
   {
     judgment: "mixed",
     meaning:
-      "It can work, but there is less room than you want — fewer open seats, a busy day, or a thin backup. Worth taking if you can handle a wait.",
+      "The setup has tradeoffs. One or more signals are tighter or uncertain, but you may still have useful recovery options.",
   },
   {
     judgment: "riskier",
     meaning:
-      "Something is clearly working against you: the flight is close to full, the operation is struggling, or there is nothing useful behind it. Only take it if you have a real fallback.",
+      "Several signals are working against the plan, or your recovery runway is thin. Worth another look before you commit.",
   },
   {
     judgment: "changed",
     meaning:
-      "Something moved after you started watching — a cancellation, a big delay, or seats disappearing. Open it and decide again before you head to the airport.",
+      "Something meaningful moved after Standbye checked again — for example public booking tightened, operations worsened, a cancellation changed the day, or another option became stronger.",
   },
 ];
 
 const inputs = [
   {
-    title: "What is still bookable",
-    body: "Standbye checks how many seats the airline will still sell on the flight. If almost nothing is left for sale, there is almost nothing left for standby.",
+    title: "Public booking",
+    body: "Standbye checks how large a party the public booking flow still shows as bookable. This is a commercial pressure signal, not the standby load.",
+  },
+  {
+    title: "Reported loads",
+    body: "If you add a load from an employee system or another source you trust, Standbye uses that stronger flight-specific evidence in the Plan.",
   },
   {
     title: "How today is running",
@@ -107,8 +111,8 @@ function HowItWorks() {
         <h2 className="font-display text-base font-bold tracking-tight">Where we can be wrong</h2>
         <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
           <li>
-            Seat counts come from what is publicly for sale, not from the airline&apos;s standby
-            list. A flight can look open and still have a long list.
+            Public booking can remain open even when the operational load is tight or oversold.
+            Standbye does not treat bookability as an exact seat count.
           </li>
           <li>
             Crew, aircraft swaps, and gate-side decisions happen after our last read. Weather can

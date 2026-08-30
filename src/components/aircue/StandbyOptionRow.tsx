@@ -10,8 +10,8 @@ import {
 } from "@/lib/aircue/option-display";
 
 import {
+  pillarDisplayTitle,
   pillarDot,
-  pillarTitle,
   type Pillar,
   type PillarKey,
   type StandbyOption,
@@ -147,7 +147,7 @@ export function StandbyOptionRow({
           {signals.map((p) => (
             <div key={p.key} className="flex items-center gap-2 text-[13px]">
               <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pillarDot[p.state])} aria-hidden />
-              <dt className="w-24 shrink-0 text-muted-foreground">{pillarTitle[p.key]}</dt>
+              <dt className="w-28 shrink-0 text-muted-foreground">{pillarDisplayTitle(p.key, option)}</dt>
               <dd className="min-w-0 truncate font-medium text-foreground">{p.label}</dd>
             </div>
           ))}

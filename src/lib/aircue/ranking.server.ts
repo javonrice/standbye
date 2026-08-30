@@ -59,6 +59,7 @@ import {
   searchItineraryCandidates,
   type Gf8ItineraryCandidate,
 } from "@/lib/aircue/gf8-itineraries.server";
+import { publicBookingPresentation } from "@/lib/aircue/public-booking-presentation";
 
 export interface RankInput {
   origin: string;
@@ -267,6 +268,7 @@ function availabilityFor(
   reason?: string,
 ) {
   if (!ok || !entry) {
+    const copy = publicBookingPresentation({ largestShowing: null, checked: false });
     const ev: AvailabilityEvidence = {
       checked: false,
       tested: [],
@@ -276,9 +278,8 @@ function availabilityFor(
     };
     return {
       state: "unknown" as PillarState,
-      label: "Not available",
-      detail:
-        "We could not get a useful booking availability signal. That is not the same as full.",
+      label: copy.label,
+      detail: copy.detail,
       evidence: ev,
     };
   }
@@ -294,43 +295,44 @@ function availabilityFor(
     largestShowing: largest,
     checkedAt,
   };
+  const copy = publicBookingPresentation({ largestShowing: largest, checked: true });
 
   if (largest === null) {
     return {
       state: "fair" as PillarState,
-      label: "Limited",
-      detail: "Booking is showing, but only for a small party.",
+      label: copy.label,
+      detail: copy.detail,
       evidence: ev,
     };
   }
   if (largest >= 4) {
     return {
       state: "good" as PillarState,
-      label: "Strong",
-      detail: "Booking availability is still showing freely for a larger party.",
+      label: copy.label,
+      detail: copy.detail,
       evidence: ev,
     };
   }
   if (largest >= 2) {
     return {
       state: "fair" as PillarState,
-      label: "Narrowing",
-      detail: `Booking only shows for parties up to ${largest}.`,
+      label: copy.label,
+      detail: copy.detail,
       evidence: ev,
     };
   }
   if (largest >= 1) {
     return {
       state: "fair" as PillarState,
-      label: "Tight",
-      detail: "Booking only shows for a single seat.",
+      label: copy.label,
+      detail: copy.detail,
       evidence: ev,
     };
   }
   return {
     state: "poor" as PillarState,
-    label: "Not selling",
-    detail: "The airline is no longer selling this flight in public search.",
+    label: copy.label,
+    detail: copy.detail,
     evidence: ev,
   };
 }
@@ -1540,7 +1542,7 @@ function isLateInDay(travelDate: string): boolean {
 }
 
 function reasonTitle(p: Pillar): string {
-  if (p.key === "availability") return `${p.label} public availability`;
+  if (p.key === "availability") return `${p.label} public booking`;
   if (p.key === "operations")
     return p.state === "good" ? "Operations look normal" : `Operations: ${p.label.toLowerCase()}`;
   if (p.key === "history")
@@ -1553,12 +1555,12 @@ function reasonTitle(p: Pillar): string {
 function headlineFor(judgment: Judgment, pillars: Pillar[]): string {
   const availability = pillars.find((p) => p.key === "availability");
   const recovery = pillars.find((p) => p.key === "recovery");
-  if (judgment === "favorable") return "Best balance of availability and backup options today.";
+  if (judgment === "favorable") return "Best balance of public booking and backup options today.";
   if (judgment === "mixed") {
-    if (recovery?.state !== "good") return "Reasonable availability, but thinner backup options.";
+    if (recovery?.state !== "good") return "Reasonable public booking, but thinner backup options.";
     return "Workable, with one meaningful tradeoff.";
   }
-  if (availability?.state === "poor") return "Public availability has dried up on this one.";
+  if (availability?.state === "poor") return "No public booking found on this one.";
   return "Every part of this setup is working against you a little.";
 }
 

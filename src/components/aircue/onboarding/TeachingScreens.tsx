@@ -212,10 +212,11 @@ export function WhatIsTheBookingCheck() {
         ))}
       </ul>
       <Arrow />
-      <p className="text-center font-display text-xl font-bold">4 travelers showing</p>
+      <p className="text-center font-display text-xl font-bold">Booking open for 4+</p>
       <p className="mt-5 text-sm text-muted-foreground">
-        It does <span className="font-semibold text-foreground">not</span> mean four seats are open
-        on the airplane. Four is simply as far as the public check goes.
+        That does <span className="font-semibold text-foreground">not</span> mean four seats are
+        open. Standbye currently checks up to four travelers, so 4+ only means public booking
+        reached our current test ceiling.
       </p>
     </section>
   );
@@ -356,8 +357,8 @@ export function LoadsAreInterpreted() {
         ))}
       </div>
       <p className="mt-5 text-sm text-muted-foreground">
-        Standbye looks at your party, whether you're already listed, how fresh the load is, and the
-        rest of the day.
+        Standbye looks at your party, whether your travelers are already included in the reported
+        standby count, how fresh the load is, and the rest of the day.
       </p>
     </section>
   );
