@@ -154,6 +154,83 @@ export function PlanView({ plan }: { plan: StandbyPlan }) {
   );
 }
 
+/**
+ * The briefing header. Same unified trip object as the Home snapshot — one
+ * card, flight and status together — but tuned for reading rather than
+ * glancing: the route leads, there is no countdown and no "View my plan" CTA,
+ * because you are already here.
+ */
+function TripBriefCard({
+  plan,
+  option,
+  selected,
+}: {
+  plan: StandbyPlan;
+  option: StandbyOption | null;
+  selected: boolean;
+}) {
+  const tone = option ? judgmentTone[option.judgment] : null;
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+      <div className="px-5 pt-4">
+        <h1 className="font-display text-[30px] font-bold leading-none tracking-tight">
+          {plan.origin} → {plan.dest}
+        </h1>
+        <p className="mt-2 text-[14px] font-medium text-muted-foreground">
+          {longDate(plan.travelDate)} · {plan.travelers} traveler
+          {plan.travelers === 1 ? "" : "s"}
+        </p>
+        <PlanStateLine plan={plan} />
+      </div>
+
+      {option && tone && (
+        <>
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-border px-5 pt-3">
+            <p className="min-w-0 truncate text-[15px] font-bold tracking-tight">
+              {option.flightLabel}
+            </p>
+            <span
+              className={cn(
+                "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em]",
+                tone.bg,
+                tone.text,
+              )}
+            >
+              {judgmentShort[option.judgment]}
+            </span>
+          </div>
+          <p className="px-5 pt-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {selected ? "Your current plan" : "Recommended now"}
+          </p>
+          <div className="grid grid-cols-3 px-5 pb-4 pt-3">
+            <Fact label="Departs" value={option.depLocal} />
+            <Fact label="Arrives" value={formatOptionArrival(option)} />
+            <Fact
+              label="Route"
+              value={option.kind === "connection" ? "1 stop" : "Nonstop"}
+              plain
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Fact({ label, value, plain }: { label: string; value: string; plain?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-[15px] font-semibold tracking-tight">
+        {plain ? value : <LocalTime value={value} />}
+      </p>
+    </div>
+  );
+}
+
+
+
 function BackupOptions({ plan }: { plan: StandbyPlan }) {
   const shownId = plan.primaryOptionId ?? plan.preferredOptionId ?? plan.options[0]?.id;
   const recommendedId = plan.preferredOptionId ?? plan.options[0]?.id;
