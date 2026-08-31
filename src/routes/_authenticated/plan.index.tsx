@@ -11,6 +11,7 @@ import { AirportField } from "@/components/aircue/AirportField";
 import { Screen } from "@/components/aircue/Layout";
 import { PlanBuildingState } from "@/components/aircue/PlanBuildingState";
 import { PlanSnapshot } from "@/components/aircue/PlanSnapshot";
+import { QueryState } from "@/components/aircue/QueryState";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -23,14 +24,18 @@ import {
 } from "@/components/ui/select";
 import {
   createPlan,
-  getCurrentPlanForHome,
-  getPlan,
+  getHomePlan,
   getStandbyProfile,
   type PlanSummary,
 } from "@/lib/aircue/plan.functions";
 import { PlanBuildError } from "@/components/aircue/PlanBuildError";
 import { useActivatePlan } from "@/lib/aircue/use-plan-lifecycle";
-import { routingModeHint, routingModeLabel, type RoutingMode } from "@/lib/aircue/standby";
+import {
+  routingModeHint,
+  routingModeLabel,
+  type RoutingMode,
+  type StandbyPlan,
+} from "@/lib/aircue/standby";
 
 interface HomeSearch {
   /** `?new=1` reveals the builder even when a current Plan exists. */
