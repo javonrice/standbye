@@ -135,7 +135,9 @@ export function LoadTask({
     setPayoff({
       headline:
         accepted > 0
-          ? `Plan updated · ${accepted} flight${accepted === 1 ? "" : "s"} scored with your numbers`
+          ? moves.length > 0
+            ? "Plan updated"
+            : `Plan updated · ${accepted} flight${accepted === 1 ? "" : "s"} scored with your numbers`
           : "Nothing applied yet",
       moves: moves.slice(0, 3),
       note:
@@ -222,7 +224,12 @@ export function LoadTask({
     return (
       <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-xl md:px-10 md:pt-12">
         <h1 className="font-display text-2xl font-bold tracking-tight">{payoff.headline}</h1>
-        {payoff.moves.length > 0 ? (
+        {payoff.moves.length === 1 ? (
+          <div className="mt-4 rounded-2xl border border-border bg-card p-5 text-center">
+            <p className="font-display text-xl font-bold tracking-tight">{payoff.moves[0]}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">Your load changed the order.</p>
+          </div>
+        ) : payoff.moves.length > 0 ? (
           <ul className="mt-4 space-y-2">
             {payoff.moves.map((m) => (
               <li
@@ -337,8 +344,7 @@ export function LoadTask({
 
           {!shotStatus?.configured && (
             <p className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Screenshot parsing is not configured on this environment yet. You can still enter
-              loads manually.
+              Screenshot reading isn't available right now. You can still enter the load manually.
             </p>
           )}
 
