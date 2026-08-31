@@ -33,7 +33,7 @@ Bottom tabs only: Home · Plans · You
 1. Splash — brand + “Get started” / “I have an account”
 2. Onboarding (4 steps) — traveler type, home airline, travel access, home airport → “Plan my first trip”
 3. New Plan — From, To, When, Travelers; collapsed Trip options; primary CTA “Build my plan”; link “Have a flight number?”
-3b. **Plan results (REQUIRED after Build my plan)** — Decision intelligence screen. Show **all** ranked flights for this Plan before Home. Each row: rank, **visible grade** (A/B/C/D or Strong/OK/Weak), flight number, time, path (Nonstop / via …), one short why-line. Header: route + date + “Ranked for your access”. Sticky CTA: “Continue with top pick” or, after selecting a row, “Start with this flight” → then Home / Current Plan. Do **not** skip this and land only on Current Plan. (Ways later is the ongoing list while working; Plan results is the first full graded reveal.) Full spec: `docs/rork-plan-results-build-spec.md`.
+3b. **Plan results (REQUIRED after Build my plan)** — Decision intelligence screen. Show **all** ranked flights for this Plan before Home. Each row: rank, **Looks good / Mixed / Riskier as the row hero** (green / amber / red — same verdict system as Home; no letter grades), flight number, time, path (Nonstop / via …), one short why-line. Header: route + date + “Ranked for your access”. Sticky CTA: “Continue with top pick” or, after selecting a row, “Start with this flight” → then Home / Current Plan. Do **not** skip this and land only on Current Plan. (Ways later is the ongoing list while working; Plan results is the first full graded reveal.) Full spec: `docs/rork-plan-results-build-spec.md`.
 4. Home / Current Plan — THE main screen. One composition only:
    - Brand + route + date
    - One current flight (number, time, countdown, judgment label, one short why line)
@@ -141,6 +141,9 @@ At the end, list every file you created or changed.
 ```text
 Add the Ways screen and Make-this-current flow for the selected Plan only.
 
+IMPORTANT: Ways is the *ongoing* list while working the day — NOT a replacement for Plan results.
+Plan results (after Build my plan) already showed all graded flights once. Ways reuses similar rows but sections: CURRENT · STILL OPEN · PASSED.
+
 Ways layout:
 - Header: ← route · date
 - Sections: CURRENT · STILL OPEN · PASSED
@@ -150,6 +153,7 @@ Ways layout:
 On confirm: SET_CURRENT_FLIGHT, add ActivityEvent kind=switched, return to Home.
 Quiet advance still works when time passes (simulate with a “Simulate departure” debug button on Home for now).
 
+Do not remove or skip Plan results on the build path.
 Do not change Splash, New Plan layout, tab structure, or data types except adding any fields Ways needs.
 Do not add a global Updates tab.
 At the end, list every file you changed.

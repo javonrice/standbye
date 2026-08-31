@@ -61,19 +61,27 @@ Later in the day, **See other ways** opens **Ways** (sectioned Current / Still o
 
 Each row is a **flight** (or connection as one row), ranked best → worst.
 
+**Locked grade system — same as Home / Ways / Flight detail. Do not invent letters (A/B/C/D) or Strong/OK/Long shot.**
+
+| Internal `judgment` | Traveler label (row hero) | Color |
+|---------------------|---------------------------|-------|
+| `favorable` | **Looks good** | green |
+| `mixed` | **Mixed** | amber |
+| `riskier` | **Riskier** | red |
+
 Show for every row:
 
 | Element | Traveler language | Mock field |
 |---------|-------------------|------------|
 | Rank | `#1`, `#2`, … or implicit by order | `rank` |
-| **Grade** | Letter or band — e.g. **A / B / C / D** or **Strong / OK / Weak** | `grade` |
+| **Grade / verdict** | **Looks good / Mixed / Riskier** (colored) — **row hero** | `judgment` |
 | Flight | `UA 1234` · time · path (Nonstop / via DEN) | `flightNumber`, `departLocal`, `pathLabel` |
 | One why | Short human line | `why` |
 | Status chip | optional: Still open / Tight / etc. | `statusLabel` |
 
-**Grade is the hero of the row** — not buried. Decision intelligence = **ordered list + visible grade + one why**.
+**Verdict word is the hero of the row** — not buried, not a tiny chip only. Decision intelligence = **ordered list + visible judgment + one why**.
 
-Do **not** show raw score numbers like `87.3` unless you also show grade; prefer grade + why.
+Do **not** show raw score numbers like `87.3`. Do **not** add letter grades on top of this system.
 
 ---
 
@@ -92,17 +100,17 @@ Do **not** show raw score numbers like `87.3` unless you also show grade; prefer
 │                                     │
 │  ─── Best first ─────────────────   │
 │                                     │
-│  ┌─ #1 ── A ─────────────────────┐  │
+│  ┌─ #1 ── Looks good (green) ────┐  │
 │  │  UA 456 · 8:15a · Nonstop     │  │
 │  │  Strong seat + timing fit     │  │
 │  └───────────────────────────────┘  │
 │                                     │
-│  ┌─ #2 ── B ─────────────────────┐  │
+│  ┌─ #2 ── Mixed (amber) ─────────┐  │
 │  │  UA 789 · 11:40a · via DEN    │  │
 │  │  Solid backup if morning fills│  │
 │  └───────────────────────────────┘  │
 │                                     │
-│  ┌─ #3 ── B ─────────────────────┐  │
+│  ┌─ #3 ── Riskier (red) ─────────┐  │
 │  │  …                            │  │
 │  └───────────────────────────────┘  │
 │                                     │
@@ -136,7 +144,7 @@ If only 1–2 flights: still show this screen (grades matter even for a short li
 |-----|--------|
 | Ranked for your access | Decision intelligence (UI label) |
 | Best first | Options engine / scored inventory |
-| Grade A / Strong | Probability 0.87 |
+| Looks good / Mixed / Riskier | Probability 0.87 · letter grades A–D |
 | Start with this flight | Activate primary option |
 | Continue with top pick | Commit ranked[0] |
 
@@ -152,7 +160,8 @@ After “build”, mock Plan should include:
 PlanResultsFlight {
   id: string
   rank: number          // 1 = best
-  grade: "A" | "B" | "C" | "D"   // or Strong | OK | Weak | Long shot
+  judgment: "favorable" | "mixed" | "riskier"
+  // UI label: Looks good | Mixed | Riskier (green / amber / red)
   flightNumber: string
   departLocal: string
   arriveLocal?: string
@@ -195,7 +204,8 @@ Ways can **reuse** row UI from Plan results, but Plan results is **required** on
 ## Acceptance (Rork)
 
 - [ ] After **Build my plan**, user always sees **Plan results** before Current Plan
-- [ ] Every flight row shows **rank (or order), grade, flight, path, why**
+- [ ] Every flight row shows **rank (or order), Looks good/Mixed/Riskier as row hero, flight, path, why**
+- [ ] Same three verdicts as Home / Ways / Flight detail — no A/B/C/D or Strong/OK system
 - [ ] Full list visible (scroll); not only top 1
 - [ ] CTA sets current and goes to **Home / Current Plan**
 - [ ] No API / backend
@@ -206,4 +216,4 @@ Ways can **reuse** row UI from Plan results, but Plan results is **required** on
 
 ## One-line for Rork
 
-**Add screen Plan results (`home/plan-results`): after Build my plan, show all ranked flights with visible grades and why-lines (decision intelligence); user continues with top pick or starts with a chosen flight, then Home / Current Plan. No backend.**
+**Add screen Plan results (`home/plan-results`): after Build my plan, show all ranked flights with Looks good / Mixed / Riskier as the row hero (same system as Home — no A/B/C/D), plus why-lines; user continues with top pick or starts with a chosen flight, then Home / Current Plan. No backend.**

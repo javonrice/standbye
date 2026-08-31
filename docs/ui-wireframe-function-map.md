@@ -218,20 +218,20 @@ Optional subpath — Known flight:
 │                                     │
 │  Ranked for your access             │
 │                                     │
-│  #1  A   UA 456 · 8:15a · Nonstop   │
-│      Strong seat + timing fit       │
-│                                     │
-│  #2  B   UA 789 · 11:40a · via DEN  │
-│      Solid backup if morning fills  │
-│                                     │
-│  #3  B   …                          │
-│  …                                  │
-│                                     │
-│  [ Continue with top pick ]         │
-└─────────────────────────────────────┘
+│  #1  Looks good   UA 456 · 8:15a · Nonstop │
+│      Strong seat + timing fit              │
+│                                            │
+│  #2  Mixed        UA 789 · 11:40a · via DEN│
+│      Solid backup if morning fills         │
+│                                            │
+│  #3  Riskier      …                        │
+│  …                                         │
+│                                            │
+│  [ Continue with top pick ]                │
+└────────────────────────────────────────────┘
 ```
 
-**Function:** Decision intelligence — full ranked list, **grade visible on every row**, one why-line; traveler starts with #1 or picks another → then Current Plan.
+**Function:** Decision intelligence — full ranked list, **Looks good / Mixed / Riskier as row hero** (same system as Home — no letter grades), one why-line; traveler starts with #1 or picks another → then Current Plan.
 
 **Vs Ways (F4):** Plan results = *first reveal* after build. Ways = *ongoing* list while working (Current / Still open / Passed). Same flights; different moment.
 
