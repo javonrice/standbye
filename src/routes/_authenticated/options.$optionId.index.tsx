@@ -1,18 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  ArrowLeft,
-  ChevronRight,
-  LifeBuoy,
-  Star,
-} from "lucide-react";
+import { ArrowLeft, Check, ChevronRight } from "lucide-react";
 
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { Screen } from "@/components/aircue/Layout";
 import { CueBadge } from "@/components/aircue/CueBadge";
 import { FlightHero } from "@/components/aircue/FlightHero";
-import { StandbyeTake } from "@/components/aircue/StandbyeTake";
 import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/SignalRow";
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
@@ -22,53 +16,54 @@ import { formatOptionArrival, formatSegmentArrival } from "@/lib/aircue/option-d
 
 import {
   agoLabel,
-  confidenceLabel,
   loadIsStale,
   loadSourceLabel,
   pillarTitle,
-  type Confidence,
 } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/options/$optionId/")({
   head: () => ({
     meta: [
-      { title: "Standby cue — Standbye" },
+      { title: "Option detail — Standbye" },
       {
         name: "description",
         content:
-          "Why this standby setup looks the way it does: availability, operations, history, and the backup options you would still have.",
+          "Why this option ranks where it does: the booking check, operating conditions, the backup runway, and any load you added.",
       },
-      { property: "og:title", content: "Standby cue — Standbye" },
+      { property: "og:title", content: "Option detail — Standbye" },
       { property: "og:description", content: "The reasoning behind one standby option." },
     ],
   }),
-  component: CueScreen,
+  component: OptionScreen,
 });
 
-function CueScreen() {
+type ContextLink =
+  | "/options/$optionId/context/history"
+  | "/options/$optionId/context/weather"
+  | "/options/$optionId/context/holiday";
+
+function OptionScreen() {
   const { optionId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, isError } = useOption(optionId);
   const setPrimary = useServerFn(setPrimaryOptionFn);
 
-  const makePrimary = useMutation({
-    mutationFn: () =>
-      setPrimary({ data: { planId: data!.planId!, optionId } }),
+  const useThisOption = useMutation({
+    mutationFn: () => setPrimary({ data: { planId: data!.planId!, optionId } }),
     onSuccess: async () => {
       const planId = data!.planId!;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["option", optionId] }),
         queryClient.invalidateQueries({ queryKey: ["plan", planId] }),
         queryClient.invalidateQueries({ queryKey: ["plans"] }),
-        queryClient.invalidateQueries({ queryKey: ["recent-searches"] }),
       ]);
       void navigate({ to: "/plans/$planId", params: { planId } });
     },
   });
 
   if (isLoading) {
-    return <p className="p-6 text-sm text-muted-foreground">Loading this cue…</p>;
+    return <p className="p-6 text-sm text-muted-foreground">Loading this option…</p>;
   }
 
   if (isError) {
@@ -94,7 +89,7 @@ function CueScreen() {
           Plans age out as the day moves. Build a fresh one to see current setups.
         </p>
         <Button asChild className="mt-4 h-11">
-          <Link to="/plan">Start a new plan</Link>
+          <Link to="/plan">Plan another trip</Link>
         </Button>
       </main>
     );
@@ -110,12 +105,27 @@ function CueScreen() {
           .join(", ")}`
       : "Nonstop";
 
+  const v2PillarTitle: Record<string, string> = {
+    availability: "Booking check",
+    operations: "Operations",
+    recovery: "Backup runway",
+    history: "Route history",
+  };
+
   const pillarLink: Record<string, { to: string }> = {
     availability: { to: "/options/$optionId/availability" },
     operations: { to: "/options/$optionId/context/weather" },
     recovery: { to: "/options/$optionId/recovery" },
     history: { to: "/options/$optionId/context/history" },
   };
+
+  const contextLinks: Array<{ to: ContextLink; label: string }> = [
+    { to: "/options/$optionId/context/history", label: "Route history" },
+    { to: "/options/$optionId/context/weather", label: "Weather" },
+  ];
+  if (option.evidence.holiday) {
+    contextLinks.push({ to: "/options/$optionId/context/holiday", label: "Holiday demand" });
+  }
 
   return (
     <Screen width="lg">
@@ -125,7 +135,7 @@ function CueScreen() {
           params={{ planId: data.planId }}
           className="flex items-center gap-1.5 text-sm text-muted-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to plan
+          <ArrowLeft className="h-4 w-4" /> {option.origin} → {option.dest}
         </Link>
       )}
 
@@ -167,54 +177,18 @@ function CueScreen() {
               </li>
             ))}
           </ul>
-
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex items-center gap-2">
           <CueBadge judgment={option.judgment} />
-          <span className="text-[13px] text-muted-foreground">
-            Confidence: {confidenceLabel[option.confidence as Confidence]}
-          </span>
         </div>
       </header>
 
-      {option.load && (
-        <section className="mt-6 rounded-2xl border border-border bg-card p-4">
-          <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Reported load
-          </p>
-          <p className="mt-1.5 text-[17px] font-semibold text-foreground">
-            {option.load.openSeats ?? "—"} open
-            {option.load.standbys !== null ? ` · ${option.load.standbys} listed` : ""}
-          </p>
-          {option.load.partyIncluded && (
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {option.load.partyIncluded === "yes"
-                ? "Your travelers were already in that standby count."
-                : option.load.partyIncluded === "no"
-                  ? "Your travelers were not listed yet when this was checked."
-                  : "Unsure whether your travelers were already in that count."}
-            </p>
-          )}
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            {loadSourceLabel[option.load.source] ?? "Reported"} · {agoLabel(option.load.checkedAt)}
-            {stale ? " — worth refreshing before you commit." : ""}
-          </p>
-          <Link
-            to="/options/$optionId/load"
-            params={{ optionId }}
-            className="mt-2.5 inline-flex items-center gap-1 text-sm font-semibold text-primary"
-          >
-            Update load <ChevronRight className="h-4 w-4" />
-          </Link>
-        </section>
-      )}
-
       <section className="mt-7">
-        <h2 className="font-display text-[19px] font-semibold tracking-tight">
-          Why Standbye says this
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Why this ranks here
         </h2>
-        <div className="mt-1 rounded-2xl border border-border bg-card px-4">
+        <div className="mt-2 rounded-2xl border border-border bg-card px-4">
           <SignalGroup>
             {option.pillars.map((p) => {
               const link = pillarLink[p.key];
@@ -222,8 +196,8 @@ function CueScreen() {
                 <SignalLinkRow
                   key={p.key}
                   state={p.state}
-                  title={pillarTitle[p.key]}
-                  detail={`${p.label} — ${p.detail}`}
+                  title={v2PillarTitle[p.key] ?? pillarTitle[p.key]}
+                  detail={p.label}
                   to={link.to}
                   params={{ optionId }}
                 />
@@ -231,59 +205,87 @@ function CueScreen() {
                 <SignalRow
                   key={p.key}
                   state={p.state}
-                  title={pillarTitle[p.key]}
-                  detail={`${p.label} — ${p.detail}`}
+                  title={v2PillarTitle[p.key] ?? pillarTitle[p.key]}
+                  detail={p.label}
                 />
               );
             })}
           </SignalGroup>
         </div>
-        {option.evidence.holiday && (
-          <Link
-            to="/options/$optionId/context/holiday"
-            params={{ optionId }}
-            className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-          >
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold">Holiday context</span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {option.evidence.holiday.name}
-              </span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </Link>
-        )}
       </section>
 
-      <StandbyeTake className="mt-6">{option.headline}</StandbyeTake>
+      <section className="mt-7">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Reported load
+        </h2>
+        <div className="mt-2 rounded-2xl border border-border bg-card p-4">
+          {option.load ? (
+            <>
+              <p className="text-[17px] font-semibold text-foreground">
+                {option.load.openSeats ?? "—"} open
+                {option.load.standbys !== null ? ` · ${option.load.standbys} listed` : ""}
+              </p>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {loadSourceLabel[option.load.source] ?? "Reported"} ·{" "}
+                {agoLabel(option.load.checkedAt)}
+                {stale ? " — worth checking again." : ""}
+              </p>
+            </>
+          ) : (
+            <p className="text-[15px] leading-snug text-muted-foreground">
+              No load yet. If you can see the real numbers, Standbye will re-rank the whole plan
+              around them.
+            </p>
+          )}
+          <Link
+            to="/options/$optionId/load"
+            params={{ optionId }}
+            className="mt-2.5 inline-flex items-center gap-1 text-sm font-semibold text-primary"
+          >
+            {option.load ? "Update load" : "Add a load"} <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
 
-      <div className="mt-6 space-y-2">
-        {data?.planId && (
-          data.isPrimary ? (
+      <section className="mt-7">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          More context
+        </h2>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {contextLinks.map((c) => (
+            <Link
+              key={c.to}
+              to={c.to}
+              params={{ optionId }}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3.5 py-2 text-[13px] font-medium"
+            >
+              {c.label} <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {data?.planId && (
+        <div className="mt-8">
+          {data.isPrimary ? (
             <p className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 text-sm font-semibold text-muted-foreground">
-              <Star className="h-4 w-4" /> Your primary option
+              <Check className="h-4 w-4" /> Your current plan
             </p>
           ) : (
             <Button
               className="h-12 w-full"
-              disabled={makePrimary.isPending}
-              onClick={() => makePrimary.mutate()}
+              disabled={useThisOption.isPending}
+              onClick={() => useThisOption.mutate()}
             >
-              <Star className="mr-2 h-4 w-4" />
-              {makePrimary.isPending ? "Saving…" : "Make this my primary option"}
+              {useThisOption.isPending ? "Saving…" : "Use this option"}
             </Button>
-          )
-        )}
-        <Button asChild variant="outline" className="h-12 w-full">
-          <Link to="/options/$optionId/recovery" params={{ optionId }}>
-            <LifeBuoy className="mr-2 h-4 w-4" /> See backup options
-          </Link>
-        </Button>
-      </div>
+          )}
+        </div>
+      )}
 
       <p className="mt-5 text-xs text-muted-foreground">
-        Standbye reads public availability and operating conditions. It is not airline load data and
-        never predicts whether you will clear.
+        Standbye reads public booking signals and operating conditions. It is not airline load data
+        and never predicts whether you will clear.
       </p>
     </Screen>
   );
@@ -295,35 +297,4 @@ function formatTravelDate(date: string | null): string | null {
   const [y, m, d] = date.split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function DetailLink({
-  to,
-  optionId,
-  title,
-  subtitle,
-}: {
-  to:
-    | "/options/$optionId/availability"
-    | "/options/$optionId/recovery"
-    | "/options/$optionId/context/history"
-    | "/options/$optionId/context/weather"
-    | "/options/$optionId/context/holiday";
-  optionId: string;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ optionId }}
-      className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-    >
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold">{title}</span>
-        <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-    </Link>
-  );
 }
