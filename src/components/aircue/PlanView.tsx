@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, CalendarRange, GitCompareArrows } from "lucide-react";
 
 import { FirstUseTeaching } from "@/components/aircue/FirstUseTeaching";
+import { LocalTime } from "@/components/aircue/LocalTime";
 import {
   PlanChangedBlock,
   PlanDecisionSection,
@@ -11,29 +12,35 @@ import {
 import { RouteOptionRow } from "@/components/aircue/RouteOptionRow";
 import { StandbyOptionRow } from "@/components/aircue/StandbyOptionRow";
 import { Button } from "@/components/ui/button";
-import type { StandbyPlan } from "@/lib/aircue/standby";
+import { formatOptionArrival } from "@/lib/aircue/option-display";
+import {
+  judgmentShort,
+  judgmentTone,
+  type StandbyOption,
+  type StandbyPlan,
+} from "@/lib/aircue/standby";
+import { cn } from "@/lib/utils";
 
 /**
- * The whole current-Plan experience. Rendered identically from Home (`/plan`,
- * when a current Plan exists) and from Plan Detail (`/plans/$planId`), so the
- * two surfaces can never drift apart.
+ * PLAN DETAIL = the full briefing. It opens with the same unified trip object
+ * the Home snapshot uses, so the two never feel like different products, then
+ * keeps going where Home stops: why this ranks here, backups, every route and
+ * the activity behind the plan.
  */
 export function PlanView({ plan }: { plan: StandbyPlan }) {
   const planId = plan.id;
+  const selected = plan.primaryOptionId
+    ? (plan.options.find((o) => o.id === plan.primaryOptionId) ?? null)
+    : null;
+  const recommended =
+    (plan.options.find((o) => o.id === plan.preferredOptionId) ?? plan.options[0]) ?? null;
+  const current = selected ?? recommended;
 
   return (
     <>
-      {/* 1–2. Route, date, travelers */}
-      <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight">
-        {plan.origin} → {plan.dest}
-      </h1>
-      <p className="mt-2 text-[15px] font-medium text-foreground">
-        {longDate(plan.travelDate)} · {plan.travelers} traveler
-        {plan.travelers === 1 ? "" : "s"}
-      </p>
+      {/* 1–3. One trip object: route, date, travelers, plan state */}
+      <TripBriefCard plan={plan} option={current} selected={!!selected} />
 
-      {/* 3. Overall plan state */}
-      <PlanStateLine plan={plan} />
 
       {plan.options.length === 0 ? (
         <ZeroOptionState plan={plan} />
