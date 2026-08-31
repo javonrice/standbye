@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarDays, MapPin, PlaneTakeoff, SlidersHorizontal, Users } from "lucide-react";
 
+import homeSky from "@/assets/home-sky.jpg";
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Screen } from "@/components/aircue/Layout";
