@@ -27,12 +27,12 @@ const judgments: { judgment: Judgment; meaning: string }[] = [
   {
     judgment: "favorable",
     meaning:
-      "Seats still look open, the day is running normally, and there is another flight behind this one if it slips. This is the kind of setup most people clear on.",
+      "The booking signal is soft, the day is running normally, and there is another flight behind this one if it slips. This is the kind of setup most people clear on.",
   },
   {
     judgment: "mixed",
     meaning:
-      "It can work, but there is less room than you want — fewer open seats, a busy day, or a thin backup. Worth taking if you can handle a wait.",
+      "It can work, but there is less room than you want — a tight booking signal, a busy day, or a thin backup. Worth taking if you can handle a wait.",
   },
   {
     judgment: "riskier",
@@ -42,26 +42,30 @@ const judgments: { judgment: Judgment; meaning: string }[] = [
   {
     judgment: "changed",
     meaning:
-      "Something moved after you started watching — a cancellation, a big delay, or seats disappearing. Open it and decide again before you head to the airport.",
+      "Something moved on your plan — a cancellation, a big delay, or the booking signal tightening. Open it and decide again before you head to the airport.",
   },
 ];
 
 const inputs = [
   {
-    title: "What is still bookable",
-    body: "Standbye checks how many seats the airline will still sell on the flight. If almost nothing is left for sale, there is almost nothing left for standby.",
+    title: "Booking check",
+    body: "Standbye checks how much the airline is still selling on the flight. That is a public demand signal, not a count of open standby seats — a flight can stop selling and still board light.",
   },
   {
-    title: "How today is running",
-    body: "Cancellations, long delays, and the earlier flights on the same route tell us whether the day is normal or already stacking people up.",
+    title: "Today's operation",
+    body: "Delays, cancellations, and airport conditions tell us whether the day is running normally or already stacking people up.",
   },
   {
-    title: "How the route usually behaves",
-    body: "Some routes run full and late most of the time. Past behavior sets our expectations before the day even starts.",
+    title: "Route behavior",
+    body: "Some routes run full and late most of the time. Historical patterns set expectations before the day even starts.",
   },
   {
-    title: "What backup you would have",
-    body: "If this one does not work, is there another flight later, or on a nearby airport, that still looks workable? A day with no backup is a riskier day.",
+    title: "Backup runway",
+    body: "What remains if the first attempt does not work — a later flight, or one from a nearby airport, that still looks workable. A day with no backup is a riskier day.",
+  },
+  {
+    title: "Loads you provide",
+    body: "When you enter or upload real load information, that is the strongest evidence Standbye has, and it outweighs the public booking signal.",
   },
 ];
 
@@ -74,9 +78,8 @@ function HowItWorks() {
 
       <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">How Standbye works</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
-        Standbye does not know your list position and never claims to. It reads the day around your
-        flight and tells you, in plain terms, whether the setup is worth your time. The call is
-        always yours.
+        Standbye does not know whether you&apos;ll clear. It helps you decide which setup makes the
+        most sense to try. The call is always yours.
       </p>
 
       <section className="mt-6">
@@ -107,16 +110,20 @@ function HowItWorks() {
         <h2 className="font-display text-base font-bold tracking-tight">Where we can be wrong</h2>
         <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
           <li>
-            Seat counts come from what is publicly for sale, not from the airline&apos;s standby
-            list. A flight can look open and still have a long list.
+            Standbye does not know whether you&apos;ll clear, does not invent open-seat counts, does
+            not know your list position, and does not show clearance probabilities.
+          </li>
+          <li>
+            The booking check reads what is publicly for sale, not the airline&apos;s standby list. A
+            flight can look open and still have a long list.
           </li>
           <li>
             Crew, aircraft swaps, and gate-side decisions happen after our last read. Weather can
             turn a clear day in an hour.
           </li>
           <li>
-            A load number you enter yourself always beats what Standbye infers. If you see the real
-            numbers, report them and we will use yours.
+            Real load information you provide always beats the public booking signal. If you see the
+            real numbers, add them and Standbye uses yours.
           </li>
         </ul>
       </section>
