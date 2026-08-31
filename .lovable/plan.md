@@ -1,50 +1,56 @@
-# Standbye V2 UX — audit saved, four-pass plan ready
+# Pass 3 Final Correction — presentation-only fixes
 
-No code changed. Two reference documents are now in the repo:
+Five targeted fixes to the Pass 3 implementation. No redesign of Option Detail, evidence panels, or LoadTask. No backend, ranking, scoring, eligibility, provider, or screenshot-infrastructure changes. Pass 4 does not start.
 
-- `docs/v2-ux-architecture-spec.md` — the full V2 screen-by-screen spec, mockups,
-  route map, Flighty interaction models and acceptance stories.
-- `docs/v2-ux-implementation-plan.md` — the repo audit, route-by-route mapping, the
-  list of things that would touch server logic, and the four-pass sequence.
+## 1. Rename "Public availability" → "Booking check"
 
-## What the audit found
+File: `src/routes/_authenticated/options.$optionId.availability.tsx`
 
-Every capability the spec asks for already exists. The problem is hierarchy and
-vocabulary, not missing functionality.
+- Route head metadata: `title` and `og:title` become "Booking check — Standbye"; `og:description` reworded (e.g. "What the public booking check found.").
+- `DetailShell` title prop: `"Public availability"` → `"Booking check"`.
+- Body copy: replace feature-name usage of "Public availability" with "public booking signal" phrasing (e.g. "The public booking check did not return a usable answer…").
+- No changes to the availability evidence, scoring, or route path (`/options/$optionId/availability` stays).
 
-- Navigation has four destinations; Updates is a product object it shouldn't be.
-- Home (`/plan`, 346 lines) carries cabin, carrier, routing mode, nearby airports,
-  Widen and recent searches inline.
-- Plan Detail exposes "Your primary option", "Make this my primary" and watch controls
-  as a peer block; loads, Widen, ways and compare all compete as equal CTAs.
-- Option Detail branches into five full-page evidence routes.
-- Loads is a single 495-line screen with no method picker and no payoff moment.
-- `/you` renders a second plans list.
-- Onboarding teaches booking checks, widening, loads and monitoring before the user has
-  ever built a plan.
+## 2. Remove duplicate evidence links on Option Detail
 
-## Flagged — will confirm before touching
+File: `src/routes/_authenticated/options.$optionId.index.tsx`
 
-- Primary vs preferred option stays exactly as-is in the data; the UI just stops naming
-  both, and "Use this option" calls the existing set-primary mutation.
-- Plans ACTIVE/UPCOMING/PAST is derived client-side from travel date; no migration.
-- Escape from a Plan passes context through search params rather than changing the
-  server function.
-- Ranking, scoring, eligibility, providers, gateway and recovery logic: untouched.
+- WHY THIS RANKS HERE keeps exactly three rows: Booking check, Operations, Backup runway.
+- MORE CONTEXT keeps Route history and Holiday demand (when applicable).
+- Remove the "Weather" link from MORE CONTEXT (line ~124) — Operations already links to `/options/$optionId/context/weather` (Operating Conditions screen), so the duplicate goes.
+- Ranking/pillar calculations untouched.
 
-## The four passes
+## 3. Remove invented quantitative bars from qualitative history
 
-1. **Navigation, shell and the Plan spine** — three-item nav, `/updates` out of nav,
-   Plan Detail hierarchy rebuild, changed-plan block at the top, Plans library sections.
-2. **Entry, Home and onboarding** — Home stripped to from/to/when/travelers, advanced
-   controls into a "Trip options" sheet, building state, shorter welcome, onboarding cut
-   to five steps with the teaching screens reused contextually.
-3. **Option detail, evidence sheets and loads** — flatten Option Detail, convert the five
-   evidence routes to sheets while keeping their URLs, rebuild loads as a task with the
-   "Plan updated · moved from #3 to #1" payoff, share it with the option-level load.
-4. **Widen, ways, compare, activity and profile** — Escape as an action of a Plan, "Every
-   way there", 2-up mobile compare with a verdict line, Activity, `/you` cleanup, and
-   `/how-it-works` absorbing the moved education.
+File: `src/routes/_authenticated/options.$optionId.context.history.tsx`
 
-Each pass ends with a working app, typecheck and tests green, and an iPhone-viewport
-walk of the screens it touched.
+- Delete `scaleFor()` (line ~31) and its two uses (`fill={scaleFor(history.delayPattern)}`, `fill={scaleFor(history.cancelPattern)}`).
+- Render delay/cancellation patterns as plain facts (e.g. "Late departures — Often delayed", "Cancellations — Rare") with no derived bar magnitude.
+- Bars remain only where the evidence has a real numeric metric; nothing else on the screen changes.
+
+## 4. Replace developer-language screenshot fallback
+
+File: `src/components/aircue/LoadTask.tsx` (line ~340)
+
+- "Screenshot parsing is not configured on this environment yet. You can still enter…" → "Screenshot reading isn't available right now. You can still enter the load manually."
+- Screenshot infrastructure unchanged.
+
+## 5. Strengthen the load payoff
+
+File: `src/components/aircue/LoadTask.tsx` (payoff block)
+
+- Keep the existing before/after rank comparison.
+- When exactly one meaningful ranking change occurred, render it as the dominant payoff:
+  - "✓ Plan updated"
+  - "UA 1847 moved from #3 → #1" (large)
+  - "Your load changed the order."
+- When no order changed, retain: "Your order did not change — the numbers backed up what Standbye already thought."
+- Multiple changes: list them compactly under the "Plan updated" heading.
+- Ranking logic unchanged.
+
+## Verification
+
+1. `bunx tsgo --noEmit` clean.
+2. `bun test` — expect same baseline (174 passing, 6 pre-existing watch-signal failures).
+3. Authenticated 390×844 browser inspection: Option Detail (three-row WHY + deduped MORE CONTEXT), all five evidence routes, screenshot load flow (new fallback copy), manual load flow, and both payoff variants.
+4. Stop for review. Pass 4 not started.
