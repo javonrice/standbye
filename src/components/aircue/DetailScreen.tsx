@@ -1,14 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
 import { pillarDot, type PillarState } from "@/lib/aircue/standby";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared language for the secondary intelligence screens. These are drill-downs
- * from the option detail, so they all share the same back link, lead line,
- * module and bar treatments.
+ * Shared language for the evidence panels. V2 presents these as pushed sheets
+ * over the option detail: grabber, title, content, one Done action.
  */
 
 export function DetailShell({
@@ -23,22 +22,25 @@ export function DetailShell({
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
-      <Link
-        to="/options/$optionId"
-        params={{ optionId }}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to the cue
-      </Link>
+    <main className="min-h-dvh bg-muted/40 pb-10">
+      <div className="mx-auto w-full max-w-md rounded-t-3xl border-x border-b border-border bg-background px-5 pb-10 pt-3 shadow-card md:max-w-2xl md:px-10">
+        <div className="mx-auto h-1.5 w-10 rounded-full bg-border" aria-hidden />
 
-      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">{title}</h1>
-      {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+        <h1 className="mt-5 font-display text-2xl font-bold tracking-tight">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
 
-      {children}
+        {children}
+
+        <Button asChild variant="outline" className="mt-8 h-12 w-full">
+          <Link to="/options/$optionId" params={{ optionId }}>
+            Done
+          </Link>
+        </Button>
+      </div>
     </main>
   );
 }
+
 
 /** The interpretation, stated before any data. */
 export function DetailLead({ state, label }: { state: PillarState; label: string }) {
