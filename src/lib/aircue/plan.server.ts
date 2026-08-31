@@ -424,6 +424,7 @@ export async function buildPlan(
         scanned: ranked.scanned,
         gateways: ranked.gateways,
         strategies: ranked.strategies,
+        strategyDiscovery: ranked.strategyDiscovery,
         ...accessPrefs,
       },
     })
@@ -543,6 +544,7 @@ export async function buildEscapePlan(
         scanned: { origins: [origin], dests: [dest] },
         gateways: ranked.gateways,
         strategies: ranked.strategies,
+        strategyDiscovery: ranked.strategyDiscovery,
       },
     })
     .eq("id", planId);
@@ -747,6 +749,9 @@ export async function loadPlan(
   const strategies = storedStrategies?.length
     ? attachOptionsToStrategies(storedStrategies, options)
     : strategiesFromLegacyPlan(options, gateways);
+  const strategyDiscovery =
+    (prefs["strategyDiscovery"] as StandbyPlan["strategyDiscovery"]) ??
+    ({ status: "unavailable", checkedAt: null } as const);
   const primaryOptionId = (plan["primary_option_id"] as string | null) ?? null;
   const preferredOptionId = options[0]?.id ?? null;
 
@@ -781,6 +786,7 @@ export async function loadPlan(
     },
     gateways,
     strategies,
+    strategyDiscovery,
     routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
     mode: (prefs["mode"] as StandbyPlan["mode"]) ?? "standby",
     standbyDayShared: prefs["standbyDayShared"] === true,
@@ -1315,6 +1321,7 @@ async function syncPlanOptionsFromRanked(
         scanned: ranked.scanned,
         gateways: ranked.gateways,
         strategies: ranked.strategies,
+        strategyDiscovery: ranked.strategyDiscovery,
       },
     })
     .eq("id", planId);

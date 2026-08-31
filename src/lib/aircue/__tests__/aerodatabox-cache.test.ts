@@ -143,7 +143,7 @@ describe("fetchDepartureBoard FIDS keys", () => {
 
     const { fetchDepartureBoard } = await import("@/lib/aircue/aerodatabox.server");
     await fetchDepartureBoard("ORD", "2026-08-29", "2026-08-29T00:00", "2026-08-29T11:59");
-    expect(upsertedKey).toBe("adb:fids:v2:ORD:2026-08-29:00:00-11:59");
+    expect(upsertedKey).toBe("adb:fids:v2:ORD:2026-08-29:00:00-11:59:Departure");
 
     apiCalls = 0;
     await fetchDepartureBoard("ORD", "2026-08-29", "2026-08-29T00:00", "2026-08-29T11:59");
@@ -163,8 +163,8 @@ describe("fetchDepartureBoard FIDS keys", () => {
     await fetchDepartureBoard("ORD", "2026-08-29", "2026-08-29T00:00", "2026-08-29T11:59");
     const morningKey = upsertedKey;
     await fetchDepartureBoard("ORD", "2026-08-29", "2026-08-29T12:00", "2026-08-29T23:59");
-    expect(morningKey).toBe("adb:fids:v2:ORD:2026-08-29:00:00-11:59");
-    expect(upsertedKey).toBe("adb:fids:v2:ORD:2026-08-29:12:00-23:59");
+    expect(morningKey).toBe("adb:fids:v2:ORD:2026-08-29:00:00-11:59:Departure");
+    expect(upsertedKey).toBe("adb:fids:v2:ORD:2026-08-29:12:00-23:59:Departure");
     expect(apiCalls).toBe(2);
   });
 });

@@ -23,10 +23,11 @@ export function fidsCacheKey(
   travelDate: string,
   windowStartLocal: string,
   windowEndLocal: string,
+  direction: "Departure" | "Arrival" = "Departure",
 ): string {
   const start = extractWindowClock(windowStartLocal);
   const end = extractWindowClock(windowEndLocal);
-  return `adb:fids:v2:${iata.trim().toUpperCase()}:${travelDate}:${start}-${end}`;
+  return `adb:fids:v2:${iata.trim().toUpperCase()}:${travelDate}:${start}-${end}:${direction}`;
 }
 
 /** Shared cancel-lookback window for a local departure clock. */

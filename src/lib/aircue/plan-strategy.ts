@@ -3,6 +3,20 @@
  * Separates viable path discovery from deep option scoring/ranking.
  */
 import type { GatewayOption, OptionSegment, StandbyOption } from "@/lib/aircue/standby";
+import {
+  connectionEvidenceFromBuild,
+  type ConnectionGatewayBuild,
+} from "@/lib/aircue/strategy-discovery.server";
+
+/** Normalized connection evidence for UI — prefer over gateway long-term. */
+export interface StrategyConnectionEvidence {
+  via: string;
+  inboundCount: number;
+  onwardCount: number;
+  summary: string;
+}
+
+export type { StrategyDiscoveryMeta, StrategyDiscoveryStatus } from "@/lib/aircue/network-snapshot.server";
 
 /** Client-safe strategy row on StandbyPlan. */
 export interface PlanStrategy {
@@ -14,9 +28,11 @@ export interface PlanStrategy {
   optionCount: number;
   bestOptionId: string | null;
   bestRank: number | null;
+  /** Normalized connection evidence; null for direct paths. */
+  connection: StrategyConnectionEvidence | null;
   /**
-   * Existing gateway discovery evidence for connection paths (path.length >= 3).
-   * Null for direct paths.
+   * Legacy gateway discovery blob. Prefer `connection` in new UI.
+   * @deprecated
    */
   gateway: GatewayOption | null;
 }
@@ -25,6 +41,7 @@ export interface PlanStrategy {
 export interface StoredPlanStrategy {
   id: string;
   path: string[];
+  connection: StrategyConnectionEvidence | null;
   gateway: GatewayOption | null;
   /** Stable discovery order when no scored option exists. Lower = earlier. */
   discoveryOrder: number;
@@ -38,6 +55,7 @@ export interface StrategyOptionRef {
 
 export interface ConnectionStrategySeed {
   path: string[];
+  connection: StrategyConnectionEvidence;
   gateway: GatewayOption;
   discoveryOrder: number;
 }
@@ -97,6 +115,7 @@ export function buildStoredStrategies(input: {
     map.set(id, {
       id,
       path,
+      connection: seed.connection,
       gateway: seed.gateway,
       discoveryOrder: seed.discoveryOrder,
     });
@@ -110,6 +129,7 @@ export function buildStoredStrategies(input: {
     map.set(id, {
       id,
       path,
+      connection: null,
       gateway: null,
       discoveryOrder: 10_000 + ref.rank,
     });
@@ -164,6 +184,7 @@ export function attachOptionsToStrategies(
       optionCount: matches.length,
       bestOptionId: best?.id ?? null,
       bestRank: best?.rank ?? null,
+      connection: s.connection,
       gateway: s.gateway,
     };
   });
@@ -185,6 +206,7 @@ export function strategiesFromLegacyPlan(
       optionCount: 0,
       bestOptionId: null,
       bestRank: null,
+      connection: null,
       gateway: null,
     };
     row.optionIds.push(option.id);
@@ -199,7 +221,15 @@ export function strategiesFromLegacyPlan(
   for (const g of gateways) {
     const via = norm(g.hub);
     const match = [...grouped.values()].find((s) => s.path.length === 3 && s.path[1] === via);
-    if (match) match.gateway = g;
+    if (match) {
+      match.gateway = g;
+      match.connection = {
+        via,
+        inboundCount: g.inboundShots.length,
+        onwardCount: g.onwardCount,
+        summary: g.summary,
+      };
+    }
   }
 
   return [...grouped.values()].sort((a, b) => {
@@ -229,18 +259,16 @@ export function optionRefsFromRankedOptions(
 
 /** Verified gateway builds → connection strategy seeds (includes unscored paths). */
 export function connectionSeedsFromGatewayBuilds(
-  builds: Array<{
-    hub: string;
-    best: { first: { origin: string }; second: { dest: string } };
-  }>,
+  builds: ConnectionGatewayBuild[],
   gateways: GatewayOption[],
 ): ConnectionStrategySeed[] {
   return builds.map((build, i) => ({
     path: connectionPathFromLegs({
-      firstOrigin: build.best.first.origin,
+      firstOrigin: build.firstOrigin,
       via: build.hub,
       finalDest: build.best.second.dest,
     }),
+    connection: connectionEvidenceFromBuild(build),
     gateway: gateways[i]!,
     discoveryOrder: i,
   }));

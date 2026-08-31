@@ -297,7 +297,7 @@ export async function fetchDepartureBoard(
 ): Promise<{ departures: AdbFlight[]; budgetBlocked: boolean; fromCache: boolean }> {
   if (!aeroDataBoxEnabled()) return { departures: [], budgetBlocked: true, fromCache: false };
 
-  const cacheKey = fidsCacheKey(iata, travelDate, windowStartLocal, windowEndLocal);
+  const cacheKey = fidsCacheKey(iata, travelDate, windowStartLocal, windowEndLocal, "Departure");
 
   const result = await cachedCall<{ departures?: AdbFlight[] }>(
     cacheKey,
@@ -308,6 +308,31 @@ export async function fetchDepartureBoard(
 
   return {
     departures: result.data?.departures ?? [],
+    budgetBlocked: result.budgetBlocked,
+    fromCache: result.fromCache,
+  };
+}
+
+/** Tier 2: arrivals board for one airport/day/window. Cached ~1h. Key includes direction. */
+export async function fetchArrivalBoard(
+  iata: string,
+  travelDate: string,
+  windowStartLocal: string,
+  windowEndLocal: string,
+): Promise<{ arrivals: AdbFlight[]; budgetBlocked: boolean; fromCache: boolean }> {
+  if (!aeroDataBoxEnabled()) return { arrivals: [], budgetBlocked: true, fromCache: false };
+
+  const cacheKey = fidsCacheKey(iata, travelDate, windowStartLocal, windowEndLocal, "Arrival");
+
+  const result = await cachedCall<{ arrivals?: AdbFlight[]; departures?: AdbFlight[] }>(
+    cacheKey,
+    adbFidsTtlSeconds(),
+    "fids-arrivals",
+    `/flights/airports/iata/${iata}/${windowStartLocal}/${windowEndLocal}?withLeg=true&direction=Arrival&withCancelled=true&withCodeshared=false&withCargo=false&withPrivate=false&withLocation=false`,
+  );
+
+  return {
+    arrivals: result.data?.arrivals ?? [],
     budgetBlocked: result.budgetBlocked,
     fromCache: result.fromCache,
   };

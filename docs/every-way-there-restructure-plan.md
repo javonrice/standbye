@@ -1,9 +1,9 @@
 # Every Way There — Full Plan Restructure
 
-**Status:** Master plan — architecture + phased delivery  
+**Status:** Locked master plan — Phase 2 implemented on branch  
 **Audience:** Cursor, Lovable, product  
-**Branch:** `cursor/plan-strategy-contract-98c4` (PR #10 — Strategy contract ✅)  
-**Next:** Board intersection discovery (not yet implemented)
+**Branch:** `cursor/plan-strategy-contract-98c4` (PR #10)  
+**Next:** Live route-shape validation, then Phase 4 Lovable UI (not before)
 
 ---
 
@@ -202,9 +202,26 @@ No fake numeric scores for unscored strategies.
 
 ---
 
-## 5. Board intersection discovery (Phase 2 — 🔜 next)
+## 5. Board intersection discovery (Phase 2 — ✅ implemented)
 
 **This is the breakthrough that makes Every Way There truthful at scale.**
+
+### Locked refinements (2026-08-31)
+
+1. **`strategyDiscovery` completeness metadata** on `StandbyPlan` — never imply a full search when boards were partial:
+
+```typescript
+strategyDiscovery: {
+  status: "complete" | "partial" | "unavailable";
+  checkedAt: string | null;
+}
+```
+
+2. **Normalize connection evidence on Strategy** — `connection: { via, inboundCount, onwardCount, summary }`. Keep `gateway` as deprecated server evidence only; Lovable should not depend on `GatewayOption` long-term.
+
+3. **Reuse the network snapshot for direct discovery** — once origin departure boards are fetched, direct `O→D` legs come from the same snapshot (`routeLegsFromSnapshot`), not a second FIDS pass.
+
+4. **All viable paths = backend truth; deep score = recommendation** — board intersection emits every actionable Strategy. Deep scoring still picks the handful in `plan.options[]`. Presentation tiers (“Best ways” / “More ways”) are Lovable-only — not route filtering.
 
 ### Concept
 
@@ -338,16 +355,18 @@ No repeated “does OKC go to ORD?” provider queries.
 
 ### Implementation checklist (Phase 2)
 
-- [ ] `fetchArrivalBoard()` in `aerodatabox.server.ts` (mirror departures)
-- [ ] Extend `fidsCacheKey()` with direction: `…:{Departure|Arrival}` (avoid cache collision)
-- [ ] New `discoverConnectionStrategiesViaBoardIntersection()` in `ranking.server.ts` (or sibling module)
-- [ ] Replace per-station `findRouteLegs(hub, dest)` loop inside `findGateways()`
-- [ ] Feed output into existing `buildStrategyCatalog()` — **PlanStrategy contract unchanged**
-- [ ] Multi-origin: union departure dests from IAH + HOU
-- [ ] Multi-dest: union arrival origins from ORD + MDW
-- [ ] Preserve 20s search budget (`outOfTime()`); return partial strategies if budget expires
-- [ ] Tests: OKC appears when in intersection; cap-8 miss cases covered
-- [ ] Update live test scripts
+- [x] `fetchArrivalBoard()` in `aerodatabox.server.ts` (mirror departures)
+- [x] Extend `fidsCacheKey()` with direction: `…:{Departure|Arrival}` (avoid cache collision)
+- [x] `network-snapshot.server.ts` — shared origin departure + dest arrival snapshot
+- [x] `strategy-discovery.server.ts` — board intersection in memory
+- [x] Wire `rankStandbyOptions` / `rankEscapeRoutes` — snapshot for direct legs + intersection for connections
+- [x] Remove per-station `findRouteLegs(hub, dest)` fan-out from normal discovery
+- [x] Feed output into existing `buildStrategyCatalog()` — PlanStrategy contract unchanged
+- [x] Multi-origin / multi-dest via expanded airport lists on the same snapshot
+- [x] Preserve 20s search budget (`outOfTime()`); `strategyDiscovery.status = "partial"` when boards fail
+- [x] `strategyDiscovery` persisted on plan prefs + exposed on `StandbyPlan`
+- [x] `Strategy.connection` normalized evidence; `gateway` deprecated
+- [x] Unit tests updated; live script `scripts/test-phase2-route-shapes.ts`
 
 ### What Phase 2 does **not** change
 
@@ -501,15 +520,15 @@ strategy.gateway       // inbound/onward evidence for connections
 
 **Merged direction:** Keep. Do not undo.
 
-### Phase 2 — Board intersection discovery 🔜
+### Phase 2 — Board intersection discovery ✅
 
-- [ ] Arrival board client + cache keys  
-- [ ] Replace per-station onward FIDS fan-out  
-- [ ] Broad truthful `plan.strategies[]`  
-- [ ] Live test + integration tests  
-- [ ] Update docs  
+- [x] Arrival board client + cache keys  
+- [x] Replace per-station onward FIDS fan-out  
+- [x] Broad truthful `plan.strategies[]` + `strategyDiscovery` metadata  
+- [x] Live route-shape script + unit tests  
+- [x] Update docs  
 
-**Gate for Lovable Every Way There UI.**
+**Gate for Lovable Every Way There UI** — backend ready; UI still held.
 
 ### Phase 3 — Standby layover relaxation (optional follow-up)
 
@@ -582,6 +601,7 @@ Cached departure/arrival boards reuse across:
 | `docs/every-way-there-backend-audit.md` | Pre-implementation audit |
 | `scripts/test-plan-strategy-live.ts` | Live ADB/GF8 + strategy tests |
 | `scripts/test-board-intersection.ts` | Board intersection proof |
+| `scripts/test-phase2-route-shapes.ts` | Multi route-shape Phase 2 smoke |
 
 ---
 
@@ -596,10 +616,10 @@ Cached departure/arrival boards reuse across:
 
 **Phase 1 (done):** PlanStrategy contract + persistence + tests.
 
-**Phase 2 (next):** Board intersection — origin departures + destination arrivals, intersect in memory, ~4 FIDS calls instead of ~18, ~63 viable paths instead of ~8 checked.
+**Phase 2 (done):** Board intersection — shared network snapshot, origin departures + destination arrivals, intersect in memory, ~4 FIDS calls instead of ~18, all viable paths in `plan.strategies[]`, deep score still top N only. `strategyDiscovery` marks completeness.
 
 **Phase 3 (later):** Relax max layover for standby-style long sits.
 
-**Phase 4 (Lovable):** UI from `plan.strategies`; gate on Phase 2.
+**Phase 4 (Lovable):** UI from `plan.strategies`; backend gate cleared — UI still held.
 
 **Rare win:** More capability **and** lower API cost at the same time — without replacing the Strategy contract you already have.

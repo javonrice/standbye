@@ -4,6 +4,7 @@
 import { describe, expect, it } from "bun:test";
 
 import type { GatewayOption, OptionSegment, StandbyOption } from "@/lib/aircue/standby";
+import type { ConnectionGatewayBuild } from "@/lib/aircue/strategy-discovery.server";
 import {
   airportPathFromOptionLike,
   attachOptionsToStrategies,
@@ -41,6 +42,38 @@ const gateway = (hub: string): GatewayOption => ({
   recoveryLabel: "Good",
   caveat: null,
   addedMinutes: null,
+});
+
+const connection = (via: string) => ({
+  via,
+  inboundCount: 2,
+  onwardCount: 2,
+  summary: `${via} works`,
+});
+
+const mockBuild = (
+  hub: string,
+  firstOrigin: string,
+  finalDest: string,
+): ConnectionGatewayBuild => ({
+  firstOrigin,
+  hub,
+  city: hub,
+  inbound: [],
+  onward: [],
+  best: {
+    first: { origin: firstOrigin, dest: hub, schedDepUtc: "2026-08-31T13:00:00Z", schedArrUtc: "2026-08-31T15:00:00Z" },
+    second: { origin: hub, dest: finalDest, schedDepUtc: "2026-08-31T17:00:00Z", schedArrUtc: "2026-08-31T19:00:00Z" },
+    hub,
+    layoverMinutes: 120,
+  },
+  addedMinutes: null,
+  caveat: null,
+  state: "fair",
+  label: "Possible",
+  summary: `${hub} works`,
+  recoveryState: "fair",
+  recoveryLabel: "Good",
 });
 
 const mockOption = (
@@ -133,6 +166,7 @@ describe("buildStoredStrategies", () => {
       connectionSeeds: [
         {
           path: ["IAH", "OKC", "ORD"],
+          connection: connection("OKC"),
           gateway: gateway("OKC"),
           discoveryOrder: 0,
         },
@@ -147,6 +181,7 @@ describe("buildStoredStrategies", () => {
       optionRefs: [],
       connectionSeeds: hubs.map((hub, i) => ({
         path: connectionPathFromLegs({ firstOrigin: "IAH", via: hub, finalDest: "ORD" }),
+        connection: connection(hub),
         gateway: gateway(hub),
         discoveryOrder: i,
       })),
@@ -181,7 +216,7 @@ describe("buildStoredStrategies", () => {
           segments: [seg("IAH", "OKC", "UA3"), seg("OKC", "ORD", "UA4")],
         },
       ]),
-      connectionSeeds: [{ path, gateway: gateway("OKC"), discoveryOrder: 0 }],
+      connectionSeeds: [{ path, connection: connection("OKC"), gateway: gateway("OKC"), discoveryOrder: 0 }],
     });
     expect(stored.filter((s) => s.id === "IAH>OKC>ORD")).toHaveLength(1);
   });
@@ -192,7 +227,7 @@ describe("buildStoredStrategies", () => {
         { rank: 1, optionKey: "d", kind: "nonstop", origin: "IAH", dest: "ORD", segments: [seg("IAH", "ORD", "UA1")] },
       ]),
       connectionSeeds: [
-        { path: ["IAH", "STL", "ORD"], gateway: gateway("STL"), discoveryOrder: 1 },
+        { path: ["IAH", "STL", "ORD"], connection: connection("STL"), gateway: gateway("STL"), discoveryOrder: 1 },
       ],
     });
     const stl = stored.find((s) => s.id === "IAH>STL>ORD");
@@ -241,12 +276,7 @@ describe("buildStoredStrategies", () => {
 describe("multi-origin connection paths", () => {
   it("uses the inbound leg origin in the strategy path", () => {
     const seeds = connectionSeedsFromGatewayBuilds(
-      [
-        {
-          hub: "DEN",
-          best: { first: { origin: "HOU" }, second: { dest: "ORD" } },
-        },
-      ],
+      [mockBuild("DEN", "HOU", "ORD")],
       [gateway("DEN")],
     );
     expect(seeds[0]!.path).toEqual(["HOU", "DEN", "ORD"]);
@@ -259,10 +289,7 @@ describe("buildStrategyCatalog", () => {
       rankedOptions: [
         { rank: 1, optionKey: "d", kind: "nonstop", origin: "IAH", dest: "ORD", segments: [seg("IAH", "ORD", "UA1")] },
       ],
-      gatewayBuilds: [
-        { hub: "OKC", best: { first: { origin: "IAH" }, second: { dest: "ORD" } } },
-        { hub: "DEN", best: { first: { origin: "HOU" }, second: { dest: "ORD" } } },
-      ],
+      gatewayBuilds: [mockBuild("OKC", "IAH", "ORD"), mockBuild("DEN", "HOU", "ORD")],
       gateways: [gateway("OKC"), gateway("DEN")],
     });
     expect(strategies.map((s) => s.id).sort()).toEqual(["HOU>DEN>ORD", "IAH>OKC>ORD", "IAH>ORD"]);

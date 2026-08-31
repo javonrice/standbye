@@ -285,6 +285,8 @@ await mockModuleIsolated("@/lib/aircue/ranking.server", () => ({
       reason: null,
       scanned: { origins: [input.origin], dests: [input.dest] },
       gateways: [],
+      strategies: [],
+      strategyDiscovery: { status: "unavailable", checkedAt: null },
       nonstopCount: 1,
       incomplete: false,
     };
