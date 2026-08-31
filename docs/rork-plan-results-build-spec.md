@@ -1,0 +1,234 @@
+# Rork build — Plan results (graded flights / decision intelligence)
+
+**Paste this into the Rork Cursor chat.** UI + mock data only. **No backend, no APIs, no Supabase.**
+
+This screen was **missing** from earlier prompts. Insert it **between New Plan and Home / Current Plan**.
+
+---
+
+## Why this screen exists
+
+After **Build my plan**, the traveler must **not** jump straight to Home with only one current flight.
+
+They first see **decision intelligence**: **every ranked flight for this Plan**, each with a **grade** (and a short why). That is the “Standbye thought about this trip” moment.
+
+Only **after** they absorb the list (and usually confirm or accept a starting flight) do they land on **Home / Current Plan** — the day-of HQ with one current flight and watching.
+
+```text
+New Plan  →  [Build my plan]  →  PLAN RESULTS (graded list)  →  Home / Current Plan
+                                      ↑
+                               THIS WAS MISSING
+```
+
+**Ways** (later, under Home) is the *ongoing* list while working the day.  
+**Plan results** is the *first reveal* after build — same underlying flights, **grades front and center**, choose-how-to-start energy.
+
+---
+
+## Job
+
+| | |
+|--|--|
+| **Job id** | **F2.5** (between F2 Create and F3 Work) |
+| **Function** | Show decision intelligence |
+| **Screen** | **Plan results** |
+| **One job** | See every graded flight for this Plan; pick how to start (or accept #1) |
+| **Route** | `home/plan-results` (stack under Home; after build, replace New Plan with this) |
+| **Tabs** | Still **Home · Plans · You** — this lives in the Home stack |
+
+**Not a fourth tab. Not Settings. Not Flight detail.**
+
+---
+
+## Entry / exit
+
+| From | Action | To |
+|------|--------|-----|
+| New Plan | Tap **Build my plan** (valid From / To / When) | **Plan results** (this screen) |
+| Plan results | Tap a flight row | **Confirm sheet** (not a full push yet) |
+| Confirm sheet | **Start with this flight** | Home / Current Plan (that flight = current) |
+| Confirm sheet | **See details** | Flight detail (F10); back returns to Plan results |
+| Confirm sheet | Dismiss | Stay on Plan results |
+| Plan results | **Continue with top pick** (sticky footer; no row needed) | Home / Current Plan with #1 as current |
+| Plan results | Soft back | New Plan (edit) — rare |
+
+**Tap behavior (locked — answer C):**
+
+```text
+Tap row
+  → bottom sheet
+      flight label · verdict · why
+      [ Start with this flight ]   ← primary
+      [ See details ]              ← secondary → Flight Detail
+      [ Keep looking ]             ← dismiss (optional)
+```
+
+Same pattern as Ways “Make this current” sheet. Do **not** only highlight the row and rewrite the footer (A). Do **not** require Flight Detail to start (B). Do **not** put a separate Details link on every row (D).
+
+**Do not** skip this screen on first build.  
+**Do not** auto-land on Current Plan with no list reveal.
+
+Later in the day, **See other ways** opens **Ways** (sectioned Current / Still open / Passed) — not a full rebuild of Plan results. Same flights, different framing.
+
+---
+
+## What “graded” means (UI, mock)
+
+Each row is a **flight** (or connection as one row), ranked best → worst.
+
+**Locked grade system — same as Home / Ways / Flight detail. Do not invent letters (A/B/C/D) or Strong/OK/Long shot.**
+
+| Internal `judgment` | Traveler label (row hero) | Color |
+|---------------------|---------------------------|-------|
+| `favorable` | **Looks good** | green |
+| `mixed` | **Mixed** | amber |
+| `riskier` | **Riskier** | red |
+
+Show for every row:
+
+| Element | Traveler language | Mock field |
+|---------|-------------------|------------|
+| Rank | `#1`, `#2`, … or implicit by order | `rank` |
+| **Grade / verdict** | **Looks good / Mixed / Riskier** (colored) — **row hero** | `judgment` |
+| Flight | `UA 1234` · time · path (Nonstop / via DEN) | `flightNumber`, `departLocal`, `pathLabel` |
+| One why | Short human line | `why` |
+| Status chip | optional: Still open / Tight / etc. | `statusLabel` |
+
+**Verdict word is the hero of the row** — not buried, not a tiny chip only. Decision intelligence = **ordered list + visible judgment + one why**.
+
+Do **not** show raw score numbers like `87.3`. Do **not** add letter grades on top of this system.
+
+---
+
+## Screen composition (one job)
+
+**First viewport:** brand-scale Plan context + one line that this is the ranked set + start of the graded list.  
+**Not** a dashboard of stats. **Not** Current Plan (no single-flight hero yet).
+
+```text
+┌─────────────────────────────────────┐
+│  Standbye                           │
+│  SFO → JFK                          │
+│  Sat Mar 14 · 1 traveler            │
+│                                     │
+│  Ranked for your access             │  ← one supporting sentence
+│                                     │
+│  ─── Best first ─────────────────   │
+│                                     │
+│  ┌─ #1 ── Looks good (green) ────┐  │
+│  │  UA 456 · 8:15a · Nonstop     │  │
+│  │  Strong seat + timing fit     │  │
+│  └───────────────────────────────┘  │
+│                                     │
+│  ┌─ #2 ── Mixed (amber) ─────────┐  │
+│  │  UA 789 · 11:40a · via DEN    │  │
+│  │  Solid backup if morning fills│  │
+│  └───────────────────────────────┘  │
+│                                     │
+│  ┌─ #3 ── Riskier (red) ─────────┐  │
+│  │  …                            │  │
+│  └───────────────────────────────┘  │
+│                                     │
+│  … more rows …                      │
+│                                     │
+│  [ Continue with top pick ]         │  ← sticky footer OK
+│  or after selecting a row:          │
+│  [ Start with this flight ]         │
+└─────────────────────────────────────┘
+```
+
+### Rules
+
+- **All** graded flights for the Plan appear here (mock: 5–8 rows). Scroll is fine.
+- Order = rank 1…n (best first).
+- **No** “current” section yet unless you already auto-highlighted #1 as suggested start — still show the full list.
+- Path chips optional above list (All / Nonstop / via …) — filter only; don’t replace grades.
+- Primary CTA: accept **#1** or **selected** row → Home.
+- Secondary: tap row → sheet **Start with this flight** / **See details** (details → Flight detail if you have F10).
+- One composition: plan header + graded list + one CTA. No Activity, no Load, no watching line yet.
+
+### Empty / thin (mock edge)
+
+If only 1–2 flights: still show this screen (grades matter even for a short list). Don’t skip to Home.
+
+---
+
+## Copy (locked tone)
+
+| Use | Avoid |
+|-----|--------|
+| Ranked for your access | Decision intelligence (UI label) |
+| Best first | Options engine / scored inventory |
+| Looks good / Mixed / Riskier | Probability 0.87 · letter grades A–D |
+| Start with this flight | Activate primary option |
+| Continue with top pick | Commit ranked[0] |
+
+Internal docs may say “decision intelligence”; **traveler UI must not**.
+
+---
+
+## Mock data (extend Plan)
+
+After “build”, mock Plan should include:
+
+```ts
+PlanResultsFlight {
+  id: string
+  rank: number          // 1 = best
+  judgment: "favorable" | "mixed" | "riskier"
+  // UI label: Looks good | Mixed | Riskier (green / amber / red)
+  flightNumber: string
+  departLocal: string
+  arriveLocal?: string
+  pathLabel: string     // "Nonstop" | "via DEN"
+  why: string           // one short line
+  statusLabel?: string  // "Still open" | "Tight window"
+}
+```
+
+`plan.flights` or `plan.results` = array sorted by `rank`.  
+On Continue / Start with this flight → set `plan.currentFlightId` and navigate to Home Current Plan.
+
+Onboarding → first build → **must** hit Plan results before Home looks like a working day.
+
+---
+
+## Relationship to other screens
+
+| Screen | Role |
+|--------|------|
+| **New Plan** | Capture intent → Build |
+| **Plan results (F2.5)** | **First** full graded list — decision intelligence |
+| **Home / Current Plan** | One current flight + watching + “N other ways” |
+| **Ways** | Same Plan’s flights while working — Current / Still open / Passed |
+| **Flight detail** | Deep dive one flight (pillars, load CTA) |
+| **Load / Activity** | After you’re on Current Plan |
+
+Ways can **reuse** row UI from Plan results, but Plan results is **required** on the build path even if Ways exists.
+
+---
+
+## Motion (2–3)
+
+1. Enter: list rows stagger in best-first (subtle).
+2. Grade letter / band settles or soft highlight on #1.
+3. Confirm “Start with this flight” → brief settle → Home.
+
+---
+
+## Acceptance (Rork)
+
+- [ ] After **Build my plan**, user always sees **Plan results** before Current Plan
+- [ ] Every flight row shows **rank (or order), Looks good/Mixed/Riskier as row hero, flight, path, why**
+- [ ] Same three verdicts as Home / Ways / Flight detail — no A/B/C/D or Strong/OK system
+- [ ] Full list visible (scroll); not only top 1
+- [ ] CTA sets current and goes to **Home / Current Plan**
+- [ ] No API / backend
+- [ ] Traveler copy: no “options,” “primary,” “score engine,” “decision intelligence” in UI chrome
+- [ ] Tabs remain Home · Plans · You
+
+---
+
+## One-line for Rork
+
+**Add screen Plan results (`home/plan-results`): after Build my plan, show all ranked flights with Looks good / Mixed / Riskier as the row hero (same system as Home — no A/B/C/D), plus why-lines; user continues with top pick or starts with a chosen flight, then Home / Current Plan. No backend.**

@@ -1,8 +1,22 @@
 /**
- * Plan lifecycle — pure resolution plus an explicit write orchestrator.
+ * Plan lifecycle — pure resolution + explicit write orchestrator.
  *
- * loadPlan() stays read-only. Call resolveAndPersistPlanLifecycle() from paths
- * that own lifecycle transitions (Home current plan, watch recheck, cron).
+ * ARCHITECTURE (do not collapse):
+ *   loadPlan()                         → READ ONLY (never write here)
+ *   resolvePlanLifecycle(plan, now)    → PURE decision
+ *   resolveAndPersistPlanLifecycle()   → ONLY writer for advance / complete / end watch
+ *
+ * Product rules:
+ *   - Current flight departed + future eligible flights → advance to lowest rank (no re-rank)
+ *   - No eligible future flights left → prefs.lifecycleStatus = "complete" (keep travelDate)
+ *   - COMPLETE is orthogonal to calendar "past" (travelDate < today)
+ *
+ * Call write orchestrator from: Home current-plan, watch recheck (BEFORE signals), activation.
+ * Do NOT call write orchestrator from: history reads, generic loadPlan callers, ranking.
+ *
+ * Traveler language: current flight / other ways / Done — not primary / option / watch object.
+ *
+ * Portable (no Supabase) twin for new repos: docs/handoff/plan-lifecycle.portable.ts
  */
 import type { StandbyOption, StandbyPlan } from "@/lib/aircue/standby";
 import type { PlanSummary } from "@/lib/aircue/plan.functions";
@@ -11,23 +25,25 @@ export type PlanLifecycleStatus = "active" | "complete";
 
 export interface PlanLifecycleResult {
   status: PlanLifecycleStatus;
-  /** Resolved current option — may differ from persisted primary after advance. */
+  /** Resolved current option id — may differ from DB primary before persist. */
   currentOptionId: string | null;
-  /** Whether primary_option_id should be updated in DB. */
+  /** True ⇒ caller / orchestrator must update plans.primary_option_id. */
   primaryAdvanced: boolean;
   newPrimaryOptionId: string | null;
-  /** Whether watch should end (plan complete). */
+  /** True ⇒ end active watch (plan exhausted). */
   shouldEndWatch: boolean;
-  /** Options still actionable in travel window. */
+  /** Option ids still usable (eligible + future schedDepUtc). */
   actionableOptionIds: string[];
 }
 
+/** Strict departure: no boarding grace unless callers pass graceMs. */
 const DEFAULT_GRACE_MS = 0;
 
 function staffEligibility(option: StandbyOption): StandbyOption["staffEligibility"] {
   return option.staffEligibility ?? option.evidence.staffEligibility ?? "eligible";
 }
 
+/** True when schedDepUtc is known and at/before now (minus optional grace). */
 export function isOptionDeparted(
   option: StandbyOption,
   now: Date,
@@ -39,7 +55,10 @@ export function isOptionDeparted(
   return t <= now.getTime() - graceMs;
 }
 
-/** An option can still become the traveler's current plan flight. */
+/**
+ * Can this option become (or remain) the traveler's current flight?
+ * Blocks ineligible, missing UTC, and departed. Uncertain/eligible OK.
+ */
 export function isOptionActionable(
   option: StandbyOption,
   now: Date,
@@ -50,6 +69,7 @@ export function isOptionActionable(
   return !isOptionDeparted(option, now, graceMs);
 }
 
+/** Actionable options in existing rank order (ascending). */
 export function actionableOptions(
   options: StandbyOption[],
   now: Date,
@@ -60,6 +80,10 @@ export function actionableOptions(
     .sort((a, b) => a.rank - b.rank);
 }
 
+/**
+ * Next ranked actionable option after `afterOptionId` departs.
+ * Prefers next higher rank; falls back to best remaining actionable.
+ */
 export function nextActionableOption(
   options: StandbyOption[],
   afterOptionId: string | null,
@@ -78,6 +102,7 @@ function storedLifecycleStatus(plan: StandbyPlan): PlanLifecycleStatus | null {
   return status === "complete" || status === "active" ? status : null;
 }
 
+/** Anchor = primary ?? preferred ?? rank-1; advance if that anchor is no longer actionable. */
 function resolvedCurrentOptionId(plan: StandbyPlan, now: Date): string | null {
   const anchorId =
     plan.primaryOptionId ?? plan.preferredOptionId ?? plan.options[0]?.id ?? null;
@@ -89,7 +114,10 @@ function resolvedCurrentOptionId(plan: StandbyPlan, now: Date): string | null {
   return nextActionableOption(plan.options, anchorId, now)?.id ?? null;
 }
 
-/** Pure — no DB I/O. */
+/**
+ * PURE — no DB I/O. Decide active vs complete and whether primary should advance.
+ * Safe to call from tests, history views, and read-only display paths.
+ */
 export function resolvePlanLifecycle(
   plan: StandbyPlan,
   now: Date = new Date(),
@@ -97,6 +125,7 @@ export function resolvePlanLifecycle(
   const stored = storedLifecycleStatus(plan);
   const actionableIds = actionableOptions(plan.options, now).map((o) => o.id);
 
+  // Persisted Done — do not reopen from pure resolve alone.
   if (stored === "complete") {
     return {
       status: "complete",
@@ -108,6 +137,7 @@ export function resolvePlanLifecycle(
     };
   }
 
+  // Exhausted travel window.
   if (actionableIds.length === 0) {
     return {
       status: "complete",
@@ -126,6 +156,7 @@ export function resolvePlanLifecycle(
   const anchor = anchorId ? plan.options.find((o) => o.id === anchorId) : null;
   const anchorDeparted = anchor ? isOptionDeparted(anchor, now) : false;
 
+  // Only flag a write when a persisted primary departed and a different current exists.
   const primaryAdvanced =
     Boolean(persistedPrimary) &&
     Boolean(currentOptionId) &&
@@ -142,7 +173,10 @@ export function resolvePlanLifecycle(
   };
 }
 
-/** Apply pure resolution to a StandbyPlan for read-only display (no persist). */
+/**
+ * Overlay resolved current/status onto a plan for display.
+ * Does NOT persist — DB may still hold the old primary until orchestrator runs.
+ */
 export function applyLifecycleView(
   plan: StandbyPlan,
   result: PlanLifecycleResult,
@@ -161,12 +195,15 @@ export function applyLifecycleView(
   };
 }
 
-/** Local calendar YYYY-MM-DD — matches Home date grouping. */
+/** Device-local calendar date YYYY-MM-DD (Home "today", not UTC midnight). */
 export function localTodayISO(now: Date = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-/** Pick Home current plan among actionable summaries (soonest date, newest created). */
+/**
+ * Home current-plan picker among summaries that are still actionable.
+ * Soonest travelDate, then newest createdAt. Skips lifecycleStatus complete.
+ */
 export function pickActionablePlan(
   plans: PlanSummary[],
   todayISO: string,
@@ -190,6 +227,7 @@ function lifecycleStatusFromPrefs(prefs: Record<string, unknown>): PlanLifecycle
   return raw === "complete" ? "complete" : "active";
 }
 
+/** Read lifecycle fields stored in plans.prefs (v1 — no migration column). */
 export function lifecycleFieldsFromPrefs(prefs: Record<string, unknown>): {
   lifecycleStatus: PlanLifecycleStatus;
   lifecycleResolvedAt: string | null;
@@ -228,6 +266,10 @@ export function summaryIsActionable(
   return t > now.getTime();
 }
 
+/**
+ * Persist advance via setPrimaryOption (also syncs watch anchor),
+ * complete via prefs.lifecycleStatus, end watch when complete.
+ */
 async function persistLifecycleMutations(
   client: unknown,
   userId: string,
@@ -290,7 +332,10 @@ async function persistLifecycleMutations(
   }
 }
 
-/** Load → resolve → persist primary / lifecycle prefs / watch changes. */
+/**
+ * Write orchestrator: load (read) → pure resolve → persist if needed → reload.
+ * This is the only lifecycle entry that should mutate the database.
+ */
 export async function resolveAndPersistPlanLifecycle(input: {
   client: unknown;
   userId: string;
@@ -339,7 +384,10 @@ export async function resolveAndPersistPlanLifecycle(input: {
   };
 }
 
-/** Resolve lifecycle for Home current-plan selection; persists on candidates. */
+/**
+ * Home entry: walk soonest upcoming plans, persist lifecycle on each until one
+ * remains active+actionable, then pickActionablePlan. Returns null if none.
+ */
 export async function getCurrentPlanForHome(
   client: unknown,
   userId: string,
