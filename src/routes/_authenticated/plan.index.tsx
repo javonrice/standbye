@@ -141,10 +141,8 @@ function CurrentPlanHome({ planId }: { planId: string }) {
             alt="Golden-hour sky seen from an airplane window"
             width={1024}
             height={640}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover [mask-image:linear-gradient(to_bottom,black_45%,transparent)]"
           />
-          {/* Fade the photo into the page so the trip card floats over it. */}
-          <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-transparent to-background" />
           <img
             src={wordmark.url}
             alt="Standbye"
@@ -152,7 +150,7 @@ function CurrentPlanHome({ planId }: { planId: string }) {
           />
         </div>
       </div>
-      <div className="-mt-20">
+      <div className="relative z-10 -mt-24">
         <PlanSnapshot plan={plan} />
       </div>
     </>
