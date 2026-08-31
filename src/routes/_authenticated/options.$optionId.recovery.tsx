@@ -123,6 +123,6 @@ function RecoveryRoom() {
           )}
         </>
       )}
-    </main>
+    </DetailShell>
   );
 }
