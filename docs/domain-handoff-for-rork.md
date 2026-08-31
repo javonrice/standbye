@@ -408,6 +408,7 @@ That zero-provider-call rescore is a **cost invariant**. Breaking it makes every
 | `attachLoad` in `plan.server.ts` | Persist + rescore entry |
 | `load-screenshot/*` | Parse pipeline + snapshots |
 | Docs: `load-aware-ranking.md`, `shared-load-snapshots-architecture.md` | Full plans |
+| **`docs/load-ideology-handoff.md`** | **Who enters / who sees / contribution vs consumption (paste-ready)** |
 
 ### New-repo guidance
 
