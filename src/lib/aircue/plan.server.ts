@@ -20,6 +20,11 @@ import type {
   StandbyOption,
   StandbyPlan,
 } from "@/lib/aircue/standby";
+import {
+  attachOptionsToStrategies,
+  strategiesFromLegacyPlan,
+  type StoredPlanStrategy,
+} from "@/lib/aircue/plan-strategy";
 import type {
   ChangeItem,
   PlanSummary,
@@ -418,6 +423,7 @@ export async function buildPlan(
         emptyReason: ranked.reason,
         scanned: ranked.scanned,
         gateways: ranked.gateways,
+        strategies: ranked.strategies,
         ...accessPrefs,
       },
     })
@@ -536,6 +542,7 @@ export async function buildEscapePlan(
         emptyReason: ranked.reason,
         scanned: { origins: [origin], dests: [dest] },
         gateways: ranked.gateways,
+        strategies: ranked.strategies,
       },
     })
     .eq("id", planId);
@@ -735,6 +742,11 @@ export async function loadPlan(
     | { headline?: string; detail?: string; at?: string }
     | undefined;
   const scanned = (prefs["scanned"] ?? {}) as { origins?: string[]; dests?: string[] };
+  const gateways = (prefs["gateways"] as GatewayOption[]) ?? [];
+  const storedStrategies = prefs["strategies"] as StoredPlanStrategy[] | undefined;
+  const strategies = storedStrategies?.length
+    ? attachOptionsToStrategies(storedStrategies, options)
+    : strategiesFromLegacyPlan(options, gateways);
   const primaryOptionId = (plan["primary_option_id"] as string | null) ?? null;
   const preferredOptionId = options[0]?.id ?? null;
 
@@ -767,7 +779,8 @@ export async function loadPlan(
       origins: scanned["origins"] ?? [String(plan["origin_iata"])],
       dests: scanned["dests"] ?? [String(plan["dest_iata"])],
     },
-    gateways: (prefs["gateways"] as GatewayOption[]) ?? [],
+    gateways,
+    strategies,
     routingMode: (prefs["routingMode"] as RoutingMode) ?? "best",
     mode: (prefs["mode"] as StandbyPlan["mode"]) ?? "standby",
     standbyDayShared: prefs["standbyDayShared"] === true,
@@ -1301,6 +1314,7 @@ async function syncPlanOptionsFromRanked(
         emptyReason: ranked.reason,
         scanned: ranked.scanned,
         gateways: ranked.gateways,
+        strategies: ranked.strategies,
       },
     })
     .eq("id", planId);

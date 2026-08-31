@@ -248,6 +248,8 @@ export interface StandbyPlan {
   scannedAirports: { origins: string[]; dests: string[] };
   /** Connecting cities worth committing to, strongest first. */
   gateways: GatewayOption[];
+  /** Viable ordered airport paths discovered for this plan (Every Way There). */
+  strategies: import("@/lib/aircue/plan-strategy").PlanStrategy[];
   routingMode: RoutingMode;
   /** Escape plans search a much wider network of intermediate stations. */
   mode: PlanMode;

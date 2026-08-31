@@ -59,6 +59,7 @@ import {
   searchItineraryCandidates,
   type Gf8ItineraryCandidate,
 } from "@/lib/aircue/gf8-itineraries.server";
+import { buildStrategyCatalog, type StoredPlanStrategy } from "@/lib/aircue/plan-strategy";
 
 export interface RankInput {
   origin: string;
@@ -88,6 +89,8 @@ export interface RankResult {
   reason: RankReason | null;
   scanned: { origins: string[]; dests: string[] };
   gateways: GatewayOption[];
+  /** Viable ordered airport paths discovered for this plan (broader than deep-scored options). */
+  strategies: StoredPlanStrategy[];
   nonstopCount: number;
   /** True when any board/source was blocked, even if some options were returned. */
   incomplete: boolean;
@@ -140,6 +143,10 @@ const PARTY_LEVELS = [1, 2, 3, 4];
 /** A standby search answers with what it has rather than hanging the traveller. */
 const SEARCH_BUDGET_MS = 20_000;
 const LEG_CONCURRENCY = 4;
+
+/** Connection paths verified for Strategy catalog (normal plan). */
+const MAX_DISCOVERED_CONNECTION_STRATEGIES_BEST = 8;
+const MAX_DISCOVERED_CONNECTION_STRATEGIES_WIDE = 10;
 
 async function mapWithConcurrency<T, R>(
   items: T[],
@@ -843,6 +850,8 @@ interface ConnectionCandidate {
 }
 
 interface GatewayBuild {
+  /** Origin airport whose departure board seeded this connection (multi-origin aware). */
+  firstOrigin: string;
   hub: string;
   city: string | null;
   /** First legs that actually connect to something onward. */
@@ -880,8 +889,8 @@ function shotJudgment(entry: BoardEntry | undefined): Judgment {
  * Build the realistic gateways between this origin and destination.
  *
  * A gateway survives only when it has a usable way in, a usable way onward,
- * and does not force an absurd detour. Cost is capped by `maxHubs` because
- * every hub costs an extra schedule call.
+ * and does not force an absurd detour. Onward checks are capped by `maxDiscover`
+ * because every verified station costs schedule calls — separate from deep scoring.
  */
 async function findGateways(
   input: RankInput,
@@ -889,57 +898,83 @@ async function findGateways(
   dests: string[],
   carrierFilter: string,
   allowed: Set<string> | null,
-  opts: { maxHubs: number; wide: boolean; maxDetour?: number },
+  opts: {
+    maxDiscover: number;
+    wide: boolean;
+    maxDetour?: number;
+    outOfTime?: () => boolean;
+  },
 ): Promise<GatewayBuild[]> {
-  const { maxHubs, wide } = opts;
-  const origin = origins[0];
-  if (!origin || maxHubs <= 0) return [];
+  const { maxDiscover, wide } = opts;
+  if (maxDiscover <= 0 || origins.length === 0) return [];
 
-  const { legs: fromOrigin } = await findOriginDepartures(
-    origin,
-    input.travelDate,
-    carrierFilter,
-    input.depTime,
-  );
   const destSet = new Set(dests.map((d) => d.toUpperCase()));
-
-  const byHub = new Map<string, RouteLeg[]>();
-  for (const leg of fromOrigin) {
-    if (allowed && leg.airlineCode && !allowed.has(leg.airlineCode)) continue;
-    const hub = leg.dest.toUpperCase();
-    if (destSet.has(hub) || sameCity(hub, origin) || sameCity(hub, input.dest)) continue;
-    const list = byHub.get(hub) ?? [];
-    list.push(leg);
-    byHub.set(hub, list);
-  }
-
-  // Geography decides which hubs are even worth a schedule call.
-  const geo = await airportGeo([origin, input.dest, ...byHub.keys()]);
-  const from = geo.get(origin.toUpperCase());
-  const to = geo.get(input.dest.toUpperCase());
-  const direct = from && to ? milesBetween(from, to) : null;
   const maxDetour = opts.maxDetour ?? (wide ? MAX_DETOUR_WIDE : MAX_DETOUR_BEST);
 
-  const ratioOf = (hub: string): number | null => {
-    const h = geo.get(hub);
-    if (!h || !from || !to || !direct || direct < 50) return null;
-    return (milesBetween(from, h) + milesBetween(h, to)) / direct;
+  type Candidate = {
+    origin: string;
+    hub: string;
+    legs: RouteLeg[];
+    ratio: number | null;
   };
 
-  const ranked = [...byHub.entries()]
-    .map(([hub, legs]) => ({ hub, legs, ratio: ratioOf(hub) }))
-    .filter((h) => h.ratio === null || h.ratio <= maxDetour)
+  const candidates: Candidate[] = [];
+
+  for (const origin of origins) {
+    if (!origin) continue;
+    const { legs: fromOrigin } = await findOriginDepartures(
+      origin,
+      input.travelDate,
+      carrierFilter,
+      input.depTime,
+    );
+
+    const byHub = new Map<string, RouteLeg[]>();
+    for (const leg of fromOrigin) {
+      if (allowed && leg.airlineCode && !allowed.has(leg.airlineCode)) continue;
+      const hub = leg.dest.toUpperCase();
+      if (destSet.has(hub) || sameCity(hub, origin) || sameCity(hub, input.dest)) continue;
+      const list = byHub.get(hub) ?? [];
+      list.push(leg);
+      byHub.set(hub, list);
+    }
+
+    if (byHub.size === 0) continue;
+
+    const geo = await airportGeo([origin, input.dest, ...byHub.keys()]);
+    const from = geo.get(origin.toUpperCase());
+    const to = geo.get(input.dest.toUpperCase());
+    const direct = from && to ? milesBetween(from, to) : null;
+
+    const ratioOf = (hub: string): number | null => {
+      const h = geo.get(hub);
+      if (!h || !from || !to || !direct || direct < 50) return null;
+      return (milesBetween(from, h) + milesBetween(h, to)) / direct;
+    };
+
+    for (const [hub, legs] of byHub) {
+      const ratio = ratioOf(hub);
+      if (ratio !== null && ratio > maxDetour) continue;
+      candidates.push({ origin: origin.toUpperCase(), hub, legs, ratio });
+    }
+  }
+
+  if (candidates.length === 0) return [];
+
+  const rankedCandidates = candidates
     .sort((a, b) => {
       const detour = (a.ratio ?? 1.2) - (b.ratio ?? 1.2);
       if (Math.abs(detour) > 0.15) return detour;
       return b.legs.length - a.legs.length;
     })
-    .slice(0, maxHubs);
+    .slice(0, maxDiscover);
 
   const faa = await getFaaPrograms();
   const builds: GatewayBuild[] = [];
 
-  for (const { hub, legs, ratio } of ranked) {
+  for (const { origin, hub, legs, ratio } of rankedCandidates) {
+    if (opts.outOfTime?.()) break;
+
     let onward: RouteLeg[] = [];
     for (const dest of dests) {
       const { legs: found } = await findRouteLegs(hub, dest, input.travelDate, carrierFilter);
@@ -973,7 +1008,6 @@ async function findGateways(
     inbound.sort((a, b) => a.schedDepUtc.localeCompare(b.schedDepUtc));
     const best = pairs[0]!;
 
-    // Onward shots that remain useful after the earliest realistic arrival.
     const earliestArr = new Date(best.first.schedArrUtc).getTime();
     const usableOnward = onward.filter(
       (l) => (new Date(l.schedDepUtc).getTime() - earliestArr) / 60000 >= MIN_LAYOVER,
@@ -1005,11 +1039,17 @@ async function findGateways(
     else if (ratio !== null && ratio >= BACKTRACK_HINT)
       caveat = "Plenty of onward options, but it means backtracking geographically.";
 
+    const geo = await airportGeo([origin, input.dest, hub]);
+    const from = geo.get(origin);
+    const to = geo.get(input.dest.toUpperCase());
+    const h = geo.get(hub);
+    const direct = from && to ? milesBetween(from, to) : null;
     const addedMinutes =
       direct !== null && ratio !== null ? Math.round((ratio - 1) * (direct / 480) * 60) : null;
 
-    const city = geo.get(hub)?.city ?? null;
+    const city = h?.city ?? null;
     builds.push({
+      firstOrigin: origin,
       hub,
       city,
       inbound: inbound.slice(0, 6),
@@ -1427,16 +1467,20 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
   // allows a connection, not only when the nonstops run out.
   const nonstopCount = results.length;
   let gateways: GatewayOption[] = [];
+  let gatewayBuilds: GatewayBuild[] = [];
 
   if (maxStops >= 1 && !(outOfTime() && results.length > 0)) {
-    const maxHubs = wide ? 5 : nonstopCount === 0 ? 4 : 3;
-    const builds = await findGateways(input, origins, dests, carrierFilter, allowed, {
-      maxHubs,
+    const maxDiscover = wide
+      ? MAX_DISCOVERED_CONNECTION_STRATEGIES_WIDE
+      : MAX_DISCOVERED_CONNECTION_STRATEGIES_BEST;
+    gatewayBuilds = await findGateways(input, origins, dests, carrierFilter, allowed, {
+      maxDiscover,
       wide,
+      outOfTime,
     });
     const scoreCount = wide ? 4 : nonstopCount === 0 ? 3 : 2;
 
-    for (const build of builds.slice(0, scoreCount)) {
+    for (const build of gatewayBuilds.slice(0, scoreCount)) {
       if (outOfTime() && results.length > 0) break;
       const legsNeeded = [build.best.first, build.best.second].filter(
         (leg) => !boards.has(`${leg.origin}-${leg.dest}`),
@@ -1455,10 +1499,10 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
       results.push(await scoreConnection(input, build, boards, holiday));
     }
 
-    gateways = builds.map((b) => gatewayOptionOf(b, boards));
+    gateways = gatewayBuilds.map((b) => gatewayOptionOf(b, boards));
 
     // Nonstop recovery is network-aware: the strongest gateways are real backups.
-    const alternates = builds.slice(0, 2).map((b) => ({
+    const alternates = gatewayBuilds.slice(0, 2).map((b) => ({
       routing: `Via ${b.hub}`,
       depLocal: hhmm(b.best.first.schedDepUtc, b.best.first.depLocalTime),
       judgment: (b.state === "good"
@@ -1527,6 +1571,11 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     reason,
     scanned: { origins, dests },
     gateways,
+    strategies: buildStrategyCatalog({
+      rankedOptions: rankedPool,
+      gatewayBuilds,
+      gateways,
+    }),
     nonstopCount,
     incomplete: anyBoardBlocked,
   };
@@ -1624,6 +1673,7 @@ const ESCAPE_SCORE_COUNT = 6;
 export interface EscapeResult {
   options: RankedOption[];
   gateways: GatewayOption[];
+  strategies: StoredPlanStrategy[];
   nonstopCount: number;
   reason: RankReason | null;
 }
@@ -1673,14 +1723,15 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
   }
   const nonstopCount = nonstops.length;
 
-  const builds = await findGateways(input, origins, dests, carrierFilter, allowed, {
-    maxHubs: ESCAPE_MAX_HUBS,
+  const gatewayBuilds = await findGateways(input, origins, dests, carrierFilter, allowed, {
+    maxDiscover: ESCAPE_MAX_HUBS,
     wide: true,
     maxDetour: ESCAPE_DETOUR,
+    outOfTime,
   });
 
   const connections: Array<{ option: RankedOption; escapeScore: number }> = [];
-  for (const build of builds.slice(0, ESCAPE_SCORE_COUNT)) {
+  for (const build of gatewayBuilds.slice(0, ESCAPE_SCORE_COUNT)) {
     if (outOfTime()) break;
     const legsNeeded = [build.best.first, build.best.second].filter(
       (leg) => !boards.has(`${leg.origin}-${leg.dest}`),
@@ -1699,7 +1750,7 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
     connections.push({ option, escapeScore: escapeScoreOf(option, gateway) });
   }
 
-  const gateways = builds.map((b) => gatewayOptionOf(b, boards));
+  const gateways = gatewayBuilds.map((b) => gatewayOptionOf(b, boards));
 
   connections.sort(
     (a, b) =>
@@ -1725,7 +1776,17 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
     else reason = "no_service";
   }
 
-  return { options: results, gateways, nonstopCount, reason };
+  return {
+    options: results,
+    gateways,
+    strategies: buildStrategyCatalog({
+      rankedOptions: results,
+      gatewayBuilds,
+      gateways,
+    }),
+    nonstopCount,
+    reason,
+  };
 }
 
 /**
@@ -1866,6 +1927,7 @@ export async function evaluateEscapeVia(input: RankInput, hubCode: string): Prom
     caveat = "It works, but it means backtracking geographically.";
 
   const build: GatewayBuild = {
+    firstOrigin: origin,
     hub,
     city: h?.city ?? null,
     inbound: inbound.slice(0, 6),
