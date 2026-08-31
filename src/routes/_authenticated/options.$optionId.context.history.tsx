@@ -73,18 +73,8 @@ function HistoryContext() {
                 }
               />
             )}
-            <DataBar
-              label="Late departures"
-              fill={scaleFor(history.delayPattern)}
-              value={history.delayPattern}
-              tone="muted"
-            />
-            <DataBar
-              label="Cancellations"
-              fill={scaleFor(history.cancelPattern)}
-              value={history.cancelPattern}
-              tone="muted"
-            />
+            <HistoryFact label="Late departures" value={history.delayPattern} />
+            <HistoryFact label="Cancellations" value={history.cancelPattern} />
           </div>
 
           <StandbyeTake className="mt-6">{history.summary}</StandbyeTake>

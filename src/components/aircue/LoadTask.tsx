@@ -337,8 +337,7 @@ export function LoadTask({
 
           {!shotStatus?.configured && (
             <p className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Screenshot parsing is not configured on this environment yet. You can still enter
-              loads manually.
+              Screenshot reading isn't available right now. You can still enter the load manually.
             </p>
           )}
 
