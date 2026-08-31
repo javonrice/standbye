@@ -252,7 +252,7 @@ async function persistLifecycleMutations(
       .eq("user_id", userId)
       .maybeSingle();
 
-    const prefs = ((planRow?.prefs ?? {}) as Record<string, unknown>) ?? {};
+    const prefs = (planRow?.prefs ?? {}) as Record<string, unknown>;
     const previousPrimary = (planRow?.primary_option_id as string | null) ?? plan.primaryOptionId;
 
     await db
@@ -278,7 +278,7 @@ async function persistLifecycleMutations(
       .eq("id", planId)
       .eq("user_id", userId)
       .maybeSingle();
-    const prefs = ((planRow?.prefs ?? {}) as Record<string, unknown>) ?? {};
+    const prefs = (planRow?.prefs ?? {}) as Record<string, unknown>;
     if (prefs["lifecycleStatus"] === "complete") {
       const { lifecycleStatus: _removed, lifecycleResolvedAt: _at, ...rest } = prefs;
       await db
