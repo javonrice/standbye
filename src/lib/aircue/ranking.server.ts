@@ -1553,7 +1553,7 @@ function reasonTitle(p: Pillar): string {
 function headlineFor(judgment: Judgment, pillars: Pillar[]): string {
   const availability = pillars.find((p) => p.key === "availability");
   const recovery = pillars.find((p) => p.key === "recovery");
-  if (judgment === "favorable") return "Best balance of availability and backup options today.";
+  if (judgment === "favorable") return "Best balance of booking signal and backup options today.";
   if (judgment === "mixed") {
     if (recovery?.state !== "good") return "Reasonable availability, but thinner backup options.";
     return "Workable, with one meaningful tradeoff.";
