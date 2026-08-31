@@ -255,7 +255,8 @@ Every monitoring cycle ends in exactly one of:
 | `watch-signals.server.ts` → `gatherWatchSignals` | Cheap signal gather + metrics |
 | `plan.server.ts` → `recheckWatch` | Orchestrates lifecycle → gather → decide → maybe rank |
 | `aerodatabox.server.ts` → `cachedCall` | Cache/TTL/budget — never treat Watch as auto-force |
-| Docs: `docs/cheap-watch-redesign.md` | Full design |
+| Docs: `cheap-watch-redesign.md` | Full design |
+| **`docs/flight-evidence-watch-signals-handoff.md`** | **Per-flight evidence (FAA/weather/holiday/ADB) + watch use** |
 
 ### New-repo guidance
 
@@ -959,6 +960,6 @@ PAST                          ← travelDate < today only
 |-------------|-------------|
 | Updates tab | Activity under Plan (F7) |
 | Escape mode | Later / trip option — not a product |
-| Option detail app | Sheet under Ways |
+| Option detail app | Sheet / Flight detail under Ways+Home — evidence still attaches (see `flight-evidence-watch-signals-handoff.md`) |
 | Compare primary path | Optional later in Ways |
 | Dashboard Home | One composition only |
