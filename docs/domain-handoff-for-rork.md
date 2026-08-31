@@ -15,21 +15,26 @@
 | Piece | Role | Why it matters | Portability |
 |-------|------|----------------|-------------|
 | **Plan lifecycle** | Advance current / mark Done | Correctness of Home | ✅ Portable TS ready |
-| **Cheap watch / call gating** | `skip` \| `notify-only` \| `rerank` | **Call cost** — quiet cycles must not burn GF8/ADB | Spec + gate logic |
-| **Every Way There** | Paths (`strategies[]`) via board intersection | Breadth without hub heuristics | Spec + viability |
-| **Connection viability** | One detour policy for paths + options | Consistency + cost of discovery | ✅ Mostly pure |
-| **Loads** | Segment-keyed evidence; personal wins, network fills | Simplicity for traveler; **zero provider calls** on attach | Spec + adjust helpers |
+| **Plan ranking / scoring** | Pillars → score → judgment | What “Favorable / Mixed / Riskier” means | Spec + `option-scoring` / `access-scoring` |
+| **Travel access + eligibility** | home/zed/other; operator verify | Who can list; never invent access | Spec + pure helpers |
+| **Identity keys** | `option_key` / `segment_key` | Sync, loads, dedupe | ✅ Small pure module |
+| **Coverage** | available / not_covered / unavailable | Missing data ≠ “good” | Spec |
+| **Cheap watch / call gating** | `skip` \| `notify-only` \| `rerank` | **Call cost** | Spec + gate logic |
+| **Flight presence / cancel** | Status transitions only | No fake cancels from ranking gaps | Spec + pure helpers |
+| **Every Way There** | Paths via board intersection | Breadth without hub heuristics | Spec + viability |
+| **Connection viability** | One detour policy | Consistency + discovery cost | ✅ Mostly pure |
+| **Loads** | Segment-keyed; local rescore | Simplicity; **$0 providers on attach** | Spec + scoring shared |
 | **Plan mental model** | One Plan per route+day | UI structure | ✅ Spec |
 
 ### Do not bring yet (UI / heavy providers)
 
 - Old React routes / PlanSnapshot / Updates tab UI
-- Full `plan.server.ts` blob (use as reference only)
-- Live AeroDataBox / GF8 wiring on day one (mock boards/options first)
+- Full `plan.server.ts` / `ranking.server.ts` provider orchestration (use as reference)
+- Live AeroDataBox / GF8 on day one (mock boards/options first)
 - Escape as a parallel product mode
 - Lovable layout chrome
 
-**Rule:** New repo can mock providers, but must **not** reinvent the cost/simplicity invariants below. When real APIs return, keep the same gates.
+**Rule:** New repo can mock providers, but must **not** reinvent the cost/simplicity/scoring invariants below. When real APIs return, keep the same gates and weights.
 
 ---
 
@@ -399,10 +404,223 @@ That zero-provider-call rescore is a **cost invariant**. Breaking it makes every
 - Stage 1: manual seats/standbys on current flight → update mock judgment locally.
 - Preserve: **no network ranking calls on load save**.
 - Shared snapshots / Gemini: later; keep parser behind an interface.
+- Use the **same** `scoreFromPillars` / `judgmentFromScore` as full ranking (see §10) — do not invent a second scorer for loads.
 
 ---
 
-## 10. Old-repo function index (reference)
+## 10. Plan ranking / scoring (imperative)
+
+**What the traveler sees:** judgment label + pillars + plain reasons — **never** a boarding probability or clearance %.
+
+**Internal:** deterministic score 0–100 → judgment. Same weights for:
+- Initial Plan build (`ranking.server.ts`)
+- Load-driven local resort (`option-scoring.ts` / `plan-load-resort`)
+
+Do **not** fork two scoring systems.
+
+### Four pillars
+
+| Key | Weight in score | Meaning |
+|-----|-----------------|---------|
+| `availability` | × **1.2** | Public booking board / load cushion |
+| `operations` | × **1.0** | FAA/weather/cancel pressure |
+| `recovery` | × **0.8** | Later ways if this one fails |
+| `history` | × **0.4** | Historical load/cancel patterns |
+
+Pillar states: `good` | `fair` | `poor` | `unknown`
+
+State points (before weights):
+
+```text
+good=30  fair=16  poor=0  unknown=18
+```
+
+**Important:** `unknown` scores mid (18), not 0 — absence is not a penalty and not a reward. Coverage UI must still say “not covered / unavailable” honestly (see §13).
+
+### Score formula (locked)
+
+```text
+raw = avail*1.2 + ops*1.0 + recovery*0.8 + history*0.4
+      (+ avail term may be × loadMultiplier when a complete load exists)
+base = round((raw / (30 * 3.4)) * 100)     // normalize to ~0–100
+score = applyAccessAwareScore(base, access, standbyClears)
+```
+
+### Access + clears friction (soft only)
+
+**File:** `access-scoring.ts`
+
+| Access | Friction |
+|--------|----------|
+| `home` | 0 |
+| `zed` | −6 |
+| `other` | −12 |
+| unknown | −3 |
+
+| Standby clears (segments) | Friction |
+|---------------------------|----------|
+| 1 (nonstop) | 0 |
+| 2 | −12 |
+| 3 | −24 |
+| … | −(clears−1)×12 |
+
+**Never** hard-sort `home > zed > other`. A strong ZED nonstop can beat a weak home connection. Access is friction on the score, not a separate rank key.
+
+Itinerary access = **worst** segment access (`worstAccess`).
+
+### Judgment thresholds
+
+**File:** `option-scoring.ts` → `judgmentFromScore` (prefer this over older `judgeScore` in ranking)
+
+```text
+availability poor AND recovery poor  → riskier
+availability poor                     → mixed if score≥76 else riskier
+score ≥ 76                            → favorable
+score ≥ 52                            → mixed
+else                                  → riskier
+```
+
+### Confidence
+
+Haircut when operator still `uncertain` or many pillars `unknown`.  
+Complete personal load + eligible + few unknowns → can be `high`.  
+**Unverified ≠ ineligible.**
+
+### Connection scoring notes
+
+- Connections must pass **shared viability** first (same as strategies).
+- Score uses worst-leg availability when loads exist; `standbyClears` = segment count.
+- Cancel pressure on earlier same-route deps can push operations to `poor` / `fair`.
+
+### Non-goals (do not reintroduce)
+
+- Boarding probability / “% chance you clear”
+- Silent change of current flight when rank #1 flips after rescore
+- Treating missing BTS/FAA history as “Normal / good”
+- United-only hardcodes in the scorer (access is airline-general)
+
+### Old-repo anchors
+
+| File | Role |
+|------|------|
+| `option-scoring.ts` | **Canonical** score / judgment / confidence (+ load) |
+| `access-scoring.ts` | Soft friction |
+| `ranking.server.ts` | Provider orchestration → pillars → uses score helpers |
+| `load-evidence.ts` | Cushion → availability state + multiplier |
+| Docs: `access-aware-plan-engine.md`, `load-aware-ranking.md` | Full specs |
+
+### New-repo guidance
+
+- Mock judgments OK at first, but when you implement real scoring, **copy `option-scoring.ts` + `access-scoring.ts` (+ `load-evidence.ts`)** rather than re-deriving weights.
+- Sort Ways / options by `score` desc, then persist `rank` 1…n. Lifecycle advance uses that `rank` order.
+
+---
+
+## 11. Travel access & operator eligibility (imperative)
+
+### Access model
+
+```text
+AccessType per airline IATA:  home | zed | other
+```
+
+| Rule | Why |
+|------|-----|
+| User-declared only | Never infer from alliance / codeshare / GF8 / marketing |
+| `effectiveStaffTravelCarriers ⊆ savedTravelAccess` | Client may narrow; never expand |
+| GF8 discovery ≠ eligibility | One broad discovery call; filter locally to declared access |
+| Airline-general | `home` is relationship to an airline — not “United privilege” |
+
+**Files:** `travel-access.ts` (`resolveTravelAccess`, `effectiveStaffTravelCarriers`, `accessTypeForCarrier`)
+
+### Operator eligibility (deterministic)
+
+**File:** `staff-eligibility.ts`
+
+| Situation | `staffEligibility` | Notes |
+|-----------|--------------------|-------|
+| Not verified yet | `uncertain` | Still rankable; confidence haircut only |
+| Verify API failed | `uncertain` | **Never** ineligible from failure alone |
+| Operator not determinable | `uncertain` | |
+| All operators ∈ allowed access | `eligible` | |
+| Any operator outside access | `ineligible` | Lifecycle will not promote |
+
+```text
+pre-verify → uncertain + unverified
+lazy ADB verify on current / primary paths — not verify-all
+```
+
+### New-repo guidance
+
+- Onboarding must capture home airline + access list before Plan build matters.
+- Mock: treat all mock flights as `eligible` / `home` until verify exists.
+- Do not hide flights solely for `uncertain`.
+
+---
+
+## 12. Identity — option_key / segment_key (imperative)
+
+**File:** `option-key.ts` (small, pure — **copy wholesale**)
+
+```text
+flight_label = display only (UA2110)
+segment_key  = CARRIERNUM:ORIG-DEST:YYYY-MM-DDTHH:MM
+option_key   = segment_key | segment_key | …   (itinerary)
+```
+
+Examples:
+
+```text
+UA881:ORD-HND:2026-10-15T17:00
+UA881:ORD-HND:2026-10-15T17:00|NH891:HND-SGN:2026-10-15T09:00
+```
+
+| Use | Key |
+|-----|-----|
+| Sync / dedupe plan options after rerank | `option_key` |
+| Reported loads / shared snapshots | `segment_key` |
+| UI chips | `flight_label` |
+
+Same marketing flight number on different times/paths = **different** keys.  
+Never merge loads or options on label alone.
+
+---
+
+## 13. Coverage — absence is never positive evidence (imperative)
+
+**File:** `coverage.ts`
+
+```text
+CoverageState: available | not_covered | unavailable | unknown
+SignalState:   good | fair | poor | unknown
+```
+
+| Situation | Correct behavior |
+|-----------|------------------|
+| No FAA feed outside US coverage | `not_covered` / unknown signal — **not** “Normal ops” |
+| Provider timeout | `unavailable` — **not** a travel event |
+| History missing | history pillar `unknown` — mid score weight, honest copy |
+
+Missing international BTS/FAA must never look like a healthy green pillar.
+
+---
+
+## 14. Flight presence & cancellation (imperative)
+
+**File:** `watch-flight-state.server.ts`
+
+| Rule | Why |
+|------|-----|
+| Presence from **status / board**, never from “missing in rerank” | Ranking gaps ≠ cancellation |
+| `delayed` ⇒ still `operating` | Don’t treat delay as departed/cancel |
+| Cancel **event only on transition** into cancelled | No spam every recheck |
+| `isTravelDayWatchOver` = travelDate end UTC + 6h | Cron stop burning calls (lifecycle complete is the mid-day stop) |
+
+Lifecycle (option departed by `schedDepUtc`) and watch presence (provider status) are related but distinct — advance can happen from schedule even if status is stale.
+
+---
+
+## 15. Old-repo function index (reference)
 
 ### Lifecycle (clean — prefer portable file)
 
