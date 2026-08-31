@@ -1,11 +1,11 @@
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Compass, Plus } from "lucide-react";
+import { Compass, Plus } from "lucide-react";
 
-import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
 import { LocalTime } from "@/components/aircue/LocalTime";
 import { longDate } from "@/components/aircue/PlanView";
-import { airlineName } from "@/lib/aircue/airlines";
 import { formatOptionArrival } from "@/lib/aircue/option-display";
+import { formatCountdown } from "@/lib/aircue/tz";
 import {
   agoLabel,
   judgmentShort,
@@ -13,12 +13,13 @@ import {
   type StandbyOption,
   type StandbyPlan,
 } from "@/lib/aircue/standby";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
- * HOME = cockpit. A glanceable snapshot of the current Plan: route, one quiet
- * status, the current flight, monitoring, and the two day-of actions. The full
- * briefing (evidence pillars, every route, comparisons) lives on Plan Detail.
+ * HOME = cockpit. One dominant active-trip card — flight, countdown, route,
+ * facts, monitoring, and the main CTA as a single object — plus two quick
+ * actions. The full briefing (evidence pillars, every route) lives on
+ * Plan Detail.
  */
 export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
   const planId = plan.id;
@@ -28,9 +29,179 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
   const recommended =
     (plan.options.find((o) => o.id === plan.preferredOptionId) ?? plan.options[0]) ?? null;
   const current = selected ?? recommended;
-  const backup = recommended && current && recommended.id !== current.id ? recommended : null;
   const changed = plan.planVerdict === "changed";
 
+  if (!current) {
+    return <ZeroOptionHome plan={plan} />;
+  }
+
+  return (
+    <>
+      <h1 className="sr-only">
+        {plan.origin} to {plan.dest} on {longDate(plan.travelDate)}
+      </h1>
+
+      {changed && recommended && recommended.id !== current.id && (
+        <Link
+          to="/plans/$planId"
+          params={{ planId }}
+          className="mb-3 flex items-center justify-between gap-3 rounded-xl bg-rough-soft px-3.5 py-2.5"
+        >
+          <span className="min-w-0 text-[13px] font-semibold text-rough-foreground">
+            Better option available — {recommended.flightLabel} now looks stronger.
+          </span>
+          <span className="shrink-0 text-[13px] font-semibold text-rough-foreground">Review</span>
+        </Link>
+      )}
+
+      <ActiveTripCard plan={plan} option={current} selected={!!selected} />
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Link
+          to="/plans/$planId/loads"
+          params={{ planId }}
+          className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-[13px] font-semibold shadow-card"
+        >
+          <Plus className="h-5 w-5 text-primary" />
+          Add load
+        </Link>
+        <Link
+          to="/escape"
+          search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+          className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-[13px] font-semibold shadow-card"
+        >
+          <Compass className="h-5 w-5 text-primary" />
+          Find another way
+        </Link>
+      </div>
+    </>
+  );
+}
+
+/** The one dominant object: the entire standby day compressed into a card. */
+function ActiveTripCard({
+  plan,
+  option,
+  selected,
+}: {
+  plan: StandbyPlan;
+  option: StandbyOption;
+  selected: boolean;
+}) {
+  const tone = judgmentTone[option.judgment];
+  const backups = Math.max(plan.options.length - 1, 0);
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+      {/* Flight + status */}
+      <div className="flex items-center justify-between gap-3 px-5 pt-4">
+        <p className="min-w-0 truncate text-[15px] font-bold tracking-tight">
+          {option.flightLabel}
+        </p>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em]",
+            tone.bg,
+            tone.text,
+          )}
+        >
+          {judgmentShort[option.judgment]}
+        </span>
+      </div>
+
+      {/* Countdown — the context that matters most */}
+      <p className="px-5 pt-2 font-display text-[30px] font-bold leading-tight tracking-tight">
+        <Countdown schedDepUtc={option.schedDepUtc} depLocal={option.depLocal} />
+      </p>
+
+      {/* Route */}
+      <div className="flex items-center gap-2 px-5 pt-2 text-[17px] font-semibold tracking-tight">
+        <span>{option.origin}</span>
+        <span className="mx-1 flex-1 border-t border-border" aria-hidden />
+        <span>
+          <LocalTime value={formatOptionArrival(option)} className="text-muted-foreground" />
+        </span>
+        <span>{option.dest}</span>
+      </div>
+      <p className="px-5 pt-1 text-[13px] font-medium text-muted-foreground">
+        {longDate(plan.travelDate)} · {plan.travelers} traveler
+        {plan.travelers === 1 ? "" : "s"}
+        {!selected && " · Recommended now"}
+      </p>
+
+      {/* Key facts */}
+      <div className="mt-4 grid grid-cols-3 border-t border-border px-5 py-3">
+        <Fact label="Departs" value={option.depLocal} />
+        <Fact label="Route" value={option.kind === "connection" ? "1 stop" : "Nonstop"} />
+        <Fact label="Backups" value={backups === 0 ? "None" : `${backups}`} />
+      </div>
+
+      {/* Monitoring — quiet unless attention is needed */}
+      <div className="border-t border-border px-5 py-3">
+        {plan.watching ? (
+          <p className="text-[13px] text-muted-foreground">
+            Standbye is watching · checked {agoLabel(plan.lastCheckedAt)}
+          </p>
+        ) : (
+          <p className="text-[13px] text-muted-foreground">
+            Standbye isn't watching this day yet.{" "}
+            <Link
+              to="/plans/$planId"
+              params={{ planId: plan.id }}
+              className="font-semibold text-primary"
+            >
+              Set up monitoring
+            </Link>
+          </p>
+        )}
+      </div>
+
+      {/* Main CTA */}
+      <Link
+        to="/plans/$planId"
+        params={{ planId: plan.id }}
+        className="block border-t border-border bg-primary px-5 py-3.5 text-center text-[15px] font-bold tracking-wide text-primary-foreground"
+      >
+        View my plan
+      </Link>
+    </div>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-[15px] font-semibold tracking-tight">
+        <LocalTime value={value} />
+      </p>
+    </div>
+  );
+}
+
+/** Live countdown, ticking each minute; falls back to the scheduled time. */
+function Countdown({
+  schedDepUtc,
+  depLocal,
+}: {
+  schedDepUtc: string | null;
+  depLocal: string;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!schedDepUtc) return <>Departs {depLocal}</>;
+  const departure = new Date(schedDepUtc);
+  if (Number.isNaN(departure.getTime())) return <>Departs {depLocal}</>;
+  if (departure.getTime() - now <= 0) return <>Departure time has passed</>;
+  return <>{formatCountdown(departure, new Date(now))}</>;
+}
+
+/** A Plan is real even with zero options — show recovery, never hide it. */
+function ZeroOptionHome({ plan }: { plan: StandbyPlan }) {
   return (
     <>
       <h1 className="mt-3 font-display text-[32px] font-bold leading-none tracking-tight">
@@ -43,202 +214,30 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
 
       <p className="mt-2 flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
         <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" aria-hidden />
-        {plan.options.length === 0
-          ? "No useful option yet"
-          : plan.noStrongSetup
-            ? "Plan has tradeoffs"
-            : "Plan looks workable"}
+        No useful option yet
       </p>
 
-      {changed && backup && current && (
-        <Link
-          to="/plans/$planId"
-          params={{ planId }}
-          className="mt-4 flex items-center gap-3 rounded-xl bg-rough-soft px-3.5 py-2.5"
-        >
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold text-rough-foreground">
-              Better option available
-            </span>
-            <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">
-              {current.flightLabel} → {backup.flightLabel} now looks stronger.
-            </span>
-          </span>
-          <span className="shrink-0 text-[13px] font-semibold text-rough-foreground">Review</span>
-        </Link>
-      )}
-
-      {current ? (
-        <>
-          <CurrentPlanCard option={current} />
-
-          <MonitoringLine plan={plan} />
-
-          {backup && (
-            <Link
-              to="/options/$optionId"
-              params={{ optionId: backup.id }}
-              className="mt-4 flex items-center gap-3 border-t border-border pt-3.5"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Backup
-                </span>
-                <span className="mt-0.5 block truncate text-[15px] font-semibold">
-                  {backup.flightLabel}
-                </span>
-                <span className="block text-[13px] text-muted-foreground">
-                  {backup.judgment === "favorable" ? "Stronger right now" : judgmentShort[backup.judgment]}
-                </span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </Link>
-          )}
-
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <Button asChild variant="secondary" className="h-11 rounded-xl text-[14px]">
-              <Link to="/plans/$planId/loads" params={{ planId }}>
-                <Plus className="mr-1.5 h-4 w-4" /> Add a load
-              </Link>
-            </Button>
-            <Button asChild variant="secondary" className="h-11 rounded-xl text-[14px]">
-              <Link
-                to="/escape"
-                search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
-              >
-                <Compass className="mr-1.5 h-4 w-4" /> Another way
-              </Link>
-            </Button>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between">
-            <Link
-              to="/plans/$planId"
-              params={{ planId }}
-              className="text-[14px] font-semibold text-primary"
-            >
-              View full plan →
-            </Link>
-            <Link
-              to="/plan"
-              search={{ new: true }}
-              className="text-[13px] font-medium text-muted-foreground"
-            >
-              Plan another trip
-            </Link>
-          </div>
-        </>
-      ) : (
-        <div className="mt-5">
-          <p className="text-[15px] leading-relaxed text-muted-foreground">
-            Standbye couldn't find a setup we'd recommend trying right now.
-          </p>
-          <div className="mt-4 grid gap-2">
-            <Button asChild className="h-12 rounded-xl">
-              <Link
-                to="/escape"
-                search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
-              >
-                Find another way
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-12 rounded-xl">
-              <Link to="/plan" search={{ new: true }}>
-                Try another date
-              </Link>
-            </Button>
-          </div>
+      <div className="mt-5 rounded-3xl border border-border bg-card p-5 shadow-card">
+        <p className="text-[15px] leading-relaxed text-muted-foreground">
+          Standbye couldn't find a setup we'd recommend trying right now.
+        </p>
+        <div className="mt-4 grid gap-2">
+          <Link
+            to="/escape"
+            search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+            className="block rounded-xl bg-primary px-4 py-3 text-center text-[15px] font-semibold text-primary-foreground"
+          >
+            Find another way
+          </Link>
+          <Link
+            to="/plan"
+            search={{ new: true }}
+            className="block rounded-xl border border-border px-4 py-3 text-center text-[15px] font-semibold"
+          >
+            Try another date
+          </Link>
         </div>
-      )}
+      </div>
     </>
-  );
-}
-
-/** The travel object itself — the one dominant element on Home. */
-function CurrentPlanCard({ option }: { option: StandbyOption }) {
-  const tone = judgmentTone[option.judgment];
-  const carrier = carrierFromLabel(option.flightLabel);
-
-  return (
-    <Link
-      to="/options/$optionId"
-      params={{ optionId: option.id }}
-      className="mt-4 block rounded-2xl border border-border bg-card px-4 py-4 shadow-card"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-          Current plan
-        </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-      </div>
-
-      <div className="mt-2 flex items-center gap-2.5">
-        <AirlineLogo code={carrier} size={26} />
-        <span className="min-w-0 truncate text-[14px] font-medium text-muted-foreground">
-          {carrier ? airlineName(carrier) : ""}
-        </span>
-      </div>
-      <p className="mt-1 break-words font-display text-[19px] font-bold leading-snug tracking-tight">
-        {option.flightLabel}
-      </p>
-
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-display text-[22px] font-semibold leading-none tracking-tight">
-            {option.depLocal}
-          </p>
-          <p className="mt-1 text-[13px] font-medium text-muted-foreground">{option.origin}</p>
-        </div>
-        <div className="mb-1 flex-1 border-t border-border" aria-hidden />
-        <div className="min-w-0 text-right">
-          <p className="font-display text-[22px] font-semibold leading-none tracking-tight">
-            <LocalTime value={formatOptionArrival(option)} />
-          </p>
-          <p className="mt-1 text-[13px] font-medium text-muted-foreground">{option.dest}</p>
-        </div>
-      </div>
-
-      <p className="mt-2 text-[12px] text-muted-foreground">
-        {option.kind === "connection" ? "1 stop" : "Nonstop"}
-      </p>
-
-      <p className={`mt-3 text-[14px] font-semibold ${tone.text}`}>
-        {judgmentShort[option.judgment]} right now
-      </p>
-      <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{option.headline}</p>
-    </Link>
-  );
-}
-
-/** Almost invisible while everything is normal. */
-function MonitoringLine({ plan }: { plan: StandbyPlan }) {
-  if (plan.options.length === 0) return null;
-
-  if (!plan.watching) {
-    return (
-      <p className="mt-3 text-[13px] text-muted-foreground">
-        Standbye isn't watching this day yet.{" "}
-        <Link to="/plans/$planId" params={{ planId: plan.id }} className="font-semibold text-primary">
-          Set up monitoring
-        </Link>
-      </p>
-    );
-  }
-
-  return (
-    <div className="mt-3 flex items-center justify-between gap-3">
-      <p className="min-w-0 truncate text-[13px] text-muted-foreground">
-        Standbye is watching the day · checked {agoLabel(plan.lastCheckedAt)}
-      </p>
-      {plan.watchId && (
-        <Link
-          to="/updates/$watchId"
-          params={{ watchId: plan.watchId }}
-          className="shrink-0 text-[13px] font-semibold text-primary"
-        >
-          Activity →
-        </Link>
-      )}
-    </div>
   );
 }
