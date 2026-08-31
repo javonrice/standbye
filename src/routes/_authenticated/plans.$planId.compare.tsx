@@ -1,7 +1,8 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ChevronRight, Star } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { getPlan, setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
 import { LocalTime } from "@/components/aircue/LocalTime";
@@ -23,10 +24,10 @@ export const Route = createFileRoute("/_authenticated/plans/$planId/compare")({
       {
         name: "description",
         content:
-          "Put your standby options side by side and see where they actually differ before you commit to one.",
+          "Put two standby options side by side and see where they actually differ before you choose one.",
       },
       { property: "og:title", content: "Compare options — Standbye" },
-      { property: "og:description", content: "Side-by-side comparison of your standby options." },
+      { property: "og:description", content: "Side-by-side comparison of two standby options." },
     ],
   }),
   component: ComparePage,
@@ -39,6 +40,12 @@ interface Cell {
   time?: boolean;
 }
 
+function optionLabel(option: StandbyOption): string {
+  if (option.kind === "connection" && option.segments.length > 1) {
+    return `Via ${option.segments[0]?.dest ?? "hub"}`;
+  }
+  return option.flightLabel;
+}
 
 /** One comparison row: a label plus one short cell per option. */
 function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell[] }> {
@@ -46,24 +53,18 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
 
   return [
     {
-      label: "Judgment",
-      cells: options.map((o) => ({ text: `${judgmentFace[o.judgment]} ${judgmentShort[o.judgment]}` })),
+      label: "Overall",
+      cells: options.map((o) => ({
+        text: `${judgmentFace[o.judgment]} ${judgmentShort[o.judgment]}`,
+      })),
     },
-    { label: "Depart", cells: options.map((o) => ({ text: o.depLocal || "—", time: true })) },
+    { label: "Departs", cells: options.map((o) => ({ text: o.depLocal || "—", time: true })) },
     {
-      label: "Arrive",
+      label: "Arrives",
       cells: options.map((o) => ({ text: formatOptionArrival(o) || "—", time: true })),
     },
-
     {
-      label: "Clears",
-      cells: options.map((o) => {
-        const n = Math.max(1, o.segments.length);
-        return { text: `${n} standby${n === 1 ? "" : "s"}` };
-      }),
-    },
-    {
-      label: "Availability",
+      label: "Booking check",
       cells: options.map((o) => {
         const p = pillar(o, "availability");
         return { text: p?.label ?? "Unknown", state: p?.state };
@@ -77,19 +78,21 @@ function buildRows(options: StandbyOption[]): Array<{ label: string; cells: Cell
       }),
     },
     {
-      label: "Recovery",
-      cells: options.map((o) => ({
-        text: o.evidence.recovery.label,
-        state: o.evidence.recovery.state,
-      })),
+      label: "Backup runway",
+      cells: options.map((o) => {
+        const later = o.evidence.recovery.laterNonstops.length;
+        return {
+          text: later > 0 ? `${later} later` : "None later",
+          state: o.evidence.recovery.state,
+        };
+      }),
     },
     {
-      label: "Later shots",
-      cells: options.map((o) => ({ text: String(o.evidence.recovery.laterNonstops.length) })),
-    },
-    {
-      label: "Complexity",
-      cells: options.map((o) => ({ text: o.kind === "connection" ? "Medium" : "Low" })),
+      label: "Standbys",
+      cells: options.map((o) => {
+        const n = Math.max(1, o.segments.length);
+        return { text: `${n}×` };
+      }),
     },
   ];
 }
@@ -105,30 +108,41 @@ function ComparePage() {
     queryFn: () => fetchPlan({ data: { planId } }),
   });
 
-  const makePrimary = useMutation({
+  const choose = useMutation({
     mutationFn: (optionId: string) => setPrimary({ data: { planId, optionId } }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["plan", planId] }),
         queryClient.invalidateQueries({ queryKey: ["plans"] }),
-        queryClient.invalidateQueries({ queryKey: ["recent-searches"] }),
       ]);
       void navigate({ to: "/plans/$planId", params: { planId } });
     },
   });
 
-  const options = (plan?.options ?? []).slice(0, 3);
-  const rows = buildRows(options);
-  const pick = options[0];
+  const all = plan?.options ?? [];
+  const [leftId, setLeftId] = useState<string | null>(null);
+  const [rightId, setRightId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (all.length === 0) return;
+    setLeftId((v) => v ?? all[0]?.id ?? null);
+    setRightId((v) => v ?? all[1]?.id ?? null);
+  }, [all]);
+
+  const left = all.find((o) => o.id === leftId) ?? all[0] ?? null;
+  const right = all.find((o) => o.id === rightId) ?? all[1] ?? null;
+  const pair = [left, right].filter((o): o is StandbyOption => Boolean(o));
+  const rows = buildRows(pair);
+  const preferred = all[0] ?? null;
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-4xl md:px-10 md:pt-12">
+    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
       <Link
         to="/plans/$planId"
         params={{ planId }}
         className="flex items-center gap-1.5 text-sm text-muted-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to the list
+        <ArrowLeft className="h-4 w-4" /> Your plan
       </Link>
 
       <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">Compare options</h1>
@@ -138,130 +152,143 @@ function ComparePage() {
 
       {isLoading && <p className="mt-6 text-sm text-muted-foreground">Lining them up…</p>}
 
-      {!isLoading && options.length === 0 && (
+      {!isLoading && all.length === 0 && (
         <p className="mt-6 text-sm text-muted-foreground">
           There is nothing to compare on this plan yet.
         </p>
       )}
 
-      {options.length > 0 && (
+      {pair.length > 0 && (
         <>
-          <div className="-mx-5 mt-5 overflow-x-auto px-5 md:mx-0 md:px-0">
-            <div
-              className="min-w-max rounded-2xl border border-border bg-card"
-              style={{
-                display: "grid",
-                gridTemplateColumns: `6.5rem repeat(${options.length}, minmax(8rem, 1fr))`,
-              }}
-            >
-              <div className="border-b border-border px-3 py-3" />
-              {options.map((o, i) => (
+          {all.length > 2 && (
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <PickerColumn
+                label="Left"
+                options={all}
+                value={left?.id ?? ""}
+                otherId={right?.id ?? ""}
+                onChange={setLeftId}
+              />
+              <PickerColumn
+                label="Right"
+                options={all}
+                value={right?.id ?? ""}
+                otherId={left?.id ?? ""}
+                onChange={setRightId}
+              />
+            </div>
+          )}
+
+          <div
+            className="mt-4 overflow-hidden rounded-2xl border border-border bg-card"
+            style={{ display: "grid", gridTemplateColumns: `5.5rem repeat(${pair.length}, 1fr)` }}
+          >
+            <div className="border-b border-border px-3 py-3" />
+            {pair.map((o) => (
+              <div key={o.id} className="border-b border-l border-border px-3 py-3">
+                <p className="break-words font-display text-[15px] font-bold leading-snug tracking-tight">
+                  {optionLabel(o)}
+                </p>
+              </div>
+            ))}
+
+            {rows.map((row, r) => (
+              <div key={row.label} className="contents">
                 <div
-                  key={o.id}
                   className={cn(
-                    "border-b border-l border-border px-3 py-3",
-                    i === 0 && "bg-accent/40",
+                    "px-3 py-2.5 text-[12px] font-semibold text-muted-foreground",
+                    r < rows.length - 1 && "border-b border-border",
                   )}
                 >
-                  {i === 0 && (
-                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-primary">
-                      Standbye pick
-                    </p>
-                  )}
-                  <p className="mt-0.5 break-words font-display text-[15px] font-bold leading-snug tracking-tight">
-                    {o.kind === "connection" && o.segments.length > 1
-                      ? `Via ${o.segments[0]?.dest ?? "hub"}`
-                      : o.flightLabel}
-                  </p>
+                  {row.label}
                 </div>
-              ))}
-
-              {rows.map((row, r) => (
-                <div key={row.label} className="contents">
+                {row.cells.map((cell, i) => (
                   <div
+                    key={`${row.label}-${i}`}
                     className={cn(
-                      "px-3 py-2.5 text-[12px] font-semibold text-muted-foreground",
-                      r < rows.length - 1 && "border-b border-border",
+                      "flex items-center gap-1.5 border-l border-border px-3 py-2.5 text-[14px] font-medium",
+                      r < rows.length - 1 && "border-b",
                     )}
                   >
-                    {row.label}
+                    {cell.state && (
+                      <span
+                        aria-hidden
+                        className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pillarDot[cell.state])}
+                      />
+                    )}
+                    {cell.time ? (
+                      <LocalTime value={cell.text} className="truncate" />
+                    ) : (
+                      <span className="truncate">{cell.text}</span>
+                    )}
                   </div>
-                  {row.cells.map((cell, i) => (
-                    <div
-                      key={`${row.label}-${i}`}
-                      className={cn(
-                        "flex items-center gap-1.5 border-l border-border px-3 py-2.5 text-[14px] font-medium",
-                        r < rows.length - 1 && "border-b",
-                        i === 0 && "bg-accent/40",
-                      )}
-                    >
-                      {cell.state && (
-                        <span
-                          aria-hidden
-                          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pillarDot[cell.state])}
-                        />
-                      )}
-                      {cell.time ? (
-                        <LocalTime value={cell.text} className="truncate" />
-                      ) : (
-                        <span className="truncate">{cell.text}</span>
-                      )}
-
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ))}
           </div>
 
-          {pick && (
+          {preferred && (
             <p className="mt-4 text-[15px] leading-snug text-foreground">
-              <span className="font-semibold">Why the pick. </span>
-              {pick.headline}
+              <span className="font-semibold">
+                Standbye currently prefers {optionLabel(preferred)}.{" "}
+              </span>
+              {preferred.headline}
             </p>
           )}
 
           <div className="mt-5 space-y-2">
-            {options.map((o) => {
-              const isPrimary = plan?.primaryOptionId === o.id;
-              return (
-                <div
-                  key={o.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
-                >
-                  <Link
-                    to="/options/$optionId"
-                    params={{ optionId: o.id }}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-3"
-                  >
-                    <span className="min-w-0">
-                      <span className="block break-words text-sm font-semibold">{o.flightLabel}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {o.depLocal} local · {judgmentShort[o.judgment]}
-                      </span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  </Link>
-                  {isPrimary ? (
-                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-primary">
-                      <Star className="h-3.5 w-3.5 fill-primary" /> Primary
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={makePrimary.isPending}
-                      onClick={() => makePrimary.mutate(o.id)}
-                      className="shrink-0 text-xs font-semibold text-primary"
-                    >
-                      Make primary
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            {pair.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                disabled={choose.isPending}
+                onClick={() => choose.mutate(o.id)}
+                className={cn(
+                  "h-12 w-full rounded-xl text-[15px] font-semibold",
+                  o.id === preferred?.id
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-card",
+                )}
+              >
+                Use {optionLabel(o)}
+              </button>
+            ))}
           </div>
         </>
       )}
     </main>
+  );
+}
+
+function PickerColumn({
+  label,
+  options,
+  value,
+  otherId,
+  onChange,
+}: {
+  label: string;
+  options: StandbyOption[];
+  value: string;
+  otherId: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-2 text-[14px] font-medium"
+      >
+        {options.map((o) => (
+          <option key={o.id} value={o.id} disabled={o.id === otherId}>
+            {optionLabel(o)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
