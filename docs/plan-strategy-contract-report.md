@@ -176,6 +176,93 @@ From 141 candidate intermediate stations on the IAH board, 3 passed onward + lay
 
 **Note:** Full `rankStandbyOptions` integration requires Supabase service role (cache + airports table). The live sim validates the same discovery → strategy catalog path using direct RapidAPI calls and production `buildStrategyCatalog()` helpers.
 
+---
+
+## FAQ: Why didn’t IAH → OKC → ORD show up?
+
+**Short answer:** Not because OKC “isn’t a hub.” The Strategy layer has **no hub rule** — any station can be a connection point when the backend has evidence for a usable path.
+
+On the live test (IAH → ORD, **2026-08-31**, **UA only**), OKC failed for two separate reasons:
+
+### 1. Discovery budget — OKC wasn’t in the checked set
+
+The live script only checked the **top 4** intermediate airports by UA departure count from IAH. OKC ranked **16th** (only **2** UA flights IAH → OKC that day). Production uses a wider cap (`maxDiscover = 8`), but OKC would still miss the cutoff on that day because it is low-frequency on the IAH board. DEN, EWR, and SFO were checked first and verified.
+
+| Rank | Station | UA inbound flights from IAH |
+|------|---------|-------------------------------|
+| 1 | DEN | 6 |
+| … | … | … |
+| 16 | **OKC** | **2** |
+
+### 2. Schedule sequencing — no usable UA same-day pair
+
+A Strategy requires **both**:
+
+- IAH → OKC exists
+- OKC → ORD exists
+- **60–360 minute layover** between arrival and onward departure (current rule)
+- Carrier/access rules pass
+
+**2026-08-31 schedule (UA):**
+
+| Leg | When |
+|-----|------|
+| IAH → OKC | Afternoon (~12:20 / 14:47 depart) |
+| OKC → ORD | Morning only (~07:19 / 09:15 depart) |
+
+OKC → ORD flights **depart before** IAH → OKC arrivals land. Even the closest UA pair after UA6145 lands is ~24 minutes — below the 60-minute minimum.
+
+An **AA** OKC → ORD would connect (~140 min layover), but the test used **UA-only** access. GF8 returned **0** IAH → OKC → ORD commercial itineraries for that date.
+
+| Question | Answer |
+|----------|--------|
+| Can OKC ever be a Strategy? | **Yes** — when schedule + layover + access all pass |
+| Is OKC blocked for not being a hub? | **No** |
+| Why not on this test? | Low board rank + no valid UA same-day sequencing on Aug 31 |
+| Would `plan.strategies.length > 1` still work? | **Yes** — DEN/EWR/SFO verified; OKC is not required |
+
+On a day when OKC → ORD has a later departure after an IAH → OKC arrival, **`IAH>OKC>ORD` would appear** in `plan.strategies` like any other station.
+
+---
+
+## Standby vs commercial connection model
+
+For standbys, the traveler is **not** buying one linked itinerary. They assemble:
+
+1. Clear **IAH → OKC**
+2. Clear **OKC → ORD**
+
+If both exist and the **sequence is possible**, that is a real path — OKC does not need to be a hub, focus city, or anything special. The Strategy contract represents **one ordered airport path**, not one pre-built ticket.
+
+### What the backend checks today
+
+`findGateways()` still applies a **commercial-style connection filter**:
+
+- Inbound A → X must exist
+- Onward X → B must exist
+- Some pair must have **60–360 minutes** between arrival at X and departure to B
+
+Only then does `IAH>X>ORD` enter `plan.strategies`. The blocker is **not** hub status — it is this pairing rule plus discovery budget.
+
+### Standby mental model vs current backend
+
+| Model | Rule |
+|-------|------|
+| **Standby (product intent)** | Both legs exist + times can be sequenced same day — traveler pieces flights together |
+| **Current backend** | Same, but requires a **60–360 min paired connection** and only checks top N stations by board frequency |
+
+Even under standby thinking, you cannot use a flight that **already left**. On **Aug 31 UA**, OKC still would not qualify because all OKC → ORD UA flights were morning-only, before IAH → OKC afternoon arrivals — standby or not.
+
+### Possible future relaxation (not implemented in this PR)
+
+To align Strategy discovery more closely with standby travel:
+
+> Inbound A → X and onward X → B both exist today, and at least one onward departs **after** at least one inbound arrival (minimum ground time, without a tight commercial-only cap)
+
+That would surface more paths like OKC on days when timing works, without listing airports that have unrelated flights but no executable same-day sequence. Deep scoring and ranking would remain separate.
+
+---
+
 ## Typecheck
 
 `bunx tsc --noEmit` — pass (after test fixture fixes)
