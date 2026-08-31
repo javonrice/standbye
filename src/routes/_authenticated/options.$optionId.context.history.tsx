@@ -25,19 +25,19 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/context/
 });
 
 /**
- * Turns the plain-language pattern we already publish into a rough bar length.
- * The words stay the truth; the bar is only a relative sense of scale.
+ * Qualitative history facts: delay/cancellation patterns render as plain facts.
+ * Only loadIndex (a real numeric metric) gets a bar.
  */
-function scaleFor(pattern: string): number {
-  const text = pattern.toLowerCase();
-  if (text.includes("almost never") || text.includes("very rarely")) return 8;
-  if (text.includes("rarely") || text.includes("seldom")) return 18;
-  if (text.includes("small") || text.includes("now and then") || text.includes("occasional"))
-    return 32;
-  if (text.includes("often") || text.includes("frequent")) return 72;
-  if (text.includes("regularly") || text.includes("sometimes")) return 50;
-  return 40;
+function HistoryFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium">{value}</span>
+    </div>
+  );
 }
+
+
 
 function HistoryContext() {
   const { optionId } = Route.useParams();
