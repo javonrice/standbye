@@ -74,6 +74,7 @@ function plan(options: StandbyOption[], partial: Partial<StandbyPlan> = {}): Sta
     watchId: null,
     planVerdict: null,
     lastCheckedAt: null,
+    nextCheckAt: null,
     backupRunway: {
       totalRealisticWays: options.length,
       backupAlternatives: Math.max(0, options.length - 1),

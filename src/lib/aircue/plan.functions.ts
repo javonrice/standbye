@@ -229,6 +229,22 @@ export const getCurrentPlanForHome = createServerFn({ method: "GET" })
     return resolveHomePlan(context.supabase, context.userId);
   });
 
+/**
+ * Home in one round trip: resolve the current Plan and return the full plan,
+ * so the cockpit doesn't wait on a second dependent request.
+ */
+export const getHomePlan = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<StandbyPlan | null> => {
+    const { getCurrentPlanForHome: resolveHomePlan } = await import(
+      "@/lib/aircue/plan-lifecycle.server"
+    );
+    const summary = await resolveHomePlan(context.supabase, context.userId);
+    if (!summary) return null;
+    const { loadPlan } = await import("@/lib/aircue/plan.server");
+    return loadPlan(context.supabase, context.userId, summary.id);
+  });
+
 /** Trips with a primary option and/or an active watch. */
 export const listCommittedPlans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
