@@ -264,6 +264,8 @@ export interface StandbyPlan {
   watchId: string | null;
   planVerdict: string | null;
   lastCheckedAt: string | null;
+  /** When the monitor is next scheduled to look, if watching. */
+  nextCheckAt: string | null;
   /** Rank-1 option after latest rank (Standbye's current preference). */
   preferredOptionId: string | null;
   backupRunway: {
