@@ -133,8 +133,27 @@ function CurrentPlanHome({ planId }: { planId: string }) {
 
   return (
     <>
-      <img src={wordmark.url} alt="Standbye" className="h-9 w-auto object-contain md:hidden" />
-      <PlanSnapshot plan={plan} />
+      <div className="-mx-5 -mt-7 md:-mx-10 md:-mt-12">
+        <div className="relative h-52 overflow-hidden">
+          <img
+            src={homeSky}
+            alt="Golden-hour sky seen from an airplane window"
+            width={1024}
+            height={640}
+            className="h-full w-full object-cover"
+          />
+          {/* Fade the photo into the page so the trip card floats over it. */}
+          <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-transparent to-background" />
+          <img
+            src={wordmark.url}
+            alt="Standbye"
+            className="absolute left-5 top-5 h-9 w-auto object-contain drop-shadow md:left-10 md:top-8"
+          />
+        </div>
+      </div>
+      <div className="-mt-20">
+        <PlanSnapshot plan={plan} />
+      </div>
     </>
   );
 }
