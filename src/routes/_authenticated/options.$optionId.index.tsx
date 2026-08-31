@@ -105,6 +105,13 @@ function OptionScreen() {
           .join(", ")}`
       : "Nonstop";
 
+  const v2PillarTitle: Record<string, string> = {
+    availability: "Booking check",
+    operations: "Operations",
+    recovery: "Backup runway",
+    history: "Route history",
+  };
+
   const pillarLink: Record<string, { to: string }> = {
     availability: { to: "/options/$optionId/availability" },
     operations: { to: "/options/$optionId/context/weather" },
@@ -189,7 +196,7 @@ function OptionScreen() {
                 <SignalLinkRow
                   key={p.key}
                   state={p.state}
-                  title={pillarTitle[p.key]}
+                  title={v2PillarTitle[p.key] ?? pillarTitle[p.key]}
                   detail={p.label}
                   to={link.to}
                   params={{ optionId }}
@@ -198,7 +205,7 @@ function OptionScreen() {
                 <SignalRow
                   key={p.key}
                   state={p.state}
-                  title={pillarTitle[p.key]}
+                  title={v2PillarTitle[p.key] ?? pillarTitle[p.key]}
                   detail={p.label}
                 />
               );
