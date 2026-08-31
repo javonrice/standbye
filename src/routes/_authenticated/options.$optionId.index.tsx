@@ -189,7 +189,9 @@ function OptionScreen() {
         </h2>
         <div className="mt-2 rounded-2xl border border-border bg-card px-4">
           <SignalGroup>
-            {option.pillars.map((p) => {
+            {option.pillars
+              .filter((p) => p.key !== "history")
+              .map((p) => {
               const link = pillarLink[p.key];
               return link ? (
                 <SignalLinkRow
