@@ -47,12 +47,12 @@ function makeRankedOption(overrides: Partial<RankedOption> = {}): RankedOption {
     carrier: "UA",
     flightNumber: "782",
     flightLabel: "UA782",
-    optionKey: "UA782:ORD-SFO:2026-08-29T22:10",
+    optionKey: "UA782:ORD-SFO:2026-09-15T22:10",
     origin: "ORD",
     dest: "SFO",
     depLocal: "5:10 PM",
     arrLocal: "7:05 PM",
-    schedDepUtc: "2026-08-29T22:10:00Z",
+    schedDepUtc: "2026-09-15T22:10:00Z",
     schedArrUtc: null,
     segments: [],
     pillars: [{ key: "operations", state: "good", label: "Operations", detail: "Clear" }],
@@ -97,7 +97,7 @@ function makeOptionRow(overrides: Record<string, unknown> = {}) {
     dest_iata: "SFO",
     dep_local: "5:10 PM",
     arr_local: "7:05 PM",
-    sched_dep_utc: "2026-08-29T22:10:00Z",
+    sched_dep_utc: "2026-09-15T22:10:00Z",
     reasons: [],
     segments: [],
     recovery: baseRecovery,
@@ -109,7 +109,7 @@ function makeOptionRow(overrides: Record<string, unknown> = {}) {
     },
     refreshed_at: new Date().toISOString(),
     is_current: true,
-    option_key: "UA782:ORD-SFO:2026-08-29T22:10",
+    option_key: "UA782:ORD-SFO:2026-09-15T22:10",
     pillars: [
       { key: "availability", state: "good", label: "Strong", detail: "Public" },
       { key: "operations", state: "good", label: "Normal", detail: "Clear" },
@@ -146,7 +146,7 @@ function makeWatchRow(snapshot: Record<string, unknown> = {}) {
       id: PLAN_ID,
       origin_iata: "ORD",
       dest_iata: "SFO",
-      travel_date: "2026-08-29",
+      travel_date: "2026-09-15",
       travelers: 1,
       cabin: "any",
       primary_option_id: OPTION_ID,
@@ -160,6 +160,19 @@ function makeWatchRow(snapshot: Record<string, unknown> = {}) {
   };
 }
 
+function chainEq<T>(value: T) {
+  const handler: ProxyHandler<object> = {
+    get(_target, prop) {
+      if (prop === "then") return undefined;
+      if (prop === "maybeSingle") return () => Promise.resolve({ data: value, error: null });
+      if (prop === "order") return () => Promise.resolve({ data: value, error: null });
+      if (prop === "limit") return () => Promise.resolve({ data: value, error: null });
+      return () => new Proxy({}, handler);
+    },
+  };
+  return new Proxy({}, handler);
+}
+
 function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
   if (existingPlanOptions.length === 0) {
     existingPlanOptions = [watchRow.plan_options];
@@ -170,23 +183,34 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
       if (table === "watch_plans") {
         return {
           select: () => ({
-            eq: () => ({
-              eq: () => ({
-                maybeSingle: () => Promise.resolve({ data: watchRow, error: null }),
-              }),
-            }),
+            eq: () => chainEq(watchRow),
           }),
-          update: (payload: Record<string, unknown>) => ({
-            eq: () => {
+          update: (payload: Record<string, unknown>) => {
+            const finish = () => {
               lastWatchUpdate = payload;
-              if (payload["snapshot"]) watchRow.snapshot = payload["snapshot"] as typeof watchRow.snapshot;
+              if (payload["snapshot"]) {
+                watchRow.snapshot = payload["snapshot"] as typeof watchRow.snapshot;
+              }
               if (payload["unseen_changes"] !== undefined) {
                 watchRow.unseen_changes = payload["unseen_changes"] as number;
               }
               if (payload["verdict"]) watchRow.verdict = payload["verdict"] as string;
               return Promise.resolve({ data: null, error: null });
-            },
-          }),
+            };
+            const chain: {
+              eq: () => typeof chain;
+              then: (
+                onFulfilled?: (v: unknown) => unknown,
+                onRejected?: (e: unknown) => unknown,
+              ) => Promise<unknown>;
+            } = {
+              eq: () => chain,
+              then(onFulfilled, onRejected) {
+                return finish().then(onFulfilled, onRejected);
+              },
+            };
+            return chain;
+          },
         };
       }
       if (table === "plan_options") {
@@ -251,16 +275,11 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
       }
       if (table === "plans") {
         return {
-          select: () => ({
-            eq: () => ({
-              eq: () => ({
-                maybeSingle: () => Promise.resolve({ data: watchRow.plans, error: null }),
-              }),
-              maybeSingle: () => Promise.resolve({ data: watchRow.plans, error: null }),
-            }),
-          }),
+          select: () => chainEq(watchRow.plans),
           update: () => ({
-            eq: () => Promise.resolve({ data: null, error: null }),
+            eq: () => ({
+              eq: () => Promise.resolve({ data: null, error: null }),
+            }),
           }),
         };
       }
@@ -275,6 +294,17 @@ function createMockClient(watchRow: ReturnType<typeof makeWatchRow>) {
               }),
             }),
           }),
+        };
+      }
+      if (table === "load_snapshots") {
+        const empty = Promise.resolve({ data: [], error: null });
+        const chain = {
+          in: () => ({
+            eq: () => empty,
+          }),
+        };
+        return {
+          select: () => chain,
         };
       }
       if (table === "plan_change_events") {
@@ -349,7 +379,7 @@ await mockModuleIsolated("@/lib/aircue/watch-signals.server", () => {
         cancelPressure: {
           origin: input.anchor.origin,
           date: input.travelDate,
-          windowKey: "adb:fids:v2:ORD:2026-08-29:12:00-23:59",
+          windowKey: "adb:fids:v2:ORD:2026-09-15:12:00-23:59",
           byRoute: {
             [`${input.anchor.carrier ?? "UA"}:${input.anchor.dest}`]: {
               count: 0,

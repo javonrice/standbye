@@ -23,9 +23,9 @@ import {
 } from "@/components/ui/select";
 import {
   createPlan,
+  getCurrentPlanForHome,
   getPlan,
   getStandbyProfile,
-  listPlans,
   type PlanSummary,
 } from "@/lib/aircue/plan.functions";
 import { PlanBuildError } from "@/components/aircue/PlanBuildError";
@@ -78,7 +78,7 @@ export function pickCurrentPlan(plans: PlanSummary[], todayISO: string): PlanSum
 
 function HomePage() {
   const { new: forceBuilder } = Route.useSearch();
-  const loadPlans = useServerFn(listPlans);
+  const loadCurrentPlan = useServerFn(getCurrentPlanForHome);
   const loadProfile = useServerFn(getStandbyProfile);
   const navigate = useNavigate();
 
@@ -86,13 +86,14 @@ function HomePage() {
     queryKey: ["standby-profile"],
     queryFn: () => loadProfile(),
   });
-  const { data: plans, isLoading } = useQuery({ queryKey: ["plans"], queryFn: () => loadPlans() });
+  const { data: current, isLoading } = useQuery({
+    queryKey: ["home-current-plan"],
+    queryFn: () => loadCurrentPlan(),
+  });
 
   useEffect(() => {
     if (profile && !profile.onboarded) navigate({ to: "/onboarding" });
   }, [profile, navigate]);
-
-  const current = plans ? pickCurrentPlan(plans, today()) : null;
 
   if (!forceBuilder && isLoading) {
     return (

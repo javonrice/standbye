@@ -1,6 +1,6 @@
 # Plan Lifecycle Fix — Audit + Implementation Plan
 
-**Status:** Audit complete — ready for Cursor implementation  
+**Status:** Audit complete — revised architecture — ready for Cursor implementation  
 **Audience:** Cursor  
 **Branch:** `main`  
 **Scope:** Backend/domain lifecycle only — **no Home UI changes in this task**
@@ -273,15 +273,57 @@ A standby Plan can contain UA100, UA200, UA300. If UA100 passes but UA200/UA300 
 
 ## Part 3 — Implementation Plan
 
-### Design principle
+### Architecture (locked)
 
-Create **one server/domain function** — do not scatter lifecycle logic across UI and watch.
+**Do not mutate the database inside `loadPlan()`.** Opening a screen, refetching React query, or reading plan history must not silently change `primary_option_id`, end watches, or write lifecycle prefs. Every caller of `loadPlan()` would become an accidental mutation trigger (background jobs, monitoring, API reads, concurrent requests, notifications).
 
-```typescript
-resolvePlanLifecycle(plan, now) → PlanLifecycleResult
+Split responsibilities:
+
+```text
+                    ┌─────────────────────────┐
+                    │       loadPlan()        │
+                    │        READ ONLY        │
+                    └────────────┬────────────┘
+                                 ↓
+                    ┌─────────────────────────┐
+                    │ resolvePlanLifecycle()  │
+                    │          PURE           │
+                    └────────────┬────────────┘
+                                 ↓
+             ┌────────────────────────────────────┐
+             │ resolveAndPersistPlanLifecycle()   │
+             │ primary + prefs + watch mutations  │
+             └────────────────────────────────────┘
+                         ↓               ↓
+                    ACTIVE            COMPLETE
+                         ↓               ↓
+               advance if needed    end watch
+                         ↓
+                 Home can show it   Home skips it
 ```
 
-Fit existing architecture. **Reuse existing rank order.** Do not invent a second ranking system.
+| Function | Role |
+|----------|------|
+| `loadPlan()` | Read plan row + options. **No writes.** May attach **read-only** resolved view via pure `resolvePlanLifecycle()` for display — but must not persist. |
+| `resolvePlanLifecycle(plan, now)` | **Pure** decision: active vs complete, advance target, actionable set. |
+| `resolveAndPersistPlanLifecycle({ client, userId, planId, now })` | Load → resolve → write primary / lifecycle prefs / watch changes. |
+
+**Write orchestrator call sites** (places that own lifecycle transitions):
+
+```text
+Home current-plan request     → resolve + persist before returning Home payload
+Watch recheck                 → resolve + persist before signal evaluation
+Watch cron                    → resolve + persist when due (or end on complete)
+Plan activation / refresh     → resolve + persist after activation paths that need it
+```
+
+**Do not call write orchestrator from:** generic `loadPlan`, plan detail history reads, tests that only need stored state, ranking, strategy discovery.
+
+---
+
+### Design principle
+
+One **pure** lifecycle function plus one **explicit write orchestrator**. Fit existing architecture. **Reuse existing rank order.** Do not invent a second ranking system.
 
 ---
 
@@ -307,7 +349,36 @@ export interface PlanLifecycleResult {
 
 export function isOptionActionable(option: StandbyOption, now: Date, graceMin?: number): boolean;
 export function nextActionableOption(options: StandbyOption[], afterOptionId: string | null, now: Date): StandbyOption | null;
+
+/** Pure — no DB I/O. */
 export function resolvePlanLifecycle(plan: StandbyPlan, now?: Date): PlanLifecycleResult;
+
+/** Apply pure resolution to a StandbyPlan for read-only display (no persist). */
+export function applyLifecycleView(plan: StandbyPlan, result: PlanLifecycleResult): StandbyPlan;
+```
+
+**Write orchestrator** (same module or `plan.server.ts`):
+
+```typescript
+export async function resolveAndPersistPlanLifecycle(input: {
+  client: unknown;
+  userId: string;
+  planId: string;
+  now?: Date;
+}): Promise<{ plan: StandbyPlan; lifecycle: PlanLifecycleResult; persisted: boolean }>;
+```
+
+Flow:
+
+```typescript
+const plan = await loadPlan(client, userId, planId);           // read only
+const lifecycle = resolvePlanLifecycle(plan, now);            // pure
+if (lifecycle.primaryAdvanced || lifecycle.status === "complete") {
+  await persistLifecycleMutations(client, userId, planId, lifecycle);  // writes
+  const refreshed = await loadPlan(client, userId, planId);   // read again
+  return { plan: applyLifecycleView(refreshed!, lifecycle), lifecycle, persisted: true };
+}
+return { plan: applyLifecycleView(plan, lifecycle), lifecycle, persisted: false };
 ```
 
 ---
@@ -370,12 +441,40 @@ When current/preferred primary has passed:
 
 When **zero** actionable options remain in the travel window:
 
-1. Set lifecycle status → `complete`.
-2. Clear or freeze `primary_option_id`? **Recommend:** keep primary for history but mark plan complete in `prefs.lifecycleStatus`.
+1. Set lifecycle status → `complete` in `prefs.lifecycleStatus`.
+2. **Keep** `primary_option_id` and `travel_date` unchanged for history.
 3. End active watch (`state: ended`) if plan completes mid-day.
-4. Exclude from Home active selection.
+4. Exclude from Home active selection via `lifecycleStatus === "complete"` (not by rewriting `travel_date`).
 
-Plan row **not deleted** — remains in Past/history.
+Plan row **not deleted** — remains retrievable for history.
+
+---
+
+### Completion vs calendar grouping (do not conflate)
+
+Backend lifecycle:
+
+```typescript
+lifecycleStatus: "active" | "complete"
+```
+
+is **orthogonal** to calendar date grouping.
+
+A plan that completes at 11 AM on its travel day has:
+
+```text
+travelDate: 2026-08-31
+lifecycleStatus: complete
+```
+
+It is **not** a “past date” plan at 11 AM — do not bend `travelDate` or backend date math to implement completion.
+
+| Concern | Mechanism |
+|---------|-----------|
+| Plan exhausted mid-day | `lifecycleStatus: complete` |
+| Calendar day rolled over | existing `travelDate < today` grouping |
+
+UI (later, out of scope for this task) may show **Today → Completed** or move under Past — that is presentation. Backend stores both facts honestly.
 
 ---
 
@@ -393,96 +492,113 @@ prefs.lifecyclePreviousPrimaryId?: string  // audit trail optional
 
 **Recommendation for this task:** `prefs.lifecycleStatus` + `lifecycleResolvedAt` to ship fast; migrate column later if Home query needs it.
 
-When `resolvePlanLifecycle` advances primary → call existing DB update (same as `setPrimaryOption` internals, or call `setPrimaryOption` itself).
+**All writes** go through `resolveAndPersistPlanLifecycle()` → reuse `setPrimaryOption` for advance (watch anchor sync) and dedicated helpers for complete + end watch.
 
 ---
 
-### Where to call `resolvePlanLifecycle`
+### Where to call lifecycle functions
 
-| Call site | Why |
-|-----------|-----|
-| **`loadPlan`** | Every plan read returns resolved lifecycle + advanced primary |
-| **`loadPlanSummaries`** | Home/list can filter completed same-day plans |
-| **`recheckWatch`** | Advance primary when anchor departed; end watch when complete |
-| **`pickCurrentPlan`** (server-side helper) | Or move selection server-side: `pickActionablePlan(summaries, now)` |
+| Call site | Pure `resolvePlanLifecycle` | Write `resolveAndPersistPlanLifecycle` |
+|-----------|----------------------------|----------------------------------------|
+| **`loadPlan`** | Optional: `applyLifecycleView` for read-only resolved display | **Never** |
+| **Home current-plan server fn** | After persist, for selection | **Yes** — before returning current plan to Home |
+| **`recheckWatch`** | After persist, before signals | **Yes** — first step of recheck (see below) |
+| **Watch cron (`run-watches`)** | When evaluating due watches | **Yes** — before or instead of blind recheck on exhausted plans |
+| **Plan activation / refresh** | If needed after create | **Yes** — when activation path should reconcile lifecycle |
+| **`loadPlanSummaries`** | Read `prefs.lifecycleStatus` from row | **No** — summaries reflect last persisted state |
 
-**Do not call from:** ranking, strategy discovery, GF8, UI components (this task).
+**Do not call write orchestrator from:** ranking, strategy discovery, GF8, generic plan detail reads, UI components.
 
-Suggested flow in `loadPlan`:
+---
 
-```typescript
-const plan = buildStandbyPlanFromRows(...);
-const lifecycle = resolvePlanLifecycle(plan, new Date());
-if (lifecycle.primaryAdvanced && lifecycle.newPrimaryOptionId) {
-  await persistPrimaryAdvance(client, userId, planId, lifecycle.newPrimaryOptionId);
-}
-if (lifecycle.status === "complete") {
-  await markPlanComplete(client, userId, planId);
-  await endActiveWatchIfAny(client, userId, planId);
-}
-return applyLifecycleToPlan(plan, lifecycle);
-```
+### Read-only display without persist
 
-Return enriched `StandbyPlan`:
+For callers that need resolved lifecycle view but must not write (e.g. plan detail history, tests):
 
 ```typescript
-lifecycleStatus: "active" | "complete"
-currentOptionId: string | null  // resolved, may differ from primaryOptionId until persist
+const plan = await loadPlan(client, userId, planId);
+const lifecycle = resolvePlanLifecycle(plan, now);
+return applyLifecycleView(plan, lifecycle);
+// primaryOptionId in view reflects resolved currentOptionId for display
+// DB unchanged — may be stale until a write orchestrator runs elsewhere
 ```
 
-Or overwrite `primaryOptionId` in returned object after persist so UI reads correct value without frontend changes.
+Home current-plan path should **always persist first** so the traveler sees truth that matches DB.
 
 ---
 
 ### Home current-plan query
 
-**Today:** client `pickCurrentPlan` on `PlanSummary[]`.
+**Today:** client `pickCurrentPlan` on `PlanSummary[]` by calendar date only.
 
-**Fix options (pick one):**
+**Fix (preferred):**
 
-**A — Server-side selection (preferred):**
-
-Add `loadCurrentPlanSummary(client, userId, now)`:
+Add server fn e.g. `getCurrentPlanForHome`:
 
 ```typescript
-const summaries = await loadPlanSummaries(...);
+// For each candidate summary (or load + resolveAndPersist on soonest dates):
+await resolveAndPersistPlanLifecycle({ client, userId, planId, now });
+// Then pick among summaries where lifecycleStatus !== "complete" && isActionable
 return pickActionablePlan(summaries, now);
-// skips lifecycleStatus === "complete" AND same-day plans with no actionable options
 ```
 
-Expose via `getCurrentPlan` server fn; Home calls that instead of client filter.
+Expose via `getCurrentPlan` server fn; Home calls that instead of client-only date filter.
 
-**B — Enrich PlanSummary:**
+Enrich `PlanSummary` with:
 
-Add `lifecycleStatus`, `isActionable` to `PlanSummary` during `summarizePlanRow` / lightweight lifecycle check.
-
-Update client `pickCurrentPlan` to skip `complete` / non-actionable plans.
+```typescript
+lifecycleStatus: "active" | "complete"
+isActionable: boolean  // derived from persisted state + option timestamps, or post-persist
+```
 
 **Invariant after fix:**
 
 ```text
-Home current Plan = actionable Plan
+Home current Plan = actionable Plan (lifecycleStatus active + future usable option)
 ≠ most recently created Plan regardless of state
+≠ calendar today alone
 ```
 
 For multiple active plans: keep existing ordering (soonest date, then newest created) among **actionable-only** candidates.
 
 ---
 
-### Monitoring impact
+### Monitoring impact — watch recheck order (locked)
+
+**Do not** merely replace hardcoded `primaryStillCurrent: true` with:
+
+```typescript
+actionableOptionIds.includes(primaryId)
+```
+
+Lifecycle resolution must run **first** in `recheckWatch`:
+
+```text
+watch recheck starts
+        ↓
+resolveAndPersistPlanLifecycle()
+        ↓
+primary passed?
+   yes → advance primary (setPrimaryOption path)
+        → sync watch anchor to new current option
+        ↓
+reload plan / anchor option
+        ↓
+continue signal evaluation against NEW current option
+        ↓
+decideWatchOutcome(..., { primaryStillCurrent: true })  // now meaningful — primary is current
+```
+
+Otherwise the watch system reacts to the **old** departed flight (missing / departed signals) even though the Plan has legitimately advanced.
 
 | Event | Watch behavior |
 |-------|----------------|
-| Primary advances to next option | Update `watch_plans.plan_option_id` via same path as `setPrimaryOption` |
-| Plan completes | End active watch (`state: ended`, `ended_at`) |
-| One flight expires, others remain | **Keep watching** — do not stop plan watch |
-| Plan complete | Do not treat as actionable in recheck cron |
+| Primary advances to next option | Update `watch_plans.plan_option_id` via `setPrimaryOption` path **before** gatherWatchSignals |
+| Plan completes | End active watch (`state: ended`, `ended_at`) — skip further recheck |
+| One flight expires, others remain | **Keep watching** on new anchor after advance |
+| Plan complete | Cron should not treat as actionable |
 
 **Do not:** create duplicate watches on advance (`beginWatch` already dedupes).
-
-**Wire `recheckWatch`:** pass `primaryStillCurrent: actionableOptions.includes(primaryId)` instead of hardcoded `true`.
-
-When primary departed but plan still active → advance primary, continue watch on new anchor.
 
 ---
 
@@ -547,18 +663,20 @@ Expected:
 ### Test 5 — Completed plan remains retrievable
 
 ```text
-loadPlan(planId) still returns plan
-lifecycleStatus: complete
+loadPlan(planId) still returns plan (read only, no side effects)
+lifecycleStatus: complete (from prefs)
+travelDate unchanged (still today if completed mid-day)
 options preserved for history
+resolveAndPersistPlanLifecycle is no-op when already complete
 ```
 
 ### Test 6 — Multiple plans (Home selection)
 
 ```text
-Plan A: today, all passed → complete, not actionable
+Plan A: today, all passed → persisted complete, not actionable
 Plan B: tomorrow, actionable
 
-pickActionablePlan → Plan B
+getCurrentPlanForHome → Plan B (not Plan A)
 ```
 
 ### Test 7 — Ineligible option not promoted
@@ -568,16 +686,37 @@ rank 2 ineligible, rank 3 eligible future
 → advance to rank 3, skip rank 2
 ```
 
+### Test 8 — loadPlan does not mutate
+
+```text
+Call loadPlan twice with passed primary, no write orchestrator between calls
+→ primary_option_id unchanged in DB
+→ applyLifecycleView may show resolved current for display only
+```
+
+### Test 9 — Watch recheck order
+
+```text
+Primary departed, rank 2 future exists
+recheckWatch runs resolveAndPersistPlanLifecycle first
+→ primary advanced before gatherWatchSignals
+→ signals evaluated against new anchor, not departed flight
+```
+
 ---
 
 ## Part 5 — Acceptance Criteria
 
-- [ ] Passed flight cannot remain persistent active recommendation
+- [ ] Passed flight cannot remain persistent active recommendation (after persist orchestrator runs)
 - [ ] Plan auto-advances to highest-ranked usable future option (by existing `rank`)
-- [ ] Plan completes when no usable future options remain
+- [ ] Plan completes when no usable future options remain (`lifecycleStatus: complete`, `travelDate` unchanged)
 - [ ] Completed plans excluded from Home active/current plan query
-- [ ] Completed plans remain in Past/history (not deleted)
-- [ ] Watch follows advanced primary; ends when plan completes
+- [ ] Completed same-day plans are **not** forced into calendar “past” semantics on backend
+- [ ] Completed plans remain retrievable via `loadPlan` (read only)
+- [ ] **`loadPlan()` never writes** — no accidental mutation on read/refetch
+- [ ] All lifecycle writes go through `resolveAndPersistPlanLifecycle()`
+- [ ] Watch recheck: resolve + persist **before** signal evaluation; anchor synced on advance
+- [ ] Watch ends when plan completes; continues when plan advances to next option
 - [ ] Existing ranking reused — no second ranking system
 - [ ] No Strategy/discovery architecture changes
 - [ ] `bunx tsc --noEmit` passes
@@ -588,30 +727,34 @@ rank 2 ineligible, rank 3 eligible future
 
 ## Part 6 — Implementation Checklist
 
-### Core
+### Core (pure)
 
 - [ ] Create `src/lib/aircue/plan-lifecycle.server.ts`
-- [ ] `isOptionActionable()` — UTC dep + eligibility + is_current
-- [ ] `resolvePlanLifecycle()` — advance / complete logic
+- [ ] `isOptionActionable()` — UTC dep + eligibility
+- [ ] `resolvePlanLifecycle()` — pure advance / complete logic
+- [ ] `applyLifecycleView()` — read-only enriched StandbyPlan
 - [ ] `pickActionablePlan()` for Home selection
 
-### Persistence
+### Write orchestrator
 
+- [ ] `resolveAndPersistPlanLifecycle()` — load → resolve → persist → reload
+- [ ] `persistLifecycleMutations()` — primary via `setPrimaryOption`, prefs lifecycle, end watch
 - [ ] `prefs.lifecycleStatus` + `lifecycleResolvedAt` on complete
-- [ ] Reuse `setPrimaryOption` internals for advance (watch sync included)
-- [ ] `endActiveWatchForPlan()` on complete
 
-### Integration
+### Integration (writes only via orchestrator)
 
-- [ ] Call from `loadPlan` (persist + return resolved state)
-- [ ] Enrich `loadPlanSummaries` / `summarizePlanRow` with lifecycle fields
-- [ ] Update `recheckWatch`: real `primaryStillCurrent`, advance on departed anchor
-- [ ] Server fn for Home current plan OR enriched summaries + updated `pickCurrentPlan`
+- [ ] **`loadPlan` stays read-only** — optional `applyLifecycleView` only when caller opts in, never persist
+- [ ] New `getCurrentPlanForHome` (or equivalent) — **calls write orchestrator**
+- [ ] Enrich `PlanSummary` with `lifecycleStatus`, `isActionable`
+- [ ] **`recheckWatch`:** `resolveAndPersistPlanLifecycle` **first**, then signals on new anchor
+- [ ] **Watch cron:** resolve + persist on due watches; end recheck when complete
+- [ ] Plan activation path: orchestrator where appropriate
 
 ### Tests
 
-- [ ] `plan-lifecycle.test.ts` — tests 1–7 above
-- [ ] Optional integration test in `recheck-watch.test.ts` for advance path
+- [ ] `plan-lifecycle.test.ts` — tests 1–9 above
+- [ ] `loadPlan` idempotence / no-write test
+- [ ] Optional integration test in `recheck-watch.test.ts` for advance-before-signals order
 
 ### Explicitly out of scope
 
@@ -630,23 +773,23 @@ Why Home could show “Departure time has passed” indefinitely.
 
 ### Lifecycle Function
 
-Where `resolvePlanLifecycle` lives and when it runs.
+Where `resolvePlanLifecycle` (pure) and `resolveAndPersistPlanLifecycle` (writes) live and when each runs.
 
 ### Advance Behavior
 
-How next option is chosen (rank order, actionable filter).
+How next option is chosen (rank order, actionable filter). Writes only via orchestrator.
 
 ### Completion Behavior
 
-When plan becomes `complete` and what gets persisted.
+When plan becomes `complete`, `travelDate` preserved, watch ended. Not conflated with calendar past.
 
 ### Home Query
 
-How completed/expired plans are excluded.
+How completed plans excluded (`lifecycleStatus`, not date hack). Home path calls write orchestrator.
 
 ### Monitoring Impact
 
-What changed in watch advance / end semantics.
+Recheck order: persist lifecycle → advance anchor → then signals. Not `primaryStillCurrent` band-aid alone.
 
 ### Tests
 
@@ -666,6 +809,6 @@ Separate unrelated pre-existing failures (e.g. `decideWatchOutcome` watch-signal
 
 **Bug:** `primary_option_id` is set once and never advanced. Home selects by calendar date. UI shows “Departure time has passed” with no server lifecycle transition.
 
-**Fix:** Centralize `resolvePlanLifecycle()` — advance to next ranked actionable option when current passes; complete plan when none remain; persist primary + lifecycle status; exclude completed plans from Home selection; sync watch anchor.
+**Fix:** Pure `resolvePlanLifecycle()` + explicit `resolveAndPersistPlanLifecycle()` write orchestrator. **`loadPlan()` stays read-only.** Persist from Home current-plan request, watch recheck (before signals), watch cron, and activation — advance to next ranked actionable option when current passes; mark `lifecycleStatus: complete` when none remain (without rewriting `travelDate`); exclude completed plans from Home; sync watch anchor on advance, end watch on complete.
 
-**Then:** Stop backend lifecycle work. Home UI changes come later against stable resolved `loadPlan` output.
+**Then:** Stop backend lifecycle work. Home UI changes come later against stable orchestrated reads.

@@ -22,6 +22,8 @@ function summary(partial: Partial<PlanSummary> & Pick<PlanSummary, "id">): PlanS
     primaryFlightLabel: null,
     hasPrimary: false,
     backupRunwaySummary: "3 realistic ways remain",
+    lifecycleStatus: "active",
+    isActionable: true,
     ...partial,
   };
 }

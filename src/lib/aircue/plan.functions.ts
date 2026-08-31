@@ -45,6 +45,10 @@ export interface PlanSummary {
   hasPrimary: boolean;
   /** Short backup runway line for list rows, when options exist. */
   backupRunwaySummary: string | null;
+  /** Persisted lifecycle in plans.prefs — not calendar past semantics. */
+  lifecycleStatus: "active" | "complete";
+  /** Whether the plan still has future usable options (post-persist truth). */
+  isActionable: boolean;
 }
 
 export interface WatchSummary {
@@ -213,6 +217,16 @@ export const listPlans = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<PlanSummary[]> => {
     const { loadPlanSummaries } = await import("@/lib/aircue/plan.server");
     return loadPlanSummaries(context.supabase, context.userId);
+  });
+
+/** Home current plan — resolves lifecycle and excludes completed plans. */
+export const getCurrentPlanForHome = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PlanSummary | null> => {
+    const { getCurrentPlanForHome: resolveHomePlan } = await import(
+      "@/lib/aircue/plan-lifecycle.server"
+    );
+    return resolveHomePlan(context.supabase, context.userId);
   });
 
 /** Trips with a primary option and/or an active watch. */

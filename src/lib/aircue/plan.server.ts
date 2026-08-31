@@ -68,6 +68,7 @@ import {
   deltaProviderUsage,
   snapshotProviderUsage,
 } from "@/lib/aircue/provider-usage.server";
+import { lifecycleFieldsFromPrefs } from "@/lib/aircue/plan-lifecycle.server";
 
 /** The generated Database type does not yet know the standby tables. */
 type Db = SupabaseClient;
@@ -754,6 +755,7 @@ export async function loadPlan(
     ({ status: "unavailable", checkedAt: null } as const);
   const primaryOptionId = (plan["primary_option_id"] as string | null) ?? null;
   const preferredOptionId = options[0]?.id ?? null;
+  const lifecycleFields = lifecycleFieldsFromPrefs(prefs);
 
   const { data: watchRow } = await db(client)
     .from("watch_plans")
@@ -801,6 +803,9 @@ export async function loadPlan(
       loadResort?.headline && loadResort.detail
         ? { headline: loadResort.headline, detail: loadResort.detail }
         : null,
+    lifecycleStatus: lifecycleFields.lifecycleStatus,
+    lifecycleResolvedAt: lifecycleFields.lifecycleResolvedAt,
+    isActionable: lifecycleFields.lifecycleStatus !== "complete" && options.length > 0,
   };
 }
 
@@ -808,7 +813,7 @@ export async function loadPlanSummaries(client: unknown, userId: string): Promis
   const { data, error } = await db(client)
     .from("plans")
     .select(
-      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options!plan_options_plan_id_fkey(label,rank,flight_label,id,is_current,kind),watch_plans(state,verdict,last_checked_at)",
+      "id,origin_iata,dest_iata,travel_date,travelers,created_at,prefs,primary_option_id,plan_options!plan_options_plan_id_fkey(label,rank,flight_label,id,is_current,kind,sched_dep_utc),watch_plans(state,verdict,last_checked_at)",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -863,6 +868,7 @@ function summarizePlanRow(row: Row): PlanSummary {
     .slice()
     .sort((a, b) => Number(a["rank"]) - Number(b["rank"]));
   const prefs = (row["prefs"] ?? {}) as Record<string, unknown>;
+  const { lifecycleStatus } = lifecycleFieldsFromPrefs(prefs);
   const watches = ((row["watch_plans"] as Row[]) ?? []).filter((w) => w["state"] === "active");
   const watch = watches[0];
   const primaryId = (row["primary_option_id"] as string | null) ?? null;
@@ -881,6 +887,13 @@ function summarizePlanRow(row: Row): PlanSummary {
       ? null
       : `${total} realistic way${total === 1 ? "" : "s"} remain${parts.length ? ` · ${parts.join(" · ")}` : ""}`;
 
+  const futureOptionCount = opts.filter((o) => {
+    const dep = o["sched_dep_utc"] as string | null | undefined;
+    if (!dep) return true;
+    const t = new Date(dep).getTime();
+    return Number.isFinite(t) ? t > Date.now() : true;
+  }).length;
+
   return {
     id: String(row["id"]),
     origin: String(row["origin_iata"]),
@@ -897,6 +910,8 @@ function summarizePlanRow(row: Row): PlanSummary {
     primaryFlightLabel: primaryOpt ? String(primaryOpt["flight_label"]) : null,
     hasPrimary,
     backupRunwaySummary,
+    lifecycleStatus,
+    isActionable: lifecycleStatus !== "complete" && futureOptionCount > 0,
   };
 }
 
@@ -1459,10 +1474,19 @@ export async function beginWatch(
   if (input.planId) {
     const plan = await loadPlan(client, userId, input.planId);
     if (!plan) throw new Error("That plan is no longer available.");
-    planId = plan.id;
-    allOptions = plan.options;
-    anchorOptionId = plan.primaryOptionId ?? plan.options[0]?.id ?? "";
-    anchorOption = plan.options.find((o) => o.id === anchorOptionId) ?? plan.options[0]!;
+    const { resolveAndPersistPlanLifecycle } = await import("@/lib/aircue/plan-lifecycle.server");
+    const { plan: reconciled, lifecycle } = await resolveAndPersistPlanLifecycle({
+      client,
+      userId,
+      planId: plan.id,
+    });
+    if (lifecycle.status === "complete") {
+      throw new Error("This plan is no longer actionable.");
+    }
+    planId = reconciled.id;
+    allOptions = reconciled.options;
+    anchorOptionId = reconciled.primaryOptionId ?? reconciled.options[0]?.id ?? "";
+    anchorOption = reconciled.options.find((o) => o.id === anchorOptionId) ?? reconciled.options[0]!;
     if (!anchorOption) throw new Error("This plan has no options to watch yet.");
   } else if (input.optionId) {
     const { data: optionRow } = await db(client)
@@ -1724,23 +1748,70 @@ export async function recheckWatch(
   if (!watchRow) return { changed: false };
 
   const row = watchRow as Row;
-  const anchorRow = (row["plan_options"] as Row) ?? {};
   const planRow = (row["plans"] as Row) ?? {};
+  const planId = String(planRow["id"] ?? "");
+  const now = new Date();
+
+  function cycleMetricsEarly() {
+    const d = deltaProviderUsage(usageBefore);
+    return {
+      gf8Calls: d.gf8Upstream,
+      adbFidsUpstream: d.adbFidsUpstream,
+      adbStatusUpstream: d.adbStatusUpstream,
+      operatorVerifyAttempts: d.operatorVerifyAttempts,
+      rankingRan: false,
+      operatorVerifyRan: false,
+    };
+  }
+
+  const { resolveAndPersistPlanLifecycle } = await import("@/lib/aircue/plan-lifecycle.server");
+  const lifecyclePass = await resolveAndPersistPlanLifecycle({
+    client,
+    userId,
+    planId,
+    now,
+  });
+
+  if (lifecyclePass.lifecycle.status === "complete") {
+    logWatchCycle({
+      watchId,
+      planId,
+      outcome: "skip",
+      trigger: "plan_complete",
+      adbUnits: 0,
+      fidsCacheHit: null,
+      statusCacheHit: null,
+      ...cycleMetricsEarly(),
+      durationMs: Date.now() - started,
+    });
+    return { changed: false, outcome: "plan_complete" };
+  }
+
+  // Reload watch — primary advance may have updated plan_option_id.
+  const { data: freshWatchRow } = await db(client)
+    .from("watch_plans")
+    .select("*, plan_options(*), plans(*)")
+    .eq("id", watchId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!freshWatchRow) return { changed: false };
+
+  const freshRow = freshWatchRow as Row;
+  const anchorRow = (freshRow["plan_options"] as Row) ?? {};
+  const freshPlanRow = (freshRow["plans"] as Row) ?? {};
   const anchorBefore = optionFromRow(anchorRow, {});
-  const prev = ((row["snapshot"] as WatchSnapshot | null) ??
+  const prev = ((freshRow["snapshot"] as WatchSnapshot | null) ??
     initialWatchSnapshot(anchorBefore, null, [anchorBefore])) as WatchSnapshot;
   let flightState: WatchFlightState = prev.flightState ?? "unknown";
 
-  const prefs = planPrefsFromRow(planRow);
-  const travelDate = String(planRow["travel_date"] ?? "");
-  const planId = String(planRow["id"] ?? "");
+  const prefs = planPrefsFromRow(freshPlanRow);
+  const travelDate = String(freshPlanRow["travel_date"] ?? "");
   const primaryOptionId =
-    (planRow["primary_option_id"] as string | null) ??
+    (freshPlanRow["primary_option_id"] as string | null) ??
     prev.primaryOptionId ??
-    String(row["plan_option_id"]);
+    String(freshRow["plan_option_id"]);
 
   const events: Array<{ kind: string; severity: string; headline: string; detail: string }> = [];
-  const now = new Date();
   const hours = hoursUntilDep(anchorBefore.schedDepUtc, travelDate, now);
 
   const cycleMetrics = (extra: { rankingRan: boolean; operatorVerifyRan: boolean }) => {
@@ -1763,8 +1834,8 @@ export async function recheckWatch(
   let gather;
   try {
     gather = await gatherWatchSignals({
-      origin: String(planRow["origin_iata"]),
-      dest: String(planRow["dest_iata"]),
+      origin: String(freshPlanRow["origin_iata"]),
+      dest: String(freshPlanRow["dest_iata"]),
       travelDate,
       planId,
       anchor: anchorBefore,
@@ -1873,8 +1944,8 @@ export async function recheckWatch(
       .from("watch_plans")
       .update({
         snapshot: nextSnapshot,
-        verdict: meaningful > 0 ? "changed" : String(row["verdict"] ?? "steady"),
-        unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
+        verdict: meaningful > 0 ? "changed" : String(freshRow["verdict"] ?? "steady"),
+        unseen_changes: Number(freshRow["unseen_changes"] ?? 0) + meaningful,
         last_checked_at: now.toISOString(),
         next_check_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
       })
@@ -1900,15 +1971,15 @@ export async function recheckWatch(
 
   // --- rerank path ---
   const ranked = await rankStandbyOptions({
-    origin: String(planRow["origin_iata"]),
-    dest: String(planRow["dest_iata"]),
+    origin: String(freshPlanRow["origin_iata"]),
+    dest: String(freshPlanRow["dest_iata"]),
     travelDate,
     carriers:
       (prefs["effectiveCarriers"] as string[] | null) ??
       (prefs["carriers"] as string[] | null) ??
       null,
-    travelers: Number(planRow["travelers"] ?? 1),
-    cabin: String(planRow["cabin"] ?? "any"),
+    travelers: Number(freshPlanRow["travelers"] ?? 1),
+    cabin: String(freshPlanRow["cabin"] ?? "any"),
     userId,
     maxStops: Number(prefs["maxStops"] ?? 1),
     nearby: Boolean(prefs["nearby"] ?? false),
@@ -1931,7 +2002,7 @@ export async function recheckWatch(
     const preferred = syncedOptions[0] ?? null;
     let primary = syncedOptions.find((o) => o.id === primaryOptionId) ?? null;
     let anchorFresh =
-      syncedOptions.find((o) => o.id === String(row["plan_option_id"])) ??
+      syncedOptions.find((o) => o.id === String(freshRow["plan_option_id"])) ??
       syncedOptions.find((o) => o.flightLabel === anchorBefore.flightLabel) ??
       null;
 
@@ -2013,7 +2084,7 @@ export async function recheckWatch(
           source: "status" as const,
         },
         cancelPressure: {
-          origin: String(planRow["origin_iata"]),
+          origin: String(freshPlanRow["origin_iata"]),
           date: travelDate,
           windowKey: "",
           byRoute: {},
@@ -2046,7 +2117,7 @@ export async function recheckWatch(
       .update({
         snapshot: nextSnapshot,
         verdict: meaningful > 0 ? "changed" : "steady",
-        unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
+        unseen_changes: Number(freshRow["unseen_changes"] ?? 0) + meaningful,
         last_checked_at: now.toISOString(),
         next_check_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
       })
@@ -2118,8 +2189,8 @@ export async function recheckWatch(
     .from("watch_plans")
     .update({
       snapshot: preservedSnapshot,
-      verdict: meaningful > 0 ? "changed" : String(row["verdict"] ?? "steady"),
-      unseen_changes: Number(row["unseen_changes"] ?? 0) + meaningful,
+      verdict: meaningful > 0 ? "changed" : String(freshRow["verdict"] ?? "steady"),
+      unseen_changes: Number(freshRow["unseen_changes"] ?? 0) + meaningful,
       last_checked_at: now.toISOString(),
       next_check_at: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
     })

@@ -280,6 +280,11 @@ export interface StandbyPlan {
   };
   /** Set after a reported load changes rank #1; cleared on next plan read after display. */
   loadResortNotice?: { headline: string; detail: string } | null;
+  /** Backend lifecycle — orthogonal to calendar travelDate grouping. */
+  lifecycleStatus?: "active" | "complete";
+  lifecycleResolvedAt?: string | null;
+  /** Whether the plan still has actionable options in its travel window. */
+  isActionable?: boolean;
 }
 
 export const judgmentFace: Record<Judgment, string> = {
