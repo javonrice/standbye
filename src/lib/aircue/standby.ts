@@ -309,11 +309,12 @@ export const judgmentTone: Record<Judgment, { text: string; bg: string; ring: st
 };
 
 export const pillarTitle: Record<PillarKey, string> = {
-  availability: "Availability",
+  availability: "Booking check",
   operations: "Operations",
-  history: "History",
-  recovery: "Recovery",
+  history: "Route history",
+  recovery: "Backup runway",
 };
+
 
 export const pillarDot: Record<PillarState, string> = {
   good: "bg-fine",
