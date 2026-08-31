@@ -1,7 +1,11 @@
 # Domain Handoff — Standbye → New Rork Repo
 
 **Who this is for:** a new Cursor chat that can see the Rork repo but not this one.  
-**Paste this whole file** (and optionally drop in `plan-lifecycle.portable.ts`) at the start of that chat.
+**Paste into that chat:**
+1. This file (`docs/domain-handoff-for-rork.md`) — domain + **screen hierarchy** (§20)
+2. `docs/handoff/plan-lifecycle.portable.ts` — drop-in lifecycle
+3. Prefer also pasting `docs/ui-wireframe-function-map.md` for full ASCII wireframes  
+4. Prefer also pasting `docs/rork-prompt-standbye.md` Stage 1 if starting a Rork Plan Mode build
 
 **Source of truth in old repo:** `src/lib/aircue/plan-lifecycle.server.ts` (wired to Supabase).  
 **Portable copy (no deps):** `docs/handoff/plan-lifecycle.portable.ts` ← **copy this file into the new repo.**
@@ -90,13 +94,19 @@ If you evaluate signals before advance, the system reacts to a departed flight t
    → e.g. `src/domain/plan-lifecycle.ts`
 
 2. Keep this handoff markdown in the new repo as  
-   `docs/domain-handoff.md`  
-   so Cursor there has the contract.
+   `docs/domain-handoff.md`
 
-3. (Optional later) Port viability from old  
-   `src/lib/aircue/connection-viability.server.ts`  
-   — pure parts only: `evaluateConnectionViability`, ceilings, caveat helpers.  
-   Skip `detourRatioForPath` until you have airport geo in the new app.
+3. When implementing real scoring (not mocks), also copy these pure modules:
+   - `option-key.ts`
+   - `access-scoring.ts`
+   - `option-scoring.ts`
+   - `staff-eligibility.ts`
+   - `load-evidence.ts`
+   - `coverage.ts`
+   - `watch-signal-gate.ts`
+   - `connection-viability.server.ts` (geo optional)
+
+4. (Later) Port discovery/watch orchestration from old servers once providers exist.
 
 ---
 
@@ -629,13 +639,32 @@ Lifecycle (option departed by `schedDepUtc`) and watch presence (provider status
 - Pure: `resolvePlanLifecycle`, `isOptionActionable`, `applyLifecycleView`, `pickActionablePlan`, …
 - Write: `resolveAndPersistPlanLifecycle`, `getCurrentPlanForHome` (Supabase-coupled)
 
-### Calls / watch
+### Ranking / scoring (prefer pure modules)
+
+| Function / file | Intent |
+|-----------------|--------|
+| `scoreFromPillars` / `judgmentFromScore` / `confidenceFromPillars` | Canonical scoring |
+| `applyAccessAwareScore` / `accessFrictionPoints` | Soft access + clears |
+| `rescoreOptionPillars` | Load-aware local rescore |
+| `rankStandbyOptions` | Heavy orchestration (providers) — reference only |
+
+### Access / eligibility / identity
+
+| Function / file | Intent |
+|-----------------|--------|
+| `resolveTravelAccess` / `effectiveStaffTravelCarriers` | Declared access |
+| `preVerifyEligibility` / `resolveStaffEligibility` | Operator eligibility table |
+| `buildOptionKey` / `buildSegmentKey` | Canonical identity |
+| Coverage helpers in `coverage.ts` | not_covered vs signal |
+
+### Calls / watch / presence
 
 | Function | Intent |
 |----------|--------|
 | `decideWatchOutcome` | skip \| notify-only \| rerank |
 | `gatherWatchSignals` | Cheap signals + cache metrics |
 | `recheckWatch` | Lifecycle first, then gate, then maybe rank |
+| `classifyFlightStatus` / `shouldEmitCancellation` | Presence & cancel transitions |
 
 ### Every Way There
 
@@ -663,74 +692,272 @@ Lifecycle (option departed by `schedDepUtc`) and watch presence (provider status
 | `setPrimaryOption` | Set current + sync watch anchor |
 | `beginWatch` / `endWatch` | Monitoring |
 
+### Pure modules worth copying early (no / low providers)
+
+```text
+docs/handoff/plan-lifecycle.portable.ts   → already prepared
+src/lib/aircue/option-key.ts
+src/lib/aircue/access-scoring.ts
+src/lib/aircue/option-scoring.ts
+src/lib/aircue/staff-eligibility.ts
+src/lib/aircue/travel-access.ts
+src/lib/aircue/coverage.ts
+src/lib/aircue/connection-viability.server.ts  (geo helper optional)
+src/lib/aircue/watch-signal-gate.ts
+src/lib/aircue/watch-flight-state.server.ts
+src/lib/aircue/load-evidence.ts
+```
+
 ### UI vocabulary target
 
 Home = Current Plan; Ways / Load / Activity are Plan-scoped; tabs = Home · Plans · You.  
-See also `docs/ui-wireframe-function-map.md`, `docs/rork-prompt-standbye.md`.
+Full hierarchy: **§20** below. ASCII layouts: `docs/ui-wireframe-function-map.md`. Rork Stage prompts: `docs/rork-prompt-standbye.md`.
 
 ---
 
-## 11. Prompt for the new Cursor chat (paste after this doc)
+## 16. Prompt for the new Cursor chat (paste after this doc)
 
 ```text
 You are working in the new Standbye Rork repo.
 
-I am pasting a domain handoff from the old backend repo.
+I am pasting a domain handoff from the old backend repo (includes screen hierarchy in §20).
 1. Add plan-lifecycle.portable.ts into src/domain/plan-lifecycle.ts
-2. Do not reimplement advance/complete — import resolvePlanLifecycle
-3. Wire PlanContext:
+2. Prefer copying pure scoring modules when implementing real judgments:
+   option-scoring, access-scoring, option-key, staff-eligibility, load-evidence
+3. Do not reimplement advance/complete — import resolvePlanLifecycle
+4. Implement navigation from §20:
+   Tabs = Home · Plans · You only
+   Home owns Current Plan + stack: Ways, Load, Activity, New Plan
+   Plans = library only; opening a Plan jumps to Home (or read-only Done)
+   No Updates tab; no Escape mode; Activity is Plan-scoped
+5. Wire PlanContext:
    - After Build: currentFlightId = rank-1 open, watching=true
    - Home focus: resolve lifecycle; persist advance/complete
    - Derive Flight.state current|open|passed
    - pickActionablePlan for Home
-4. Invariants you must NOT break when adding features later:
-   - Watch cycles: skip | notify-only | rerank — never always-rerank / always-force providers
+6. Invariants you must NOT break:
+   - Scoring: four pillars + weights; soft access/clears friction; no boarding %
+   - Access declared-only; uncertain ≠ ineligible; effective ⊆ saved
+   - Identity: option_key / segment_key — never merge on flight_label
+   - Coverage: missing data ≠ good ops
+   - Cancel: status transition only — never infer from ranking gaps
+   - Watch: skip | notify-only | rerank — never always-rerank / always-force
    - Lifecycle BEFORE watch signals
-   - Every Way There = airport paths (strategies); options ⊆ strategy paths
-   - One viability policy for paths and connection options; networkBreadth before detour
-   - Load attach = local rescore only — zero GF8/ADB on save; do not auto-switch current on rank change
-5. Keep travelDate when complete; Done ≠ Past
-6. No Updates tab; no Escape product mode
-7. List every file you change
+   - Every Way There = airport paths; options ⊆ strategy paths
+   - One viability policy; networkBreadth before detour
+   - Load attach = local rescore only — zero GF8/ADB; do not auto-switch current
+7. Keep travelDate when complete; Done ≠ Past
+8. List every file you change
 
-Full rules: docs/domain-handoff-for-rork.md
+Full rules: docs/domain-handoff-for-rork.md (+ ui-wireframe-function-map.md if attached)
 ```
 
 ---
 
-## 12. Quick tests the new repo should keep
+## 17. Quick tests the new repo should keep
 
-| Case | now vs deps | Expect |
-|------|-------------|--------|
-| Current 08:15, next 10:30, now 08:49 | advance | `currentAdvanced`, new = 10:30 flight |
-| Deps 08:00, 08:30, 11:00, 13:00; now 10:00 | skip | current → 11:00 |
-| All departed | complete | `status=complete`, `shouldEndWatch` |
-| Current still future | no-op | `currentAdvanced=false` |
-| Next ineligible, later eligible | skip | advance past ineligible |
-| Already complete | no-op | stay complete, no advance |
-| Home: today Done + tomorrow active | pick | tomorrow’s plan |
+| Case | Expect |
+|------|--------|
+| Current departed, later open | advance to next rank |
+| All departed | complete; end watch |
+| Current still future | no advance |
+| Ineligible next, eligible later | skip ineligible |
+| Today Done + tomorrow active | Home picks tomorrow |
+| Strong pillars | favorable (~score ≥ 76) |
+| Soft access: weak home vs strong zed | zed can rank higher |
+| Load attach | ranks may move; current unchanged; no provider calls |
+| Cancel operating→cancelled | one event; not every recheck |
+| Quiet watch, unchanged signals | outcome `skip` |
+| Home with active plan | one current flight — no full list |
+| Plans library Done same day | under Today → Done, not Past |
 
 ---
 
-## 13. Invariant checklist (cost + simplicity + correctness)
+## 18. Invariant checklist (cost + simplicity + correctness)
 
-Before shipping any “smart” backend hookup in the new repo, confirm:
+### Ranking / access / identity
+- [ ] Same scorer for build and load resort
+- [ ] Pillar weights: avail 1.2, ops 1.0, recovery 0.8, history 0.4
+- [ ] Access/clears are soft friction — not a hard airline sort
+- [ ] No boarding probability / clearance %
+- [ ] `effectiveStaffTravelCarriers ⊆ savedTravelAccess`
+- [ ] Pre-verify = `uncertain` (rankable); verify failure ≠ ineligible
+- [ ] `option_key` / `segment_key` for sync and loads; `flight_label` display-only
+- [ ] Missing coverage → unknown / not_covered — never fake “Normal”
 
+### Calls / watch / presence
 - [ ] Quiet watch → `skip` (no GF8, no forced ADB)
-- [ ] Notify-worthy non-rank change → `notify-only` (still no GF8)
-- [ ] Lifecycle advance/complete runs before signal evaluation
-- [ ] Strategies discovered by board intersection, not hub shortlists
+- [ ] Notify-worthy non-rank change → `notify-only`
+- [ ] Lifecycle before signal evaluation
+- [ ] Cancellation only on transition into cancelled
+- [ ] Presence from status/board — not from ranking miss
+
+### Every Way There / viability
+- [ ] Board intersection, not hub shortlists
 - [ ] `options` connection paths ⊆ `strategies` paths
-- [ ] Same `evaluateConnectionViability` for discovery and option admission
-- [ ] `networkBreadth` computed before detour filter
-- [ ] Load save rescores locally with **zero** provider calls
+- [ ] Same viability for discovery and option admission
+- [ ] `networkBreadth` before detour filter
+
+### Loads / lifecycle
+- [ ] Load save = local rescore, zero provider calls
 - [ ] Load does not auto-change current flight
-- [ ] Loads keyed by `segment_key`, not flight label
+- [ ] Loads keyed by `segment_key`
 - [ ] Done keeps `travelDate`; Past is calendar-only
-- [ ] `loadPlan` / detail reads never write lifecycle
+- [ ] Reads never write lifecycle
+
+### Screens / IA
+- [ ] Only three tabs: Home · Plans · You
+- [ ] No Updates / Escape top-level surfaces
+- [ ] Home = one current flight composition (not a dashboard)
+- [ ] Ways / Load / Activity nested under Plan (Home stack)
+- [ ] Plans tab = library only
 
 ---
 
-## 14. One-line summary for the other agent
+## 19. One-line summary for the other agent
 
-**Port pure lifecycle. Gate paid calls (`skip` / `notify-only` / `rerank`). Discover Ways by board intersection + one viability policy. Loads are segment-keyed local evidence with zero GF8 on attach. Done ≠ Past. Never mutate inside a generic read.**
+**Port pure lifecycle + scoring/access/identity modules. Gate paid calls (`skip` / `notify-only` / `rerank`). Discover Ways by board intersection + one viability policy. Score with four pillars and soft access friction — never boarding odds. Loads are segment-keyed local evidence with zero GF8 on attach. Uncertain ≠ ineligible. Missing coverage ≠ good. Cancel only on status transition. Done ≠ Past. Tabs = Home · Plans · You; Home owns the Plan stack. Never mutate inside a generic read.**
+
+---
+
+## 20. Routes & screen hierarchy (wireframe flow)
+
+This is the **clean-slate IA** — not the old Lovable route tree. Full ASCII layouts live in `docs/ui-wireframe-function-map.md`.
+
+### Tabs (only three)
+
+```text
+┌─────────────────────────────────────┐
+│           SCREEN BODY               │
+├─────────────────────────────────────┤
+│   Home          Plans         You   │
+└─────────────────────────────────────┘
+```
+
+| Tab | Owns | Does not own |
+|-----|------|--------------|
+| **Home** | Current Plan + Plan stack (Ways, Load, Activity, New Plan) | Full library list |
+| **Plans** | Library index only | Working a Plan |
+| **You** | Profile / access / help | Trip work |
+
+**Rule:** Opening a Plan from Plans → jump to **Home** (actionable) or read-only Done view. Tab highlight: Plan-scoped screens keep **Home** selected, not Plans.
+
+### Suggested route map (Expo / Rork)
+
+```text
+/(auth)
+  splash
+  sign-in
+  onboarding          ← F1 (4 steps)
+
+/(app)                ← tab navigator
+  home/               ← F3 Current Plan (or empty → new-plan)
+    new-plan          ← F2
+    known-flight      ← optional F2 subpath
+    ways              ← F4  (plan-scoped)
+    ways/switch       ← F5 sheet/confirm (or modal)
+    load              ← F6
+    activity          ← F7
+  plans/              ← F8 library ONLY
+    [no nested work screens — open → home]
+  you/                ← F9
+```
+
+Do **not** create: `/updates`, `/escape`, `/options/:id` as top-level products.
+
+### Function → screen
+
+| # | Job | Screen | One purpose |
+|---|-----|--------|-------------|
+| F0 | Enter | Splash / Sign in | Start |
+| F1 | Setup | Onboarding | Access + home airport |
+| F2 | Create | New Plan | Route + day |
+| F3 | Work | **Home / Current Plan** | What to try **now** |
+| F4 | Adjust | Ways | Other ways on this Plan |
+| F5 | Commit | Sheet (not a tab) | Make this current |
+| F6 | Report | Load | Seats / standbys |
+| F7 | Explain | Activity | What changed (Plan-scoped) |
+| F8 | Archive | Plans library | Today / Upcoming / Past |
+| F9 | Profile | You | Access maintenance |
+
+### App flow
+
+```text
+Splash → Onboarding (once) → HOME
+                              │
+              has actionable Plan?
+                 │            │
+                yes           no
+                 │            └──► New Plan (F2) ──build──► Current Plan
+                 ▼
+          CURRENT PLAN (F3)
+           │    │     │
+           ▼    ▼     ▼
+         Ways  Load  Activity
+           │
+           └── Make current (F5) ──► back to CURRENT PLAN
+
+Plans library (F8)
+  Today: Current | Done
+  Upcoming | Past
+  tap Current → Home
+  tap Done/Past → read-only summary (no watch CTA)
+```
+
+### Home states (must implement)
+
+| State | UI |
+|-------|-----|
+| A. No actionable Plan | Show New Plan |
+| B. Active Plan | One current flight + watching + CTAs |
+| C. Advanced mid-day | Same layout, new flight (quiet) |
+| D. Complete same day | “Today’s trip is done” + Plans / New plan |
+| E. Next Plan is tomorrow | Show tomorrow’s Plan (or soft empty today) |
+
+### Current Plan composition budget (F3)
+
+First viewport only:
+
+```text
+Brand · route · date
+ONE current flight (number, time, countdown, judgment, one why line)
+“Standbye is watching”
+“N other ways still open”
+[See other ways] [Add what I see]
+optional one-line “What changed”
+secondary: New plan
+```
+
+**Not on Home:** full flight list, strategy cards, stats strip, load form, activity feed.
+
+### Ways hierarchy (F4)
+
+```text
+CURRENT
+STILL OPEN   ← actionable
+PASSED       ← read-only history that day
+Ways there   ← path chips (strategies) filter the list
+tap open row → sheet → [Make this current]
+```
+
+### Plans library grouping (F8)
+
+```text
+TODAY      Current | Done     ← Done ≠ calendar past
+UPCOMING
+PAST                          ← travelDate < today only
+```
+
+### Build order (UI)
+
+1. New Plan → 2. Current Plan → 3. Ways (+ switch) → 4. Plans library → 5. Load → 6. Activity → 7. Onboarding / You
+
+### Deliberately omitted surfaces
+
+| Old / noise | Replacement |
+|-------------|-------------|
+| Updates tab | Activity under Plan (F7) |
+| Escape mode | Later / trip option — not a product |
+| Option detail app | Sheet under Ways |
+| Compare primary path | Optional later in Ways |
+| Dashboard Home | One composition only |
