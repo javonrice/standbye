@@ -858,6 +858,7 @@ This is the **clean-slate IA** — not the old Lovable route tree. Full ASCII la
     known-flight      ← optional F2 subpath
     ways              ← F4  (plan-scoped)
     ways/switch       ← F5 sheet/confirm (or modal)
+    flight/:flightId  ← F10 Flight detail (evidence: ops/weather/holiday/load)
     load              ← F6
     activity          ← F7
   plans/              ← F8 library ONLY
@@ -881,6 +882,7 @@ Do **not** create: `/updates`, `/escape`, `/options/:id` as top-level products.
 | F7 | Explain | Activity | What changed (Plan-scoped) |
 | F8 | Archive | Plans library | Today / Upcoming / Past |
 | F9 | Profile | You | Access maintenance |
+| **F10** | Explain flight | **Flight detail** | Pillars / holiday / load CTA (see `flight-evidence-watch-signals-handoff.md`) |
 
 ### App flow
 
@@ -893,11 +895,12 @@ Splash → Onboarding (once) → HOME
                  │            └──► New Plan (F2) ──build──► Current Plan
                  ▼
           CURRENT PLAN (F3)
-           │    │     │
-           ▼    ▼     ▼
-         Ways  Load  Activity
-           │
-           └── Make current (F5) ──► back to CURRENT PLAN
+           │    │     │      │
+           ▼    ▼     ▼      ▼
+         Ways  Load  Activity  tap flight → F10 detail
+           │                      │
+           └── Make current (F5)  └── Add a load → F6
+           └── tap row → F10
 
 Plans library (F8)
   Today: Current | Done
@@ -952,7 +955,7 @@ PAST                          ← travelDate < today only
 
 ### Build order (UI)
 
-1. New Plan → 2. Current Plan → 3. Ways (+ switch) → 4. Plans library → 5. Load → 6. Activity → 7. Onboarding / You
+1. New Plan → 2. Current Plan → 3. Ways (+ switch) → 4. **Flight detail (F10)** → 5. Plans library → 6. Load → 7. Activity → 8. Onboarding / You
 
 ### Deliberately omitted surfaces
 

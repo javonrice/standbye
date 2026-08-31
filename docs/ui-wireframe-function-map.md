@@ -49,8 +49,9 @@ Five jobs. Every screen serves exactly one.
 | F7 | React to change | Activity | What changed since last look |
 | F8 | Browse history | Plans library | Past + upcoming Plans |
 | F9 | Profile | You | Access, prefs, help |
+| F10 | Explain this flight | Flight detail | Pillars, holiday, load CTA, deeper context |
 
-**Out of traveler vocabulary:** Escape as a mode, Updates as a tab, Option detail as a product object, Watch as a noun.
+**Out of traveler vocabulary:** Escape as a mode, Updates as a tab, Option detail as a *product* (Flight detail under Home is OK), Watch as a noun.
 
 ---
 

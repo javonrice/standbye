@@ -1,8 +1,116 @@
 # Flight Evidence & Watch Signals — What Attaches to Every Flight
 
-**Purpose:** Paste-ready handoff for the new repo. Covers the per-flight evidence stack (paid + free) and how Watch uses it without burning GF8 every cycle.
+**Purpose:** Paste-ready handoff for the new repo. Covers the per-flight evidence stack (paid + free), how Watch uses it without burning GF8 every cycle, and **where Flight detail sits in the clean-slate wireframe**.
 
-**Related:** `docs/cheap-watch-redesign.md`, `docs/domain-handoff-for-rork.md` §§7/10/13/14, flight-detail UI (old `/options/$optionId`)
+**Related:** `docs/cheap-watch-redesign.md`, `docs/domain-handoff-for-rork.md` §§7/10/13/14/20, `docs/ui-wireframe-function-map.md`, `docs/load-ideology-handoff.md`
+
+---
+
+## 0. Where this sits in the wireframe flow
+
+### Function ID
+
+| # | Job | Screen | Purpose |
+|---|-----|--------|---------|
+| **F10** | Explain this flight | **Flight detail** | Show attached evidence (pillars, holiday, load CTA, deeper context) |
+
+Not a tab. Not an “Options” product. Plan-scoped under **Home**.
+
+### Route (suggested)
+
+```text
+/(app)/home/                    ← F3 Current Plan
+/(app)/home/ways                ← F4
+/(app)/home/flight/:flightId    ← F10 Flight detail  ← THIS DOC
+/(app)/home/load                ← F6 (also reachable from F10 “Add a load”)
+/(app)/home/activity            ← F7
+```
+
+Do **not** revive top-level `/options/:id` as a product noun. Same screen, Home stack ownership.
+
+### How the traveler gets here
+
+```text
+HOME (F3) Current Plan
+  │
+  ├─ tap the current flight block ──────────────► FLIGHT DETAIL (F10)
+  │                                                 │
+  │                                                 ├─ Add a load ──► Load (F6)
+  │                                                 ├─ Make current (if not current) ──► F5
+  │                                                 └─ Back ──► Home or Ways
+  │
+  └─ [See other ways] ──► WAYS (F4)
+                            │
+                            ├─ tap CURRENT or STILL OPEN / PASSED row ──► FLIGHT DETAIL (F10)
+                            └─ [Make this current] sheet (F5) may open from F10 too
+```
+
+### What Home shows vs what F10 shows
+
+| Surface | Shows | Does not show |
+|---------|-------|---------------|
+| **Home (F3)** | One flight: number, times, countdown, judgment, **one** why line, watching | Full pillar grid, holiday essay, history, load form |
+| **Flight detail (F10)** | Full evidence for **that** flight | Dashboard of all flights; separate Updates tab |
+
+Home stays one composition. F10 is where AeroDataBox / free weather / holiday / backup runway / load entry live as traveler-facing blocks.
+
+### Wireframe (F10)
+
+```text
+┌─────────────────────────────────────┐
+│  ←  ORD → LAX                       │  back to Home or Ways
+│                                     │
+│  UA  ·  UA1522                      │
+│  Aug 31                             │
+│                                     │
+│  ORD  12:40 PM  Departs             │
+│  LAX   3:05 PM  Arrives             │
+│  Nonstop · times local              │
+│  checked … ago                      │
+│                                     │
+│  🙂 Favorable setup                 │
+│  Why this ranks here                │
+│                                     │
+│  Booking check      Strong          │  ← availability (+ load if any)
+│  Operations         Strong          │  ← FREE FAA + weather
+│  Backup runway      Strong          │  ← recovery
+│                                     │
+│  Reported load                      │
+│  No load yet…                       │
+│  [ Add a load ]                     │  → F6
+│                                     │
+│  More context                       │  holiday / history / weather detail
+│  Route history                      │
+│                                     │
+│  [ Make this current ]              │  if not already current (F5)
+│  or  ✓ Your current plan            │
+└─────────────────────────────────────┘
+```
+
+### Tab selection
+
+While on F10, bottom tab stays **Home** (Plan work), never Plans.
+
+### Build order note
+
+After Current Plan (F3) and Ways (F4), add **F10 Flight detail** before or with Load (F6) — Load can open from F10’s “Add a load.” Evidence can be mocked at first; free ops/holiday + paid status wiring follows this same screen.
+
+### Flow diagram (full context)
+
+```text
+Splash → Onboarding → HOME (F3)
+                        │
+         ┌──────────────┼──────────────┐
+         ▼              ▼              ▼
+       Ways(F4)    Load(F6)      Activity(F7)
+         │              ▲
+         │              │
+         └────► F10 Flight detail ──┘
+                  │
+                  ├─ evidence: avail / ops(weather+FAA) / recovery / holiday / history
+                  ├─ watch presence updates “checked …” + cancel/delay truth
+                  └─ Add a load → F6 → local rescore (no GF8)
+```
 
 ---
 
@@ -135,20 +243,21 @@ Cancellation alerts only on **status transition** into cancelled (see presence h
 
 ## 6. Flight detail UI ↔ evidence map
 
-Your screenshot blocks map to the stack:
+Your screenshot blocks map to the stack — and to **F10** in §0:
 
-| UI block | Evidence |
-|----------|----------|
-| ORD→LAX · UA1522 · times | Segment identity + sched |
-| Favorable setup / Why this ranks | Judgment + headline from pillars |
-| Booking check · Strong | Availability pillar (+ load if any) |
-| Operations · Strong | FAA + weather evidence |
-| Backup runway · Strong | Recovery pillar |
-| Reported load / Add a load | Personal (then network) load → local rescore |
-| More context / Route history | History + holiday + deeper ops |
-| Your current plan | Current-flight commit |
+| UI block | Evidence | Wireframe |
+|----------|----------|-----------|
+| ORD→LAX · UA1522 · times | Segment identity + sched | F10 hero |
+| Favorable setup / Why this ranks | Judgment + headline from pillars | F10 |
+| Booking check · Strong | Availability pillar (+ load if any) | F10 |
+| Operations · Strong | FAA + weather evidence | F10 |
+| Backup runway · Strong | Recovery pillar | F10 |
+| Reported load / Add a load | Personal (then network) load → F6 | F10 → F6 |
+| More context / Route history | History + holiday + deeper ops | F10 |
+| Your current plan | Current-flight commit | F10 / F5 |
 
-**New IA:** same content, enter from Home (tap current) or Ways (tap row) → **Flight detail** under Home stack — not `/options` as a product noun.
+**Enter:** tap current on Home (F3) or tap a Ways row (F4).  
+**Tab:** Home. **Not** a top-level Options app.
 
 ---
 
@@ -185,9 +294,16 @@ Your screenshot blocks map to the stack:
 ## 9. Prompt fragment for the new Cursor chat
 
 ```text
-Read docs/flight-evidence-watch-signals-handoff.md.
+Read docs/flight-evidence-watch-signals-handoff.md (§0 wireframe + evidence stack).
 
-Each flight on a Plan carries evidence pillars:
+Add F10 Flight detail under the Home stack:
+  home/flight/:flightId
+Enter from: tap current on Home, or tap a Ways row.
+Show pillars (booking / operations / backup runway), holiday/history context,
+Add a load → existing Load flow, Make current if needed.
+Tab highlight stays Home.
+
+Each flight carries evidence:
   availability, operations (FAA+weather free), history, recovery,
   optional holiday context, optional reported load.
 
@@ -195,9 +311,9 @@ Watch cycles:
   lifecycle first → free FAA/METAR/TAF/NWS fingerprints → shared FIDS →
   cached primary status → decide skip | notify-only | rerank.
 GF8 / full rank only on rerank.
-Flight detail UI shows this evidence (from Home/Ways), including Add a load.
 
 Do not invent boarding odds. Do not treat missing weather/FAA as Strong.
+Do not create a top-level Options tab or /options product.
 List every file you change.
 ```
 
