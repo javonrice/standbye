@@ -13,13 +13,13 @@ import { gatewayDot, type GatewayOption, type StandbyOption } from "@/lib/aircue
 export const Route = createFileRoute("/_authenticated/plans/$planId/ways")({
   head: () => ({
     meta: [
-      { title: "All ways there — Standbye" },
+      { title: "Every way there — Standbye" },
       {
         name: "description",
         content:
           "Every realistic way to reach your destination today, including the connecting cities worth committing to.",
       },
-      { property: "og:title", content: "All ways there — Standbye" },
+      { property: "og:title", content: "Every way there — Standbye" },
       {
         property: "og:description",
         content: "The connecting cities that actually get you there today.",
@@ -48,10 +48,10 @@ function AllWaysThere() {
         params={{ planId }}
         className="flex items-center gap-1.5 text-sm text-muted-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to options
+        <ArrowLeft className="h-4 w-4" /> Your plan
       </Link>
 
-      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">All ways there</h1>
+      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">Every way there</h1>
       {plan && (
         <p className="mt-1 text-sm text-muted-foreground">
           Getting to {plan.dest} today is a strategy, not one flight.
@@ -73,7 +73,7 @@ function AllWaysThere() {
 
       {(connections.length > 0 || gateways.length > 0) && (
         <section className="mt-7">
-          <SectionHeading>Best connections</SectionHeading>
+          <SectionHeading>Connections</SectionHeading>
           <div className="mt-2 space-y-2">
             {connections.map((o) => (
               <FlightWayRow key={o.id} option={o} />
@@ -93,8 +93,8 @@ function AllWaysThere() {
       )}
 
       <p className="mt-7 text-xs text-muted-foreground">
-        A connection means clearing standby twice. Standbye only recommends one when the ways onward
-        genuinely make up for it.
+        A connection means clearing standby twice. This is advanced exploration — Standbye only
+        recommends one when the ways onward genuinely make up for it.
       </p>
     </main>
   );
@@ -165,10 +165,11 @@ function GatewayWayRow({ gateway }: { gateway: GatewayOption }) {
           </span>
         </div>
         <p className="mt-1.5 text-[14px] font-medium">
-          {waysIn} way{waysIn === 1 ? "" : "s"} in · {gateway.onwardCount} onward
+          {waysIn} way{waysIn === 1 ? "" : "s"} in · {gateway.onwardCount} onward option
+          {gateway.onwardCount === 1 ? "" : "s"}
         </p>
         <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-          {gateway.recoveryLabel} recovery
+          {gateway.recoveryLabel} backup runway
           {gateway.addedMinutes !== null && gateway.addedMinutes > 0
             ? ` · about ${gateway.addedMinutes} extra min in the air`
             : ""}
