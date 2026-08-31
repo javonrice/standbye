@@ -48,7 +48,7 @@ export function EscapeBestCard({
       </div>
 
       <dl className="mt-4 space-y-2 border-t border-border pt-3 text-[14px]">
-        <Line term="Recovery Room" value={gateway.recoveryLabel} />
+        <Line term="Backup runway" value={gateway.recoveryLabel} />
         {gateway.addedMinutes !== null && gateway.addedMinutes > 0 && (
           <Line term="Extra travel" value={`about ${gateway.addedMinutes} min`} />
         )}
