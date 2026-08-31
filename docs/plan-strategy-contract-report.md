@@ -129,6 +129,53 @@ Added **`src/lib/aircue/__tests__/plan-strategy.test.ts`** (11 tests):
 
 **Result:** 11 pass, 0 fail
 
+## Live API Integration (IAH → ORD, 2026-08-31, UA)
+
+Run with RapidAPI keys via env (never commit secrets):
+
+```bash
+AERODATABOX_RAPIDAPI_KEY=*** GOOGLE_FLIGHTS8_RAPIDAPI_KEY=*** \
+  bun scripts/test-plan-strategy-live.ts
+```
+
+Script: **`scripts/test-plan-strategy-live.ts`**
+
+| Tier | What it exercises | Result (2026-08-31 run) |
+|------|-------------------|---------------------------|
+| **AeroDataBox** | IAH departure board (2× 12h windows) | ✅ 587 departures (~2.6s) |
+| **Google Flights 8** | `/api/v1/search` IAH→ORD | ✅ 35 itineraries (15 nonstop, 20 connection) (~0.8s) |
+| **Live discovery sim** | ADB board → onward verify → `buildStrategyCatalog()` | ✅ 4 strategies (~22s) |
+| **Unit tests** | `plan-strategy.test.ts` | ✅ 11 pass, 0 fail |
+| **Full `rankStandbyOptions`** | End-to-end ranking + persist | ⏭ Skipped — requires `SUPABASE_SERVICE_ROLE_KEY` for `source_cache` + airport registry |
+
+### Live strategies discovered
+
+| Strategy ID | Path | Gateway evidence |
+|-------------|------|------------------|
+| `IAH>ORD` | IAH → ORD | direct (no gateway) |
+| `IAH>DEN>ORD` | IAH → DEN → ORD | ✅ verified connection |
+| `IAH>EWR>ORD` | IAH → EWR → ORD | ✅ verified connection |
+| `IAH>SFO>ORD` | IAH → SFO → ORD | ✅ verified connection |
+
+From 141 candidate intermediate stations on the IAH board, 3 passed onward + layover verification in the live sim (4 hubs checked with rate-limit spacing). **`plan.strategies.length > 1` → Every Way There eligible.**
+
+### Live assertions
+
+```json
+{
+  "adbReachable": true,
+  "gf8Reachable": true,
+  "liveStrategiesBuilt": true,
+  "uniqueStrategyIds": true,
+  "everyWayThereEligible": true,
+  "connectionPathsDiscovered": true,
+  "unitTestsPass": true,
+  "fullRankAvailable": false
+}
+```
+
+**Note:** Full `rankStandbyOptions` integration requires Supabase service role (cache + airports table). The live sim validates the same discovery → strategy catalog path using direct RapidAPI calls and production `buildStrategyCatalog()` helpers.
+
 ## Typecheck
 
 `bunx tsc --noEmit` — pass (after test fixture fixes)
