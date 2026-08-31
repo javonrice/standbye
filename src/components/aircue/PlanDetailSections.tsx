@@ -77,8 +77,8 @@ export function PlanDecisionSection({ plan }: { plan: StandbyPlan }) {
     <>
       {selected && (
         <section className="mt-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-            Your current plan
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Why this ranks here
           </p>
           <div className="mt-2">
             <StandbyOptionRow
@@ -90,6 +90,7 @@ export function PlanDecisionSection({ plan }: { plan: StandbyPlan }) {
           </div>
         </section>
       )}
+
 
       {showRecommended && recommended && (
         <section className="mt-6">
