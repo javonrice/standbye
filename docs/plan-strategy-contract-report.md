@@ -251,7 +251,7 @@ Only then does `IAH>X>ORD` enter `plan.strategies`. The blocker is **not** hub s
 | **Standby (product intent)** | Both legs exist + times can be sequenced same day — traveler pieces flights together |
 | **Current backend** | Same, but requires a **60–360 min paired connection** and only checks top N stations by board frequency |
 
-Even under standby thinking, you cannot use a flight that **already left**. On **Aug 31 UA**, OKC still would not qualify because all OKC → ORD UA flights were morning-only, before IAH → OKC afternoon arrivals — standby or not.
+Even under standby thinking, you cannot use a flight that **already left**. On **Aug 31 UA**, the **old** per-station onward check (top-8 cap, incomplete board pairing) missed OKC. **Board intersection with full-day data** finds **6 viable UA pairs** for IAH→OKC→ORD — see investigation below.
 
 ### Possible future relaxation (not implemented in this PR)
 
