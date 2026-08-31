@@ -135,7 +135,9 @@ export function LoadTask({
     setPayoff({
       headline:
         accepted > 0
-          ? `Plan updated · ${accepted} flight${accepted === 1 ? "" : "s"} scored with your numbers`
+          ? moves.length > 0
+            ? "Plan updated"
+            : `Plan updated · ${accepted} flight${accepted === 1 ? "" : "s"} scored with your numbers`
           : "Nothing applied yet",
       moves: moves.slice(0, 3),
       note:
