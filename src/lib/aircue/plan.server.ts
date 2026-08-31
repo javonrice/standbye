@@ -759,7 +759,7 @@ export async function loadPlan(
 
   const { data: watchRow } = await db(client)
     .from("watch_plans")
-    .select("id,verdict,last_checked_at")
+    .select("id,verdict,last_checked_at,next_check_at")
     .eq("plan_id", planId)
     .eq("user_id", userId)
     .eq("state", "active")
@@ -797,6 +797,7 @@ export async function loadPlan(
     watchId: watchRow ? String((watchRow as Row)["id"]) : null,
     planVerdict: watchRow ? String((watchRow as Row)["verdict"] ?? "steady") : null,
     lastCheckedAt: watchRow ? String((watchRow as Row)["last_checked_at"] ?? "") : null,
+    nextCheckAt: watchRow ? ((watchRow as Row)["next_check_at"] as string | null) ?? null : null,
     preferredOptionId,
     backupRunway,
     loadResortNotice:
