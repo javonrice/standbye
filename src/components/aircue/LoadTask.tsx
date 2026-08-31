@@ -224,7 +224,12 @@ export function LoadTask({
     return (
       <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-xl md:px-10 md:pt-12">
         <h1 className="font-display text-2xl font-bold tracking-tight">{payoff.headline}</h1>
-        {payoff.moves.length > 0 ? (
+        {payoff.moves.length === 1 ? (
+          <div className="mt-4 rounded-2xl border border-border bg-card p-5 text-center">
+            <p className="font-display text-xl font-bold tracking-tight">{payoff.moves[0]}</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">Your load changed the order.</p>
+          </div>
+        ) : payoff.moves.length > 0 ? (
           <ul className="mt-4 space-y-2">
             {payoff.moves.map((m) => (
               <li
