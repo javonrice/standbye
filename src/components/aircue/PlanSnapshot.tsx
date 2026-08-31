@@ -67,7 +67,7 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
         </Link>
         <Link
           to="/escape"
-          search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+          search={{ from: plan.origin, to: plan.dest, date: plan.travelDate, planId: plan.id }}
           className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-[13px] font-semibold shadow-card"
         >
           <Compass className="h-5 w-5 text-primary" />
@@ -224,7 +224,7 @@ function ZeroOptionHome({ plan }: { plan: StandbyPlan }) {
         <div className="mt-4 grid gap-2">
           <Link
             to="/escape"
-            search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+            search={{ from: plan.origin, to: plan.dest, date: plan.travelDate, planId: plan.id }}
             className="block rounded-xl bg-primary px-4 py-3 text-center text-[15px] font-semibold text-primary-foreground"
           >
             Find another way

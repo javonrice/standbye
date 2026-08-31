@@ -58,7 +58,7 @@ export function PlanChangedTakeover({ watches, onDismiss }: PlanChangedTakeoverP
         )}
         <Link
           to="/escape"
-          search={{ from: first.origin, to: first.dest, date: first.travelDate }}
+          search={{ from: first.origin, to: first.dest, date: first.travelDate, ...(first.planId ? { planId: first.planId } : {}) }}
           onClick={onDismiss}
           className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold"
         >

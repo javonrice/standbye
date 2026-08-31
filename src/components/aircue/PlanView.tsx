@@ -85,7 +85,7 @@ export function PlanView({ plan }: { plan: StandbyPlan }) {
             />
             <ActionRow
               to="/escape"
-              search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}
+              search={{ from: plan.origin, to: plan.dest, date: plan.travelDate, planId: plan.id }}
               title="Find another way"
               body="Unconventional but realistic ways to still get there."
             />
@@ -269,7 +269,7 @@ function ZeroOptionState({ plan }: { plan: StandbyPlan }) {
       </p>
       <div className="mt-4 flex flex-col gap-2">
         <Button asChild className="h-11">
-          <Link to="/escape" search={{ from: plan.origin, to: plan.dest, date: plan.travelDate }}>
+          <Link to="/escape" search={{ from: plan.origin, to: plan.dest, date: plan.travelDate, planId: plan.id }}>
             Find another way
           </Link>
         </Button>
@@ -286,7 +286,7 @@ function ZeroOptionState({ plan }: { plan: StandbyPlan }) {
 interface ActionRowProps {
   to: "/plans/$planId/loads" | "/escape";
   params?: { planId: string };
-  search?: { from: string; to: string; date: string };
+  search?: { from: string; to: string; date: string; planId: string };
   title: string;
   body: string;
   emphasis?: boolean;
