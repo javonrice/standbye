@@ -45,10 +45,25 @@ New Plan  →  [Build my plan]  →  PLAN RESULTS (graded list)  →  Home / Cur
 | From | Action | To |
 |------|--------|-----|
 | New Plan | Tap **Build my plan** (valid From / To / When) | **Plan results** (this screen) |
-| Plan results | Tap a flight row | Optional: Flight detail **or** confirm sheet |
-| Plan results | **Start with this flight** / **Make this current** | Home / Current Plan |
-| Plan results | **Continue with top pick** (primary if none selected) | Home / Current Plan with #1 as current |
+| Plan results | Tap a flight row | **Confirm sheet** (not a full push yet) |
+| Confirm sheet | **Start with this flight** | Home / Current Plan (that flight = current) |
+| Confirm sheet | **See details** | Flight detail (F10); back returns to Plan results |
+| Confirm sheet | Dismiss | Stay on Plan results |
+| Plan results | **Continue with top pick** (sticky footer; no row needed) | Home / Current Plan with #1 as current |
 | Plan results | Soft back | New Plan (edit) — rare |
+
+**Tap behavior (locked — answer C):**
+
+```text
+Tap row
+  → bottom sheet
+      flight label · verdict · why
+      [ Start with this flight ]   ← primary
+      [ See details ]              ← secondary → Flight Detail
+      [ Keep looking ]             ← dismiss (optional)
+```
+
+Same pattern as Ways “Make this current” sheet. Do **not** only highlight the row and rewrite the footer (A). Do **not** require Flight Detail to start (B). Do **not** put a separate Details link on every row (D).
 
 **Do not** skip this screen on first build.  
 **Do not** auto-land on Current Plan with no list reveal.
