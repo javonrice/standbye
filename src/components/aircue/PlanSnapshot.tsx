@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Compass, Plus } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Compass, Plus, RefreshCw } from "lucide-react";
 
 import { LocalTime } from "@/components/aircue/LocalTime";
 import { longDate } from "@/components/aircue/PlanView";
 import { formatOptionArrival } from "@/lib/aircue/option-display";
 import { formatCountdown } from "@/lib/aircue/tz";
+import { refreshWatchPlan } from "@/lib/aircue/plan.functions";
 import {
-  agoLabel,
   judgmentShort,
   judgmentTone,
+  watchFreshness,
   type StandbyOption,
   type StandbyPlan,
 } from "@/lib/aircue/standby";
@@ -60,7 +63,7 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
         <Link
           to="/plans/$planId/loads"
           params={{ planId }}
-          className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-[13px] font-semibold shadow-card"
+          className="flex min-h-[56px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-[13px] font-semibold shadow-card"
         >
           <Plus className="h-5 w-5 text-primary" />
           Add load
@@ -68,7 +71,7 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
         <Link
           to="/escape"
           search={{ from: plan.origin, to: plan.dest, date: plan.travelDate, planId: plan.id }}
-          className="flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-[13px] font-semibold shadow-card"
+          className="flex min-h-[56px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-card py-3 text-[13px] font-semibold shadow-card"
         >
           <Compass className="h-5 w-5 text-primary" />
           Find another way
@@ -93,11 +96,35 @@ function ActiveTripCard({
 
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
-      {/* Flight + status */}
-      <div className="flex items-center justify-between gap-3 px-5 pt-4">
+      {/* Flight identity */}
+      <div className="flex items-baseline justify-between gap-3 px-5 pt-4">
         <p className="min-w-0 truncate text-[15px] font-bold tracking-tight">
           {option.flightLabel}
         </p>
+        <p className="shrink-0 text-[12px] font-medium text-muted-foreground">
+          {plan.origin} → {plan.dest}
+        </p>
+      </div>
+
+      {/* Countdown — the number that matters most, before any judgment */}
+      <p className="px-5 pt-2 font-display text-[30px] font-bold leading-tight tracking-tight">
+        <Countdown schedDepUtc={option.schedDepUtc} depLocal={option.depLocal} />
+      </p>
+      <p className="px-5 pt-1 text-[13px] font-medium text-muted-foreground">
+        {longDate(plan.travelDate)} · {plan.travelers} traveler
+        {plan.travelers === 1 ? "" : "s"}
+        {!selected && " · Recommended now"}
+      </p>
+
+      {/* Labelled times — never two bare clock readings */}
+      <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border px-5 py-3">
+        <Fact label={`Departs ${option.origin}`} value={option.depLocal} />
+        <Fact label={`Arrives ${option.dest}`} value={formatOptionArrival(option)} />
+        <Fact label="Backup ways" value={backups === 0 ? "None" : String(backups)} plain />
+      </div>
+
+      {/* Supporting judgment, after the numbers */}
+      <div className="flex items-center gap-2 border-t border-border px-5 py-3">
         <span
           className={cn(
             "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em]",
@@ -107,54 +134,12 @@ function ActiveTripCard({
         >
           {judgmentShort[option.judgment]}
         </span>
-      </div>
-
-      {/* Countdown — the context that matters most */}
-      <p className="px-5 pt-2 font-display text-[30px] font-bold leading-tight tracking-tight">
-        <Countdown schedDepUtc={option.schedDepUtc} depLocal={option.depLocal} />
-      </p>
-
-      {/* Route */}
-      <div className="flex items-center gap-2 px-5 pt-2 text-[17px] font-semibold tracking-tight">
-        <span>{option.origin}</span>
-        <span className="mx-1 flex-1 border-t border-border" aria-hidden />
-        <span>
-          <LocalTime value={formatOptionArrival(option)} className="text-muted-foreground" />
+        <span className="min-w-0 truncate text-[13px] text-muted-foreground">
+          {option.kind === "connection" ? "1 stop" : "Nonstop"} · Standbye's read on this attempt
         </span>
-        <span>{option.dest}</span>
-      </div>
-      <p className="px-5 pt-1 text-[13px] font-medium text-muted-foreground">
-        {longDate(plan.travelDate)} · {plan.travelers} traveler
-        {plan.travelers === 1 ? "" : "s"}
-        {!selected && " · Recommended now"}
-      </p>
-
-      {/* Key facts */}
-      <div className="mt-4 grid grid-cols-3 border-t border-border px-5 py-3">
-        <Fact label="Departs" value={option.depLocal} />
-        <Fact label="Route" value={option.kind === "connection" ? "1 stop" : "Nonstop"} />
-        <Fact label="Backups" value={backups === 0 ? "None" : `${backups}`} />
       </div>
 
-      {/* Monitoring — quiet unless attention is needed */}
-      <div className="border-t border-border px-5 py-3">
-        {plan.watching ? (
-          <p className="text-[13px] text-muted-foreground">
-            Standbye is watching · checked {agoLabel(plan.lastCheckedAt)}
-          </p>
-        ) : (
-          <p className="text-[13px] text-muted-foreground">
-            Standbye isn't watching this day yet.{" "}
-            <Link
-              to="/plans/$planId"
-              params={{ planId: plan.id }}
-              className="font-semibold text-primary"
-            >
-              Set up monitoring
-            </Link>
-          </p>
-        )}
-      </div>
+      <MonitoringRow plan={plan} />
 
       {/* Main CTA */}
       <Link
@@ -168,12 +153,84 @@ function ActiveTripCard({
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+/**
+ * Freshness is a trust signal: never claim to be watching while the last look
+ * is older than the monitoring cadence — say so and offer one tap to re-check.
+ */
+function MonitoringRow({ plan }: { plan: StandbyPlan }) {
+  const queryClient = useQueryClient();
+  const recheck = useServerFn(refreshWatchPlan);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const refresh = useMutation({
+    mutationFn: async (watchId: string) => recheck({ data: { watchId } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["home-plan"] });
+      void queryClient.invalidateQueries({ queryKey: ["plan", plan.id] });
+    },
+  });
+
+  if (!plan.watching) {
+    return (
+      <div className="border-t border-border px-5 py-3">
+        <p className="text-[13px] text-muted-foreground">
+          Standbye isn't watching this day yet.{" "}
+          <Link
+            to="/plans/$planId"
+            params={{ planId: plan.id }}
+            className="font-semibold text-primary"
+          >
+            Set up monitoring
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
+  const { stale, checkedLabel, nextLabel } = watchFreshness(
+    plan.lastCheckedAt,
+    plan.nextCheckAt,
+    now,
+  );
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+      <p className={cn("min-w-0 text-[13px]", stale ? "text-rough-foreground" : "text-muted-foreground")}>
+        {stale ? (
+          <>{checkedLabel} · this reading may be out of date</>
+        ) : (
+          <>
+            {checkedLabel}
+            {nextLabel ? ` · ${nextLabel}` : ""}
+          </>
+        )}
+      </p>
+      {plan.watchId && (
+        <button
+          type="button"
+          onClick={() => plan.watchId && refresh.mutate(plan.watchId)}
+          disabled={refresh.isPending}
+          className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl px-2 text-[13px] font-semibold text-primary disabled:opacity-60"
+        >
+          <RefreshCw className={cn("h-4 w-4", refresh.isPending && "animate-spin")} aria-hidden />
+          {refresh.isPending ? "Checking" : "Check now"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Fact({ label, value, plain }: { label: string; value: string; plain?: boolean }) {
   return (
     <div className="min-w-0">
       <p className="text-[12px] font-medium text-muted-foreground">{label}</p>
       <p className="mt-0.5 truncate text-[15px] font-semibold tracking-tight">
-        <LocalTime value={value} />
+        {plain ? value : <LocalTime value={value} />}
       </p>
     </div>
   );
@@ -197,7 +254,7 @@ function Countdown({
   const departure = new Date(schedDepUtc);
   if (Number.isNaN(departure.getTime())) return <>Departs {depLocal}</>;
   if (departure.getTime() - now <= 0) return <>Departure time has passed</>;
-  return <>{formatCountdown(departure, new Date(now))}</>;
+  return <>{formatCountdown(departure, new Date(now))} to departure</>;
 }
 
 /** A Plan is real even with zero options — show recovery, never hide it. */
