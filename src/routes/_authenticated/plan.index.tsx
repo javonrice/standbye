@@ -78,7 +78,7 @@ export function pickCurrentPlan(plans: PlanSummary[], todayISO: string): PlanSum
 
 function HomePage() {
   const { new: forceBuilder } = Route.useSearch();
-  const loadCurrentPlan = useServerFn(getCurrentPlanForHome);
+  const loadHomePlan = useServerFn(getHomePlan);
   const loadProfile = useServerFn(getStandbyProfile);
   const navigate = useNavigate();
 
@@ -86,27 +86,42 @@ function HomePage() {
     queryKey: ["standby-profile"],
     queryFn: () => loadProfile(),
   });
-  const { data: current, isLoading } = useQuery({
-    queryKey: ["home-current-plan"],
-    queryFn: () => loadCurrentPlan(),
+  // One round trip: the current Plan and its full briefing together.
+  const {
+    data: plan,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["home-plan"],
+    queryFn: () => loadHomePlan(),
+    enabled: !forceBuilder,
   });
 
   useEffect(() => {
     if (profile && !profile.onboarded) navigate({ to: "/onboarding" });
   }, [profile, navigate]);
 
-  if (!forceBuilder && isLoading) {
+  if (!forceBuilder && (isLoading || isError)) {
     return (
       <Screen width="lg">
-        <p className="mt-8 text-sm text-muted-foreground">Loading your standby day…</p>
+        <QueryState
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => void refetch()}
+          errorTitle="We couldn't load your standby day"
+          errorMessage="Standbye couldn't reach the server. Check your connection and try again."
+        >
+          {null}
+        </QueryState>
       </Screen>
     );
   }
 
-  if (!forceBuilder && current) {
+  if (!forceBuilder && plan) {
     return (
       <Screen width="lg">
-        <CurrentPlanHome planId={current.id} />
+        <CurrentPlanHome plan={plan} />
       </Screen>
     );
   }
@@ -119,20 +134,7 @@ function HomePage() {
 }
 
 /** State A — open Standbye, see the standby day you are currently working on. */
-function CurrentPlanHome({ planId }: { planId: string }) {
-  const load = useServerFn(getPlan);
-  const { data: plan, isLoading } = useQuery({
-    queryKey: ["plan", planId],
-    queryFn: () => load({ data: { planId } }),
-  });
-
-  if (isLoading && !plan) {
-    return <p className="mt-8 text-sm text-muted-foreground">Loading your standby day…</p>;
-  }
-  if (!plan) {
-    return <PlanBuilder />;
-  }
-
+function CurrentPlanHome({ plan }: { plan: StandbyPlan }) {
   return (
     <>
       <div className="-mx-5 -mt-7 md:-mx-10 md:-mt-12">
