@@ -14,14 +14,14 @@ import { agoLabel, type PillarState } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/options/$optionId/availability")({
   head: () => ({
     meta: [
-      { title: "Public availability — Standbye" },
+      { title: "Booking check — Standbye" },
       {
         name: "description",
         content:
           "Exactly what the public booking check showed for this flight, and why it is a demand signal rather than a load.",
       },
-      { property: "og:title", content: "Public availability — Standbye" },
-      { property: "og:description", content: "What the public availability check found." },
+      { property: "og:title", content: "Booking check — Standbye" },
+      { property: "og:description", content: "What the public booking signal found." },
     ],
   }),
   component: AvailabilityDetail,
@@ -46,12 +46,12 @@ function AvailabilityDetail() {
   return (
     <DetailShell
       optionId={optionId}
-      title="Public availability"
+      title="Booking check"
       subtitle={option ? `${option.flightLabel} · ${option.origin} → ${option.dest}` : "Loading…"}
     >
       {availability && !availability.checked && (
         <DetailModule title="We could not check this one" className="mt-5">
-          The public availability check did not return a usable answer. Standbye treats that as
+          The public booking signal did not return a usable answer. Standbye treats that as
           unknown — not as full.
         </DetailModule>
       )}

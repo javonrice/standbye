@@ -121,7 +121,6 @@ function OptionScreen() {
 
   const contextLinks: Array<{ to: ContextLink; label: string }> = [
     { to: "/options/$optionId/context/history", label: "Route history" },
-    { to: "/options/$optionId/context/weather", label: "Weather" },
   ];
   if (option.evidence.holiday) {
     contextLinks.push({ to: "/options/$optionId/context/holiday", label: "Holiday demand" });
