@@ -366,6 +366,46 @@ export function agoLabel(iso: string | null | undefined, now = Date.now()): stri
   return `${h}h ${mins % 60}m ago`;
 }
 
+/** Monitoring runs on a ~30 min cadence; past this we stop claiming freshness. */
+export const STALE_WATCH_MINUTES = 45;
+
+export interface WatchFreshness {
+  /** True when the last check is older than the monitoring cadence. */
+  stale: boolean;
+  /** "Checked 4 min ago" / "Not checked yet". */
+  checkedLabel: string;
+  /** "next check ~26 min" when known and still in the future. */
+  nextLabel: string | null;
+}
+
+/** One honest reading of how current the monitoring really is. */
+export function watchFreshness(
+  lastCheckedAt: string | null | undefined,
+  nextCheckAt: string | null | undefined,
+  now = Date.now(),
+): WatchFreshness {
+  const mins = minutesAgo(lastCheckedAt, now);
+  const checkedLabel =
+    mins === null
+      ? "Not checked yet"
+      : mins < 1
+        ? "Checked just now"
+        : mins < 60
+          ? `Checked ${mins} min ago`
+          : `Checked ${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+
+  let nextLabel: string | null = null;
+  if (nextCheckAt) {
+    const t = new Date(nextCheckAt).getTime();
+    if (!Number.isNaN(t) && t > now) {
+      const inMins = Math.max(1, Math.round((t - now) / 60000));
+      nextLabel = inMins < 60 ? `next check ~${inMins} min` : `next check ~${Math.round(inMins / 60)}h`;
+    }
+  }
+
+  return { stale: mins === null || mins >= STALE_WATCH_MINUTES, checkedLabel, nextLabel };
+}
+
 /** A reported load older than this deserves a nudge. */
 export const STALE_LOAD_MINUTES = 120;
 
