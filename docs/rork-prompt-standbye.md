@@ -33,6 +33,7 @@ Bottom tabs only: Home · Plans · You
 1. Splash — brand + “Get started” / “I have an account”
 2. Onboarding (4 steps) — traveler type, home airline, travel access, home airport → “Plan my first trip”
 3. New Plan — From, To, When, Travelers; collapsed Trip options; primary CTA “Build my plan”; link “Have a flight number?”
+3b. **Plan results (REQUIRED after Build my plan)** — Decision intelligence screen. Show **all** ranked flights for this Plan before Home. Each row: rank, **visible grade** (A/B/C/D or Strong/OK/Weak), flight number, time, path (Nonstop / via …), one short why-line. Header: route + date + “Ranked for your access”. Sticky CTA: “Continue with top pick” or, after selecting a row, “Start with this flight” → then Home / Current Plan. Do **not** skip this and land only on Current Plan. (Ways later is the ongoing list while working; Plan results is the first full graded reveal.) Full spec: `docs/rork-plan-results-build-spec.md`.
 4. Home / Current Plan — THE main screen. One composition only:
    - Brand + route + date
    - One current flight (number, time, countdown, judgment label, one short why line)
@@ -127,7 +128,8 @@ Screens are UI only; no business rules duplicated in random components.
 
 [Build instruction for this turn]
 Plan mode first: confirm the data model and navigation, ask clarifying questions only where needed.
-Then build ONLY: navigation shell (3 tabs) + Splash + New Plan + Home Current Plan with mock data for one sample active plan (ORD→LAX today, 1 current + 2 open + 1 passed).
+Then build ONLY: navigation shell (3 tabs) + Splash + New Plan + **Plan results (after Build my plan — all graded flights)** + Home Current Plan with mock data for one sample active plan (ORD→LAX today, 5–8 graded results; after continue: 1 current + 2 open + 1 passed).
+Flow must be: New Plan → Build my plan → Plan results → Continue with top pick → Current Plan. Do not skip Plan results.
 Do not build Ways, Load, Activity detail, Plans library contents, or onboarding yet — stub tabs/buttons that navigate to placeholder screens labeled with the screen name.
 At the end, list every file you created or changed.
 ```

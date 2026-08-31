@@ -42,6 +42,7 @@ Five jobs. Every screen serves exactly one.
 | F0 | Enter / account | Splash, Sign in | Start |
 | F1 | Setup traveler | Onboarding | Access + home airport |
 | F2 | Create Plan | New Plan | Capture route + day |
+| **F2.5** | **Decision intelligence** | **Plan results** | **See all graded flights; choose how to start** |
 | F3 | Work the day | Home (Current Plan) | Show current flight + status |
 | F4 | See all ways | Ways | Ranked alternatives on this Plan |
 | F5 | Commit / switch | (action on Ways or Home) | Make another flight current |
@@ -50,6 +51,8 @@ Five jobs. Every screen serves exactly one.
 | F8 | Browse history | Plans library | Past + upcoming Plans |
 | F9 | Profile | You | Access, prefs, help |
 | F10 | Explain this flight | Flight detail | Pillars, holiday, load CTA, deeper context |
+
+**F2.5 is required on the build path.** Do not skip from New Plan straight to Current Plan. See `docs/rork-plan-results-build-spec.md`.
 
 **Out of traveler vocabulary:** Escape as a mode, Updates as a tab, Option detail as a *product* (Flight detail under Home is OK), Watch as a noun.
 
@@ -93,10 +96,15 @@ Rule: Opening a Plan from the library jumps to **Home** with that Plan as curren
               ┌─────────────────────┐
               │        HOME         │
               │  Has actionable     │─────── no ───► New Plan (F2)
-              │  Plan today?        │
-              └──────────┬──────────┘
-                         │ yes
-                         ▼
+              │  Plan today?        │                      │
+              └──────────┬──────────┘                      ▼
+                         │ yes              ┌─────────────────────────┐
+                         │                  │  PLAN RESULTS (F2.5)    │
+                         │                  │  All flights · graded   │
+                         │                  │  Best first             │
+                         │                  └───────────┬─────────────┘
+                         │                              │ pick / continue
+                         ▼                              ▼
               ┌─────────────────────┐
               │   CURRENT PLAN      │  ← F3 WORK
               │   (Home body)       │
@@ -104,7 +112,16 @@ Rule: Opening a Plan from the library jumps to **Home** with that Plan as curren
            ┌─────────────┼─────────────┐
            ▼             ▼             ▼
         Ways (F4)    Load (F6)    Activity (F7)
-           │
+           │             ▲
+           │             │
+           └── tap row / Home tap current
+                     │
+                     ▼
+              Flight detail (F10)
+                     │
+                     ├── Add a load → Load (F6)
+                     └── Make current (F5) → Current Plan
+
            └── switch current (F5) ──► back to CURRENT PLAN
 ```
 
@@ -172,7 +189,7 @@ travelDate < today          →  Plans → Past
 └─────────────────────────────────────┘
 ```
 
-**Function:** Create one Plan. Building **is** activating (current flight + watching starts without extra taps).
+**Function:** Create one Plan. **Build my plan** does **not** jump straight to Current Plan — it opens **Plan results (F2.5)** first.
 
 Optional subpath — Known flight:
 
@@ -181,10 +198,44 @@ Optional subpath — Known flight:
 │  Check a flight                     │
 │  Carrier + number + date            │
 │  [ Check ]                          │
-│  → lands on Current Plan with that  │
-│    flight as current                │
+│  → can land on Current Plan with    │
+│    that flight as current (skip     │
+│    full results when intent is one  │
+│    known flight)                    │
 └─────────────────────────────────────┘
 ```
+
+---
+
+### F2.5 — Plan results (decision intelligence)
+
+**Required after Build my plan.** Traveler sees **all** graded flights before Home becomes the day-of HQ.
+
+```text
+┌─────────────────────────────────────┐
+│  Standbye                           │
+│  SFO → JFK · Sat Mar 14             │
+│                                     │
+│  Ranked for your access             │
+│                                     │
+│  #1  A   UA 456 · 8:15a · Nonstop   │
+│      Strong seat + timing fit       │
+│                                     │
+│  #2  B   UA 789 · 11:40a · via DEN  │
+│      Solid backup if morning fills  │
+│                                     │
+│  #3  B   …                          │
+│  …                                  │
+│                                     │
+│  [ Continue with top pick ]         │
+└─────────────────────────────────────┘
+```
+
+**Function:** Decision intelligence — full ranked list, **grade visible on every row**, one why-line; traveler starts with #1 or picks another → then Current Plan.
+
+**Vs Ways (F4):** Plan results = *first reveal* after build. Ways = *ongoing* list while working (Current / Still open / Passed). Same flights; different moment.
+
+Full Rork paste: `docs/rork-plan-results-build-spec.md`.
 
 ---
 
@@ -284,7 +335,7 @@ Tap a still-open row:
 
 ### F5 — Switch current (action, not a tab)
 
-No dedicated screen. Confirm sheet on Ways or from Activity:
+No dedicated screen. Confirm sheet on Ways, Flight detail, or from Activity:
 
 ```text
 ┌─────────────────────────────────────┐
@@ -296,6 +347,35 @@ No dedicated screen. Confirm sheet on Ways or from Activity:
 ```
 
 **Function:** Commit intent. Watch follows automatically.
+
+---
+
+### F10 — Flight detail (evidence for one flight)
+
+Plan-scoped under Home. Enter by tapping the current flight on Home, or a row on Ways.
+
+```text
+┌─────────────────────────────────────┐
+│  ←  ORD → LAX                       │
+│  UA · UA1522 · Aug 31               │
+│  ORD 12:40p → LAX 3:05p · Nonstop   │
+│                                     │
+│  🙂 Favorable setup                 │
+│  Why this ranks here                │
+│                                     │
+│  Booking check      Strong          │
+│  Operations         Strong          │  ← free FAA + weather
+│  Backup runway      Strong          │
+│                                     │
+│  Reported load · [ Add a load ]     │  → F6
+│  More context / Route history       │  ← holiday, history
+│                                     │
+│  [ Make this current ] or ✓ Current │
+└─────────────────────────────────────┘
+```
+
+**Function:** Show attached evidence (paid boards/status + free ops/weather/holiday). Not a fourth tab.  
+**Signals doc:** `docs/flight-evidence-watch-signals-handoff.md`
 
 ---
 
@@ -397,21 +477,23 @@ Tap row:
 
 | Build first | Screen | Function | Success looks like |
 |-------------|--------|----------|--------------------|
-| 1 | New Plan | F2 | One tap builds + activates |
-| 2 | Current Plan | F3 | One flight, countdown, watching line |
-| 3 | Ways | F4/F5 | Switch current without leaving Plan |
-| 4 | Plans library | F8 | Done vs Past clear |
-| 5 | Load | F6 | Report without leaving Plan mental model |
-| 6 | Activity | F7 | Changes explained in Plan language |
-| 7 | Onboarding / You | F1/F9 | Access only |
+| 1 | New Plan | F2 | Build my plan → Plan results (not Home) |
+| 2 | **Plan results** | **F2.5** | All flights graded; continue → Current Plan |
+| 3 | Current Plan | F3 | One flight, countdown, watching line |
+| 4 | Ways | F4/F5 | Switch current without leaving Plan |
+| 5 | Flight detail | F10 | Evidence / load entry from a flight |
+| 6 | Plans library | F8 | Done vs Past clear |
+| 7 | Load | F6 | Report without leaving Plan mental model |
+| 8 | Activity | F7 | Changes explained in Plan language |
+| 9 | Onboarding / You | F1/F9 | Access only |
 
 ---
 
 ## 7. State machine (UI only)
 
 ```text
-                  build
-   [no plan] ─────────────► [active]
+                  build → plan results → pick/continue
+   [no plan] ─────────────────────────────► [active]
                                 │
               advance current   │  (flight passed, next exists)
                                 ▼
@@ -437,7 +519,7 @@ Plans renders **active · complete · upcoming · past**.
 |------------------------|-------------|
 | Updates tab | Activity is Plan-scoped (F7) |
 | Escape as parallel product | Fold into Ways / “wider search” trip option |
-| Option evidence as deep app | Sheet under Ways row |
+| Option evidence as deep app | **F10 Flight detail** under Home (from Home tap or Ways row) |
 | Compare as primary path | Optional later inside Ways |
 | Strategy / gateway admin UI | Paths as filters on Ways only |
 | Dashboard Home | One composition, one current flight |

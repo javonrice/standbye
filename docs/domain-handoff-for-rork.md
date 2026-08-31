@@ -6,6 +6,8 @@
 2. `docs/handoff/plan-lifecycle.portable.ts` — drop-in lifecycle
 3. Prefer also pasting `docs/ui-wireframe-function-map.md` for full ASCII wireframes  
 4. Prefer also pasting `docs/rork-prompt-standbye.md` Stage 1 if starting a Rork Plan Mode build
+5. **`docs/rork-plan-results-build-spec.md`** — **Plan results** after Build my plan (graded list / decision intelligence) — was missing from earlier handoffs
+6. `docs/rork-flight-detail-build-spec.md` — Flight detail if building F10
 
 **Source of truth in old repo:** `src/lib/aircue/plan-lifecycle.server.ts` (wired to Supabase).  
 **Portable copy (no deps):** `docs/handoff/plan-lifecycle.portable.ts` ← **copy this file into the new repo.**
@@ -855,8 +857,9 @@ This is the **clean-slate IA** — not the old Lovable route tree. Full ASCII la
 /(app)                ← tab navigator
   home/               ← F3 Current Plan (or empty → new-plan)
     new-plan          ← F2
+    plan-results      ← F2.5 REQUIRED after Build my plan (all flights graded)
     known-flight      ← optional F2 subpath
-    ways              ← F4  (plan-scoped)
+    ways              ← F4  (plan-scoped; ongoing list while working)
     ways/switch       ← F5 sheet/confirm (or modal)
     flight/:flightId  ← F10 Flight detail (evidence: ops/weather/holiday/load)
     load              ← F6
@@ -868,6 +871,8 @@ This is the **clean-slate IA** — not the old Lovable route tree. Full ASCII la
 
 Do **not** create: `/updates`, `/escape`, `/options/:id` as top-level products.
 
+**Do not skip F2.5:** Build my plan → **Plan results** (graded decision intelligence) → then Current Plan. Spec: `docs/rork-plan-results-build-spec.md`.
+
 ### Function → screen
 
 | # | Job | Screen | One purpose |
@@ -875,8 +880,9 @@ Do **not** create: `/updates`, `/escape`, `/options/:id` as top-level products.
 | F0 | Enter | Splash / Sign in | Start |
 | F1 | Setup | Onboarding | Access + home airport |
 | F2 | Create | New Plan | Route + day |
+| **F2.5** | **Decide** | **Plan results** | **All graded flights; choose how to start** |
 | F3 | Work | **Home / Current Plan** | What to try **now** |
-| F4 | Adjust | Ways | Other ways on this Plan |
+| F4 | Adjust | Ways | Other ways on this Plan (while working) |
 | F5 | Commit | Sheet (not a tab) | Make this current |
 | F6 | Report | Load | Seats / standbys |
 | F7 | Explain | Activity | What changed (Plan-scoped) |
@@ -892,8 +898,16 @@ Splash → Onboarding (once) → HOME
               has actionable Plan?
                  │            │
                 yes           no
-                 │            └──► New Plan (F2) ──build──► Current Plan
-                 ▼
+                 │            └──► New Plan (F2)
+                 │                      │
+                 │                 Build my plan
+                 │                      ▼
+                 │               PLAN RESULTS (F2.5)
+                 │               all flights · graded
+                 │                      │
+                 │               continue / pick start
+                 │                      ▼
+                 ▼               CURRENT PLAN (F3)
           CURRENT PLAN (F3)
            │    │     │      │
            ▼    ▼     ▼      ▼
