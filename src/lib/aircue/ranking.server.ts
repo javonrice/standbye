@@ -18,9 +18,16 @@ import {
 } from "@/lib/aircue/route-search.server";
 import {
   discoverConnectionGatewaysFromSnapshot,
+  computeNetworkBreadth,
   type ConnectionCandidate,
   type ConnectionGatewayBuild,
 } from "@/lib/aircue/strategy-discovery.server";
+import {
+  detourRatioForPath,
+  evaluateConnectionViability,
+  BACKTRACK_HINT,
+  type ViabilityMode,
+} from "@/lib/aircue/connection-viability.server";
 import { expandAirports, sameCity } from "@/lib/aircue/airport-groups";
 import {
   airportGeo,
@@ -69,7 +76,7 @@ import {
   searchItineraryCandidates,
   type Gf8ItineraryCandidate,
 } from "@/lib/aircue/gf8-itineraries.server";
-import { buildStrategyCatalog, type StoredPlanStrategy } from "@/lib/aircue/plan-strategy";
+import { buildStrategyCatalog, strategyIdFromPath, airportPathFromOptionLike, type StoredPlanStrategy } from "@/lib/aircue/plan-strategy";
 
 export interface RankInput {
   origin: string;
@@ -852,7 +859,6 @@ const worst = (a: PillarState, b: PillarState): PillarState => {
 
 const MIN_LAYOVER = 60;
 const MAX_LAYOVER = 6 * 60;
-const BACKTRACK_HINT = 1.22;
 
 const legLabel = (l: RouteLeg) =>
   l.airlineCode && l.flightNumber ? `${l.airlineCode}${l.flightNumber}` : `${l.origin}→${l.dest}`;
@@ -1165,6 +1171,23 @@ async function scoreGf8Candidate(
   };
 }
 
+async function gf8ConnectionEligible(
+  candidate: Gf8ItineraryCandidate,
+  mode: ViabilityMode,
+  networkBreadth: number,
+): Promise<boolean> {
+  if (candidate.kind !== "connection" || !candidate.hub) return true;
+  const detourRatio = await detourRatioForPath(candidate.origin, candidate.hub, candidate.dest);
+  return evaluateConnectionViability({
+    origin: candidate.origin,
+    via: candidate.hub,
+    destination: candidate.dest,
+    mode,
+    networkBreadth,
+    detourRatio,
+  }).eligible;
+}
+
 /** Merge schedule/gateway options with GF8 candidates by option_key. */
 function mergeByOptionKey(existing: RankedOption[], gf8Options: RankedOption[]): RankedOption[] {
   const byKey = new Map<string, RankedOption>();
@@ -1264,9 +1287,11 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
   const nonstopCount = results.length;
   let gateways: GatewayOption[] = [];
   let gatewayBuilds: ConnectionGatewayBuild[] = [];
+  let networkBreadth = 0;
+  const viabilityMode: ViabilityMode = wide ? "wide" : "normal";
 
   if (maxStops >= 1 && !(outOfTime() && results.length > 0)) {
-    gatewayBuilds = await discoverConnectionGatewaysFromSnapshot({
+    const discovered = await discoverConnectionGatewaysFromSnapshot({
       snapshot,
       origins,
       dests,
@@ -1276,6 +1301,8 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
       wide,
       outOfTime,
     });
+    gatewayBuilds = discovered.builds;
+    networkBreadth = discovered.networkBreadth;
     const scoreCount = wide ? 4 : nonstopCount === 0 ? 3 : 2;
 
     for (const build of gatewayBuilds.slice(0, scoreCount)) {
@@ -1316,6 +1343,15 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
         if (option.kind === "nonstop") option.recovery.alternates = alternates;
       }
     }
+  } else if (maxStops >= 1) {
+    networkBreadth = computeNetworkBreadth({
+      snapshot,
+      origins,
+      dests,
+      primaryOrigin: input.origin,
+      primaryDest: input.dest,
+      allowed,
+    });
   }
 
   // One broad GF8 discovery; local access filter; merge by option_key.
@@ -1332,7 +1368,17 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
       const allowedList = input.carriers && input.carriers.length > 0 ? input.carriers : [];
       const filtered = filterCandidatesByAccess(gf8.candidates, allowedList);
       const connectionOk = maxStops >= 1;
-      const usable = filtered.filter((c) => connectionOk || c.kind === "nonstop");
+      const viabilityChecked = await Promise.all(
+        filtered.map(async (c) => ({
+          c,
+          ok:
+            connectionOk || c.kind === "nonstop"
+              ? c.kind === "nonstop" ||
+                (await gf8ConnectionEligible(c, viabilityMode, networkBreadth))
+              : false,
+        })),
+      );
+      const usable = viabilityChecked.filter((row) => row.ok).map((row) => row.c);
       const scoredGf8 = await mapWithConcurrency(
         usable.slice(0, wide ? 12 : 8),
         LEG_CONCURRENCY,
@@ -1352,12 +1398,23 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
     (a, b) =>
       b.score - a.score || minutesOfDay(a.schedDepUtc ?? "") - minutesOfDay(b.schedDepUtc ?? ""),
   );
-  rankedPool.forEach((r, i) => {
+
+  const strategies = buildStrategyCatalog({
+    rankedOptions: rankedPool,
+    gatewayBuilds,
+    gateways,
+  });
+  const strategyIds = new Set(strategies.map((s) => s.id));
+  const finalPool = rankedPool.filter((o) => {
+    if (o.kind !== "connection") return true;
+    return strategyIds.has(strategyIdFromPath(airportPathFromOptionLike(o)));
+  });
+  finalPool.forEach((r, i) => {
     r.rank = i + 1;
   });
 
   let reason: RankReason | null = null;
-  if (rankedPool.length === 0) {
+  if (finalPool.length === 0) {
     if (anyBoardBlocked) reason = "data_unavailable";
     else if (anyLegsBeforeCarrierFilter > 0 && anyLegsAtAll === 0) reason = "carrier_filter";
     else if (isLateInDay(input.travelDate)) reason = "day_over";
@@ -1365,15 +1422,11 @@ export async function rankStandbyOptions(input: RankInput): Promise<RankResult> 
   }
 
   return {
-    options: rankedPool,
+    options: finalPool,
     reason,
     scanned: { origins, dests },
     gateways,
-    strategies: buildStrategyCatalog({
-      rankedOptions: rankedPool,
-      gatewayBuilds,
-      gateways,
-    }),
+    strategies,
     strategyDiscovery,
     nonstopCount,
     incomplete: anyBoardBlocked,
@@ -1529,7 +1582,7 @@ export async function rankEscapeRoutes(input: RankInput): Promise<EscapeResult> 
   }
   const nonstopCount = nonstops.length;
 
-  const gatewayBuilds = await discoverConnectionGatewaysFromSnapshot({
+  const { builds: gatewayBuilds } = await discoverConnectionGatewaysFromSnapshot({
     snapshot,
     origins,
     dests,

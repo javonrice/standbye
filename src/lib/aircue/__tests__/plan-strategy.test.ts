@@ -10,6 +10,7 @@ import {
   attachOptionsToStrategies,
   buildStoredStrategies,
   buildStrategyCatalog,
+  connectionEvidenceFromOptionPath,
   connectionPathFromLegs,
   connectionSeedsFromGatewayBuilds,
   optionRefsFromRankedOptions,
@@ -293,5 +294,32 @@ describe("buildStrategyCatalog", () => {
       gateways: [gateway("OKC"), gateway("DEN")],
     });
     expect(strategies.map((s) => s.id).sort()).toEqual(["HOU>DEN>ORD", "IAH>OKC>ORD", "IAH>ORD"]);
+  });
+
+  it("option-derived connection strategies get minimal truthful connection evidence", () => {
+    const stored = buildStoredStrategies({
+      optionRefs: optionRefsFromRankedOptions([
+        {
+          rank: 3,
+          optionKey: "c1",
+          kind: "connection",
+          origin: "OKC",
+          dest: "ORD",
+          segments: [seg("OKC", "IAH", "UA1"), seg("IAH", "ORD", "UA2")],
+        },
+      ]),
+      connectionSeeds: [],
+    });
+    const row = stored.find((s) => s.id === "OKC>IAH>ORD");
+    expect(row?.connection).toEqual({
+      via: "IAH",
+      inboundCount: 1,
+      onwardCount: 1,
+      summary: "Connection through IAH",
+    });
+  });
+
+  it("connectionEvidenceFromOptionPath returns null for direct paths", () => {
+    expect(connectionEvidenceFromOptionPath(["OKC", "ORD"])).toBeNull();
   });
 });

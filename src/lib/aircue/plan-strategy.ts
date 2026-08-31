@@ -89,6 +89,18 @@ export function airportPathFromOptionLike(option: {
   return [norm(option.origin), norm(option.dest)];
 }
 
+/** Minimal truthful connection evidence when only option segments are known. */
+export function connectionEvidenceFromOptionPath(path: string[]): StrategyConnectionEvidence | null {
+  if (path.length !== 3) return null;
+  const via = norm(path[1]!);
+  return {
+    via,
+    inboundCount: 1,
+    onwardCount: 1,
+    summary: `Connection through ${via}`,
+  };
+}
+
 /** Actionable one-stop connection path from a verified gateway build. */
 export function connectionPathFromLegs(input: {
   firstOrigin: string;
@@ -129,7 +141,7 @@ export function buildStoredStrategies(input: {
     map.set(id, {
       id,
       path,
-      connection: null,
+      connection: connectionEvidenceFromOptionPath(path),
       gateway: null,
       discoveryOrder: 10_000 + ref.rank,
     });
@@ -206,7 +218,7 @@ export function strategiesFromLegacyPlan(
       optionCount: 0,
       bestOptionId: null,
       bestRank: null,
-      connection: null,
+      connection: connectionEvidenceFromOptionPath(path),
       gateway: null,
     };
     row.optionIds.push(option.id);

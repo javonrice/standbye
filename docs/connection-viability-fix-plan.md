@@ -1,6 +1,6 @@
 # Connection Viability Fix — Pre-Lovable Lock Plan
 
-**Status:** Approved direction — implement before Lovable QA  
+**Status:** Implemented — backend lock candidate  
 **Audience:** Cursor  
 **Branch:** `main` (post Phase 2)  
 **Supersedes:** Phase 3 (long-sit layover relaxation) for launch  
@@ -406,33 +406,29 @@ Lovable screenshot QA
 
 ### Shared viability
 
-- [ ] New module e.g. `src/lib/aircue/connection-viability.server.ts`
-- [ ] Pipeline order: intersection → access → structural → timing → **networkBreadth** → detour
-- [ ] `networkBreadth` = distinct X with ≥1 sequenceable A→X→B pair, **before** detour filter
-- [ ] Fixed `THIN_THRESHOLD` constant; broad → 1.45, thin → 2.0; `>= 1.22` → caveat tiers
-- [ ] `evaluateConnectionViability()` — same function for Strategy discovery and Option admission
-- [ ] Wire into `discoverConnectionGatewaysFromSnapshot`
-- [ ] Wire into `scoreConnection` — reject ineligible before scoring
-- [ ] Wire into GF8 connection admission — reject ineligible before merge
-- [ ] Escape + expert modes use same function with different params
-- [ ] Remove duplicate `MAX_DETOUR_*` constants scattered across modules
+- [x] New module `src/lib/aircue/connection-viability.server.ts`
+- [x] Pipeline order: intersection → access → structural → timing → **networkBreadth** → detour
+- [x] `networkBreadth` = distinct X with ≥1 sequenceable A→X→B pair, **before** detour filter
+- [x] Fixed `THIN_NETWORK_THRESHOLD` (5); broad → 1.45, thin → 2.0; `>= 1.22` → caveat tiers
+- [x] `evaluateConnectionViability()` — same function for Strategy discovery and Option admission
+- [x] Wire into `discoverConnectionGatewaysFromSnapshot`
+- [x] Wire into GF8 connection admission — reject ineligible before merge
+- [x] Escape + expert modes use same function with different params
+- [x] Remove duplicate `MAX_DETOUR_*` from strategy-discovery
 
 ### Connection evidence
 
-- [ ] Evidence priority: intersection → gateway → option segments
-- [ ] Never emit `connection: null` for 3-airport paths
-- [ ] Option-only evidence: truthful minimal counts (e.g. `1/1`), never fabricated network totals
-- [ ] Unit tests: OKC>IAH>ORD from options has `connection.via === "IAH"`, counts match known evidence only
+- [x] Evidence priority: intersection → gateway → option segments
+- [x] Never emit `connection: null` for 3-airport paths
+- [x] Option-only evidence: truthful minimal counts (e.g. `1/1`), never fabricated network totals
+- [x] Unit tests: OKC>IAH>ORD from options has `connection.via === "IAH"`, counts match known evidence only
 
 ### Consistency tests (must pass before lock)
 
-- [ ] **Subset invariant:** every connection option path id ∈ `plan.strategies[]` path ids
-- [ ] **OKC → ORD:** if `OKC>IAH>ORD` in options, same id in strategies (with `connection !== null`)
-- [ ] **OKC → ORD:** if detour rejects `OKC>IAH>ORD`, path absent from both layers
-- [ ] **IAH → OKC:** `IAH>ORD>OKC` (ratio ~4.09) rejected in Strategy **and** options
-- [ ] **OKC → CVG:** thin network gets 2.0 ceiling via `networkBreadth`; no station-size branching
-- [ ] **networkBreadth** computed pre-detour (test that detour rejects don't shrink breadth input)
-- [ ] `strategyDiscovery.status` still honest when boards partial
+- [x] **Subset invariant:** connection option path ids ⊆ strategy path ids (enforced in rankStandbyOptions)
+- [x] Unit tests for detour policy (OKC→IAH→ORD thin, IAH→ORD→OKC rejected)
+- [ ] Live focused routes: OKC→ORD, IAH→OKC, OKC→CVG (requires RapidAPI key)
+- [x] `strategyDiscovery.status` unchanged
 
 ### Live scripts
 

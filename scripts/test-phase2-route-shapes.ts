@@ -76,7 +76,7 @@ async function testShape(shape: (typeof ROUTE_SHAPES)[number]): Promise<ShapeRes
       allowed: new Set([CARRIER]),
       wide: false,
     });
-    const gateways = builds.map((b) => ({
+    const gateways = builds.builds.map((b) => ({
       hub: b.hub,
       city: b.city,
       state: b.state,
@@ -92,7 +92,7 @@ async function testShape(shape: (typeof ROUTE_SHAPES)[number]): Promise<ShapeRes
     }));
     const strategies = buildStrategyCatalog({
       rankedOptions: [],
-      gatewayBuilds: builds,
+      gatewayBuilds: builds.builds,
       gateways,
     });
 
