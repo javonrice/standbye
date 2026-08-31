@@ -1,20 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
 
 import { CueBadge } from "@/components/aircue/CueBadge";
+import { DetailShell } from "@/components/aircue/DetailScreen";
 import { useOption } from "@/lib/aircue/use-option";
 import { gatewayDot } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/options/$optionId/recovery")({
   head: () => ({
     meta: [
-      { title: "Recovery room — Standbye" },
+      { title: "Backup runway — Standbye" },
       {
         name: "description",
         content:
           "What you would still have left if this standby attempt does not work: later nonstops and alternate routings.",
       },
-      { property: "og:title", content: "Recovery room — Standbye" },
+      { property: "og:title", content: "Backup runway — Standbye" },
       { property: "og:description", content: "Your backup options if this attempt fails." },
     ],
   }),
@@ -28,21 +28,20 @@ function RecoveryRoom() {
   const ways = (recovery?.laterNonstops.length ?? 0) + (recovery?.alternates.length ?? 0);
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
-      <Link
-        to="/options/$optionId"
-        params={{ optionId }}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to the cue
-      </Link>
-
-      <h1 className="mt-3 font-display text-2xl font-bold tracking-tight">Recovery room</h1>
-
+    <DetailShell
+      optionId={optionId}
+      title="Backup runway"
+      subtitle={
+        data?.option
+          ? `${data.option.flightLabel} · ${data.option.origin} → ${data.option.dest}`
+          : "Loading…"
+      }
+    >
       {recovery && (
         <>
           <section className="mt-4 rounded-2xl border border-border bg-card p-4">
             <p className="flex items-center gap-2 font-display text-[19px] font-bold tracking-tight">
+
               <span aria-hidden className="text-[15px] leading-none">
                 {gatewayDot[recovery.state]}
               </span>
