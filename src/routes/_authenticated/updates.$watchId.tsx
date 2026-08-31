@@ -19,13 +19,13 @@ import { agoLabel, judgmentShort, type Judgment, type StandbyOption } from "@/li
 export const Route = createFileRoute("/_authenticated/updates/$watchId")({
   head: () => ({
     meta: [
-      { title: "Plan updates — Standbye" },
+      { title: "Plan activity — Standbye" },
       {
         name: "description",
         content:
-          "A plain timeline of everything that shifted on your travel plan since you started watching it.",
+          "A plain timeline of everything that has shifted on your travel plan today.",
       },
-      { property: "og:title", content: "Plan updates — Standbye" },
+      { property: "og:title", content: "Plan activity — Standbye" },
       { property: "og:description", content: "Timeline of meaningful changes on your plan." },
     ],
   }),
@@ -91,7 +91,11 @@ function UpdateTimeline() {
     mutationFn: () => stop({ data: { watchId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["watches"] });
-      void navigate({ to: "/updates" });
+      if (watch?.planId) {
+        void navigate({ to: "/plans/$planId", params: { planId: watch.planId } });
+      } else {
+        void navigate({ to: "/plan" });
+      }
     },
   });
 
@@ -117,21 +121,31 @@ function UpdateTimeline() {
   const showsPreferred = Boolean(preferred && primary && preferred.id !== primary.id);
 
   const primarySubline = primary
-    ? `Primary: ${primary.flightLabel} · ${primary.depLocal} local`
+    ? `${primary.flightLabel} · ${primary.depLocal} local`
     : watch
-      ? `Watching: ${watch.flightLabel} · ${watch.depLocal} local`
+      ? `${watch.flightLabel} · ${watch.depLocal} local`
       : null;
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
       <div className="flex items-center justify-between">
-        <Link to="/updates" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <ArrowLeft className="h-4 w-4" /> Updates
-        </Link>
+        {watch?.planId ? (
+          <Link
+            to="/plans/$planId"
+            params={{ planId: watch.planId }}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Your plan
+          </Link>
+        ) : (
+          <Link to="/plan" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <ArrowLeft className="h-4 w-4" /> Home
+          </Link>
+        )}
         <div className="relative">
           <button
             type="button"
-            aria-label="Watch options"
+            aria-label="Plan options"
             onClick={() => setMenuOpen((v) => !v)}
             className="rounded-full p-1.5 text-muted-foreground hover:bg-muted"
           >
@@ -159,7 +173,7 @@ function UpdateTimeline() {
                 }}
                 className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-sm hover:bg-muted"
               >
-                <BellOff className="h-4 w-4" /> Stop watching
+                <BellOff className="h-4 w-4" /> Pause monitoring for this plan
               </button>
             </div>
           )}
@@ -170,9 +184,10 @@ function UpdateTimeline() {
 
       {watch && (
         <header className="mt-3">
-          <h1 className="font-display text-2xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl font-bold tracking-tight">Activity</h1>
+          <p className="mt-1 font-display text-base font-semibold tracking-tight">
             {watch.origin} → {watch.dest}
-          </h1>
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {watch.travelDate}
             {primarySubline ? ` · ${primarySubline}` : ""}
@@ -185,7 +200,7 @@ function UpdateTimeline() {
                 params={{ planId: watch.planId }}
                 className="flex items-center gap-1 text-sm font-semibold text-primary"
               >
-                Review plan <ArrowRight className="h-4 w-4" />
+                Open plan <ArrowRight className="h-4 w-4" />
               </Link>
             )}
           </div>
@@ -196,7 +211,7 @@ function UpdateTimeline() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm" className="h-9">
             <Link to="/plans/$planId" params={{ planId: watch.planId }}>
-              Review plan
+              Open plan
             </Link>
           </Button>
           {showsPreferred && preferred && (
@@ -207,15 +222,20 @@ function UpdateTimeline() {
               disabled={switchPrimary.isPending}
               onClick={() => switchPrimary.mutate(preferred.id)}
             >
-              Switch primary
+              Use this option
             </Button>
           )}
           <Button asChild variant="outline" size="sm" className="h-9">
             <Link
               to="/escape"
-              search={{ from: watch.origin, to: watch.dest, date: watch.travelDate }}
+              search={{
+                from: watch.origin,
+                to: watch.dest,
+                date: watch.travelDate,
+                ...(watch.planId ? { planId: watch.planId } : {}),
+              }}
             >
-              Widen plan
+              Find another way
             </Link>
           </Button>
         </div>
@@ -276,7 +296,7 @@ function UpdateTimeline() {
 
       {data && data.changes.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          Nothing meaningful has moved since you started watching. That is good news.
+          Nothing meaningful has moved on this plan today. That is good news.
         </p>
       )}
 

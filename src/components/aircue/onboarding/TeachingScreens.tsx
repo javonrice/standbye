@@ -130,7 +130,7 @@ export function AlreadyStuck() {
       </p>
       <Arrow />
       <p className="text-center text-xs font-semibold uppercase tracking-wide text-primary">
-        Widen my plan
+        Find another way
       </p>
       <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
         <div className="px-4 py-3">

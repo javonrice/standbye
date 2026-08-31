@@ -53,7 +53,7 @@ export function GatewayCard({ gateway, detailed }: { gateway: GatewayOption; det
       )}
 
       <p className="mt-3 text-sm text-muted-foreground">
-        Recovery room onward: <span className="font-semibold">{gateway.recoveryLabel}</span>
+        Backup runway onward: <span className="font-semibold">{gateway.recoveryLabel}</span>
         {gateway.addedMinutes !== null && gateway.addedMinutes > 0
           ? ` · roughly ${gateway.addedMinutes} extra minutes of flying`
           : ""}

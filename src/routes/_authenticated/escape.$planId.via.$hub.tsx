@@ -12,16 +12,16 @@ import { gatewayDot } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/escape/$planId/via/$hub")({
   head: () => ({
     meta: [
-      { title: "Escape route detail — Standbye" },
+      { title: "Via this connection — Standbye" },
       {
         name: "description",
         content:
-          "How one unconventional standby routing actually works: ways out, the connection, and your recovery room.",
+          "How one connecting standby routing actually works: both legs, the connection, and what is left behind it.",
       },
-      { property: "og:title", content: "Escape route detail — Standbye" },
+      { property: "og:title", content: "Via this connection — Standbye" },
       {
         property: "og:description",
-        content: "Ways out, the connection, and the recovery room for this escape routing.",
+        content: "Both legs, the connection, and what is left behind this routing.",
       },
     ],
   }),
@@ -49,7 +49,7 @@ function EscapeRouteDetail() {
         params={{ planId }}
         className="flex items-center gap-1.5 text-sm text-muted-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Escape routes
+        <ArrowLeft className="h-4 w-4" /> Another way
       </Link>
 
       {isLoading && <p className="mt-6 text-sm text-muted-foreground">Loading this routing…</p>}
@@ -60,7 +60,7 @@ function EscapeRouteDetail() {
             This routing is no longer on the board
           </p>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Run the escape again and Standbye will rebuild today's options.
+            Look for another way again and Standbye will rebuild today's options.
           </p>
         </div>
       )}
@@ -93,15 +93,31 @@ function EscapeRouteDetail() {
 
           <section className="mt-6 rounded-2xl border border-border bg-surface p-5">
             <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-              Recovery Room
+              Why this works
             </p>
-            <p className="mt-1.5 flex items-center gap-2 font-display text-[22px] font-bold tracking-tight">
-              <span aria-hidden className="text-[16px]">
-                {gatewayDot[gateway.recoveryState]}
-              </span>
-              {gateway.recoveryLabel}
-            </p>
-            <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+            <ul className="mt-3 space-y-1.5 text-[14px] leading-relaxed">
+              <li>
+                <span aria-hidden className="mr-1.5 text-primary">
+                  ✓
+                </span>
+                {gateway.inboundShots.length} way
+                {gateway.inboundShots.length === 1 ? "" : "s"} into {gateway.hub}
+              </li>
+              <li>
+                <span aria-hidden className="mr-1.5 text-primary">
+                  ✓
+                </span>
+                {gateway.onwardCount} onward option
+                {gateway.onwardCount === 1 ? "" : "s"} to {plan.dest}
+              </li>
+              <li>
+                <span aria-hidden className="mr-1.5 text-primary">
+                  ✓
+                </span>
+                {gateway.hub} backup runway: {gateway.recoveryLabel.toLowerCase()}
+              </li>
+            </ul>
+            <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
               {gateway.summary} This is a connection, so you clear standby twice — once out of{" "}
               {plan.origin} and again in {city}.
             </p>
@@ -112,17 +128,18 @@ function EscapeRouteDetail() {
             )}
           </section>
 
+
           <div className="mt-6 space-y-2">
             {option && (
               <Button asChild className="h-12 w-full rounded-xl text-[15px] font-semibold">
                 <Link to="/options/$optionId" params={{ optionId: option.id }}>
-                  Use this escape
+                  Use this route
                 </Link>
               </Button>
             )}
             <Button asChild variant="outline" className="h-12 w-full rounded-xl">
               <Link to="/escape/$planId" params={{ planId }}>
-                Check another route
+                Back to other ways
               </Link>
             </Button>
           </div>

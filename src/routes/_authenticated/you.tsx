@@ -2,10 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Screen } from "@/components/aircue/Layout";
 import { supabase } from "@/integrations/supabase/client";
-import { getStandbyProfile, listCommittedPlans } from "@/lib/aircue/plan.functions";
+import { getStandbyProfile } from "@/lib/aircue/plan.functions";
 import { travelerTypes } from "@/lib/aircue/standby";
 
 export const Route = createFileRoute("/_authenticated/you")({
@@ -27,10 +28,18 @@ export const Route = createFileRoute("/_authenticated/you")({
 function YouPage() {
   const navigate = useNavigate();
   const profileFn = useServerFn(getStandbyProfile);
-  const plansFn = useServerFn(listCommittedPlans);
-
   const { data: profile } = useQuery({ queryKey: ["standby-profile"], queryFn: () => profileFn() });
-  const { data: plans } = useQuery({ queryKey: ["committed-plans"], queryFn: () => plansFn() });
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (alive) setEmail(data.user?.email ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const travelerLabel =
     travelerTypes.find((t) => t.value === profile?.travelerType)?.label ?? "Not set";
@@ -47,87 +56,40 @@ function YouPage() {
         Standbye reads your options through your travel setup, so keep this current.
       </p>
 
-      <section className="mt-5 rounded-2xl border border-border bg-card p-4">
-        <h2 className="font-display text-base font-semibold">Your travel setup</h2>
-        <dl className="mt-3 space-y-2.5 text-sm">
-          <Row label="Home airline" value={profile?.homeAirline ?? "Not set"} />
-          <Row label="Traveler type" value={travelerLabel} />
-          <Row
-            label="Airline access"
-            value={
-              profile?.airlineAccess.length ? profile.airlineAccess.join(", ") : "Just your airline"
-            }
-          />
-          <Row
-            label="Home airports"
-            value={profile?.homeAirports.length ? profile.homeAirports.join(", ") : "Not set"}
-          />
-        </dl>
-        <Link
+      <SectionLabel>Travel setup</SectionLabel>
+      <Group>
+        <SettingRow label="Home airline" value={profile?.homeAirline || "Not set"} />
+        <SettingRow label="Traveler type" value={travelerLabel} />
+        <SettingRow
+          label="Travel access"
+          value={
+            profile?.airlineAccess.length ? profile.airlineAccess.join(", ") : "Just your airline"
+          }
+        />
+        <SettingRow
+          label="Home airport"
+          value={profile?.homeAirports.length ? profile.homeAirports.join(", ") : "Not set"}
+        />
+      </Group>
+
+      <SectionLabel>Notifications</SectionLabel>
+      <Group>
+        <SettingRow
+          label="Plan changes"
+          value={profile?.notifyOptin ? "On" : "Off"}
           to="/onboarding"
-          className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium"
-        >
-          Update my travel setup
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
-      </section>
+        />
+      </Group>
 
-      <section className="mt-4 rounded-2xl border border-border bg-card p-4">
-        <h2 className="font-display text-base font-semibold">Your plans</h2>
-        {!plans || plans.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            No plans yet. Build a search on Home, then pick a primary or watch a plan.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {plans.slice(0, 6).map((p) => (
-              <li key={p.id}>
-                <Link
-                  to="/plans/$planId"
-                  params={{ planId: p.id }}
-                  className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3"
-                >
-                  <span>
-                    <span className="block text-sm font-medium">
-                      {p.origin} → {p.dest}
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {p.travelDate}
-                      {p.primaryFlightLabel ? ` · Primary ${p.primaryFlightLabel}` : ""}
-                      {p.watching ? " · Watching" : ""}
-                    </span>
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        <Link
-          to="/plans"
-          className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium"
-        >
-          Open Plans
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
-      </section>
+      <SectionLabel>Standbye</SectionLabel>
+      <Group>
+        <SettingRow label="How Standbye works" to="/how-it-works" />
+      </Group>
 
-      <section className="mt-4 rounded-2xl border border-border bg-surface p-4">
-        <h2 className="font-display text-base font-semibold">How Standbye thinks</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Standbye reads four things: what is still publicly bookable, how the operation looks today,
-          how the route usually behaves, and what backup you would have left. It never claims to
-          know your list position or whether you will clear. A load you enter yourself always beats
-          what Standbye can infer.
-        </p>
-        <Link
-          to="/how-it-works"
-          className="mt-3 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium"
-        >
-          How Standbye works
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </Link>
-      </section>
+      <SectionLabel>Account</SectionLabel>
+      <Group>
+        <SettingRow label="Signed in as" value={email ?? "—"} />
+      </Group>
 
       <button
         type="button"
@@ -140,11 +102,49 @@ function YouPage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function SectionLabel({ children }: { children: string }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{value}</dd>
+    <h2 className="mt-6 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+      {children}
+    </h2>
+  );
+}
+
+function Group({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+      {children}
     </div>
+  );
+}
+
+function SettingRow({
+  label,
+  value,
+  to,
+}: {
+  label: string;
+  value?: string;
+  to?: "/onboarding" | "/how-it-works";
+}) {
+  const inner = (
+    <>
+      <span className="text-[15px] font-medium">{label}</span>
+      <span className="flex min-w-0 items-center gap-1.5">
+        {value && (
+          <span className="truncate text-[14px] text-muted-foreground">{value}</span>
+        )}
+        {to && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+      </span>
+    </>
+  );
+
+  if (!to) {
+    return <div className="flex items-center justify-between gap-4 px-4 py-3.5">{inner}</div>;
+  }
+  return (
+    <Link to={to} className="flex items-center justify-between gap-4 px-4 py-3.5">
+      {inner}
+    </Link>
   );
 }

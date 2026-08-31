@@ -24,7 +24,7 @@ export function EscapeBestCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
       <p className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-        <span aria-hidden>{gatewayDot[gateway.state]}</span> Best escape
+        <span aria-hidden>{gatewayDot[gateway.state]}</span> Best way forward
       </p>
 
       <div className="mt-3">
@@ -48,7 +48,7 @@ export function EscapeBestCard({
       </div>
 
       <dl className="mt-4 space-y-2 border-t border-border pt-3 text-[14px]">
-        <Line term="Recovery Room" value={gateway.recoveryLabel} />
+        <Line term="Backup runway" value={gateway.recoveryLabel} />
         {gateway.addedMinutes !== null && gateway.addedMinutes > 0 && (
           <Line term="Extra travel" value={`about ${gateway.addedMinutes} min`} />
         )}
@@ -66,7 +66,7 @@ export function EscapeBestCard({
         {optionId && (
           <Button asChild className="h-12 w-full rounded-xl text-[15px] font-semibold">
             <Link to="/options/$optionId" params={{ optionId }}>
-              Use this escape
+              Use this route
             </Link>
           </Button>
         )}

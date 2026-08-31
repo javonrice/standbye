@@ -15,13 +15,13 @@ import type { GatewayOption } from "@/lib/aircue/standby";
 export const Route = createFileRoute("/_authenticated/escape/$planId/")({
   head: () => ({
     meta: [
-      { title: "Your escape routes — Standbye" },
+      { title: "Another way there — Standbye" },
       {
         name: "description",
         content:
           "Realistic ways to keep moving when the normal route is done, ranked by Standbye.",
       },
-      { property: "og:title", content: "Your escape routes — Standbye" },
+      { property: "og:title", content: "Another way there — Standbye" },
       {
         property: "og:description",
         content: "Realistic ways to keep moving when the normal route is done.",
@@ -70,8 +70,12 @@ function EscapeResults() {
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-14 pt-8 md:max-w-2xl md:px-10 md:pt-12">
-      <Link to="/escape" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <ArrowLeft className="h-4 w-4" /> Escape
+      <Link
+        to="/plans/$planId"
+        params={{ planId }}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Your plan
       </Link>
 
       {isLoading && (
@@ -82,7 +86,7 @@ function EscapeResults() {
         <>
           {plan.mode === "escape" && (
             <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
-              <p className="font-semibold text-primary">Widened view of your plan</p>
+              <p className="font-semibold text-primary">Same plan, more ways there</p>
               <p className="mt-0.5 text-muted-foreground">
                 This is the same {plan.origin} → {plan.dest} trip with more routing options.
               </p>
@@ -91,13 +95,13 @@ function EscapeResults() {
                 params={{ planId }}
                 className="mt-2 inline-flex items-center gap-1 font-semibold text-primary"
               >
-                Back to plan detail <ChevronRight className="h-4 w-4" />
+                Back to your plan <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
           )}
 
           <h1 className="mt-3 font-display text-[30px] font-bold leading-tight tracking-tight">
-            Get me from {plan.origin} → {plan.dest}
+            Another way to {plan.dest}
           </h1>
           <p className="mt-1 text-[15px] text-muted-foreground">{longDate(plan.travelDate)}</p>
           <p className="mt-3 text-[15px] font-medium text-foreground">
@@ -118,7 +122,9 @@ function EscapeResults() {
               </p>
               {nonstops.length === 0 && (
                 <Button asChild className="mt-4 h-11">
-                  <Link to="/escape">Try another time</Link>
+                  <Link to="/escape" search={{ planId }}>
+                    Try another time
+                  </Link>
                 </Button>
               )}
             </div>
@@ -126,6 +132,8 @@ function EscapeResults() {
 
           {best && (
             <section className="mt-6">
+              <SectionHeading>Best way forward</SectionHeading>
+              <div className="mt-2" />
               <EscapeBestCard
                 gateway={best}
                 planId={planId}
@@ -152,7 +160,7 @@ function EscapeResults() {
                   onClick={() => setShowAll(true)}
                   className="mt-3 text-[14px] font-semibold text-primary"
                 >
-                  Show all {gateways.length} escape routes
+                  Show all {gateways.length} ways
                 </button>
               )}
             </section>
@@ -191,7 +199,7 @@ function EscapeResults() {
 
           <section className="mt-9 rounded-2xl border border-border bg-surface p-4">
             <p className="flex items-center gap-1.5 text-[14px] font-semibold">
-              <Sparkles className="h-4 w-4 text-primary" /> Know a route Standbye missed?
+              <Sparkles className="h-4 w-4 text-primary" /> Try a specific connection
             </p>
             <form
               className="mt-3 flex items-center gap-2"
@@ -244,7 +252,7 @@ function EscapeResults() {
 
           <p className="mt-6 text-xs text-muted-foreground">
             <CornerUpRight className="mr-1 inline h-3.5 w-3.5" />
-            A widened plan uses the same route and date — just more ways to get there.
+            This is the same trip and date — Standbye is just looking at more ways to get there.
           </p>
 
           <Link
@@ -252,7 +260,7 @@ function EscapeResults() {
             params={{ planId }}
             className="mt-4 flex items-center gap-1 text-[13px] font-semibold text-primary"
           >
-            Back to plan detail <ChevronRight className="h-4 w-4" />
+            Back to your plan <ChevronRight className="h-4 w-4" />
           </Link>
         </>
       )}

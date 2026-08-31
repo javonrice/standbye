@@ -23,7 +23,7 @@ const ESCAPE_STEPS = [
   "Finding stations you can actually reach",
   "Checking what leaves from each one",
   "Checking availability and operations",
-  "Ranking your escapes",
+  "Ranking the ways forward",
 ] as const;
 
 /** Slowing cadence so the list never runs out before the work is done. */
@@ -73,7 +73,7 @@ export function SearchingOverlay({ phase, flightLabel, origin, dest }: Searching
             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
               <span className="text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground">
-                {phase === "escape" ? "Finding escapes" : "Building brief"}
+                {phase === "escape" ? "Finding another way" : "Building brief"}
               </span>
             </div>
           )}
