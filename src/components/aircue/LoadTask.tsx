@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Camera, Keyboard, Plus, Trash2 } from "lucide-react";
@@ -538,5 +538,3 @@ function PartyField({ value, onChange }: { value: string; onChange: (v: string) 
     </div>
   );
 }
-
-export { Link };
