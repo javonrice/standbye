@@ -262,7 +262,8 @@ function Countdown({
   const departure = new Date(schedDepUtc);
   if (Number.isNaN(departure.getTime())) return <>Departs {depLocal}</>;
   if (departure.getTime() - now <= 0) return <>Departure time has passed</>;
-  return <>{formatCountdown(departure, new Date(now))} to departure</>;
+  const label = formatCountdown(departure, new Date(now)).replace(/^Departs in\s*/i, "");
+  return <>{label} to departure</>;
 }
 
 /** A Plan is real even with zero options — show recovery, never hide it. */
