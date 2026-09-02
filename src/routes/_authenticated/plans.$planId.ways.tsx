@@ -35,23 +35,32 @@ const judgmentPill: Record<Judgment, { label: string; classes: string; dot: stri
   favorable: {
     label: "Looks good",
     dot: "bg-emerald-500",
-    classes: "bg-emerald-100 text-emerald-700",
+    classes: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/70",
   },
-  mixed: { label: "Mixed", dot: "bg-amber-500", classes: "bg-amber-100 text-amber-700" },
-  riskier: { label: "Riskier", dot: "bg-rose-500", classes: "bg-rose-100 text-rose-700" },
+  mixed: {
+    label: "Mixed",
+    dot: "bg-amber-500",
+    classes: "bg-amber-50 text-amber-700 ring-1 ring-amber-200/70",
+  },
+  riskier: {
+    label: "Riskier",
+    dot: "bg-rose-500",
+    classes: "bg-rose-50 text-rose-700 ring-1 ring-rose-200/70",
+  },
   changed: {
     label: "Changed",
     dot: "bg-sky-500",
-    classes: "bg-sky-100 text-sky-700",
+    classes: "bg-sky-50 text-sky-700 ring-1 ring-sky-200/70",
   },
 };
 
-const cardTint: Record<Judgment, string> = {
-  favorable: "border-l-emerald-500 bg-emerald-50/60",
-  mixed: "border-l-amber-500 bg-amber-50/60",
-  riskier: "border-l-rose-500 bg-rose-50/60",
-  changed: "border-l-sky-500 bg-sky-50/60",
+const accentBar: Record<Judgment, string> = {
+  favorable: "bg-emerald-500",
+  mixed: "bg-amber-400",
+  riskier: "bg-rose-500",
+  changed: "bg-sky-500",
 };
+
 
 function AllWaysThere() {
   const { planId } = Route.useParams();
