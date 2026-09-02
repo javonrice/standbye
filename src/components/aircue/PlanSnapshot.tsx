@@ -275,12 +275,16 @@ function Countdown({
 function ZeroOptionHome({ plan }: { plan: StandbyPlan }) {
   return (
     <>
-      <h1 className="font-display text-[32px] font-bold leading-none tracking-tight">
-        {plan.origin} → {plan.dest}
-      </h1>
-      <p className="mt-1.5 text-[15px] text-muted-foreground">
-        {dayLabel(plan.travelDate)} · {plan.travelers} traveler
-        {plan.travelers === 1 ? "" : "s"}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h1 className="font-display text-[32px] font-bold leading-none tracking-tight">
+          {plan.origin} → {plan.dest}
+        </h1>
+        <span className="text-[17px] font-semibold text-muted-foreground">
+          {dayLabel(plan.travelDate)}
+        </span>
+      </div>
+      <p className="mt-1 text-[15px] text-muted-foreground">
+        {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
       </p>
 
       <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
