@@ -232,12 +232,6 @@ function Pill({ judgment }: { judgment: Judgment }) {
   );
 }
 
-function seatsLine(o: StandbyOption): string {
-  const a = o.evidence.availability;
-  if (!a.checked) return "Booking check not run yet";
-  if (a.largestShowing) return `${a.largestShowing}+ seats publicly sellable`;
-  return "No public seats showing";
-}
 
 function parseUtc(value?: string | null): number | null {
   if (!value) return null;
