@@ -158,7 +158,7 @@ function CurrentPlanHome({ plan }: { plan: StandbyPlan }) {
       <img
         src={wordmark.url}
         alt="Standbye"
-        className="pointer-events-none absolute left-5 top-6 z-20 h-8 w-auto object-contain drop-shadow-lg md:left-10"
+        className="pointer-events-none absolute left-5 top-5 z-20 h-12 w-auto object-contain drop-shadow-lg md:left-10"
       />
 
       <div className="pointer-events-none relative z-10 flex min-h-[100dvh] flex-col justify-end">
