@@ -234,7 +234,7 @@ function PlanBuilder() {
     <>
       {run.isPending && <PlanBuildingState origin={origin} dest={dest} />}
 
-      <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain md:hidden" />
+      <img src={wordmark.url} alt="Standbye" className="h-14 w-auto object-contain md:hidden" />
 
       <h1 className="mt-6 font-display text-[30px] font-bold leading-[1.15] tracking-tight md:text-[34px]">
         Where are you trying to go?
