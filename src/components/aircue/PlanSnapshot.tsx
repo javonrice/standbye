@@ -136,7 +136,18 @@ function dayLabel(travelDate: string): string {
   if (travelDate === iso(d)) return "Today";
   const t = new Date(d.getTime() + 86_400_000);
   if (travelDate === iso(t)) return "Tomorrow";
-  return longDate(travelDate);
+  return shortDate(travelDate);
+}
+
+function shortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /** One honest line about the change that matters, never invented. */
