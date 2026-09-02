@@ -151,7 +151,7 @@ function CurrentPlanHome({ plan }: { plan: StandbyPlan }) {
 
   return (
     <main className="relative min-h-[100dvh] w-full overflow-hidden bg-[#050b1a]">
-      <div className="absolute inset-x-0 top-0 h-[62vh]">
+      <div className="absolute inset-x-0 top-0 h-[72vh]">
         <RouteGlobe stops={stops} />
       </div>
 
@@ -162,8 +162,8 @@ function CurrentPlanHome({ plan }: { plan: StandbyPlan }) {
       />
 
       <div className="pointer-events-none relative z-10 flex min-h-[100dvh] flex-col justify-end">
-        <div className="pointer-events-auto mx-auto w-full max-w-md rounded-t-[28px] bg-background px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-16px_40px_-12px_rgba(0,0,0,0.45)] md:max-w-3xl md:px-10">
-          <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border" aria-hidden />
+        <div className="pointer-events-auto mx-auto w-full max-w-md rounded-t-[24px] bg-background px-5 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_40px_-12px_rgba(0,0,0,0.45)] md:max-w-3xl md:px-10">
+          <div className="mx-auto mb-3 h-1 w-8 rounded-full bg-border" aria-hidden />
           <PlanSnapshot plan={plan} />
         </div>
       </div>

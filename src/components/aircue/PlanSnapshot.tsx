@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { RefreshCw } from "lucide-react";
 
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
-import { longDate } from "@/components/aircue/PlanView";
 import { formatCountdown } from "@/lib/aircue/tz";
 import { refreshWatchPlan } from "@/lib/aircue/plan.functions";
 import {
@@ -37,89 +36,84 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
 
   return (
     <>
-      {/* Route — the biggest thing on the screen */}
-      <h1 className="flex flex-wrap items-baseline gap-x-3 font-display text-[38px] font-bold leading-none tracking-tight">
-        {plan.origin} <span className="text-[30px]">→</span> {plan.dest}
-        <span className="text-[19px] font-semibold text-muted-foreground">
+      {/* Route + date on one breath */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h1 className="font-display text-[32px] font-bold leading-none tracking-tight">
+          {plan.origin} <span className="text-[24px]">→</span> {plan.dest}
+        </h1>
+        <span className="text-[17px] font-semibold text-muted-foreground">
           {dayLabel(plan.travelDate)}
         </span>
-      </h1>
-      <p className="mt-2.5 text-[16px] text-muted-foreground">
+      </div>
+      <p className="mt-1 text-[15px] text-muted-foreground">
         {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
       </p>
 
-      {/* Standbye's read */}
-      <p
-        className={cn(
-          "mt-4 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em]",
-          tone.bg,
-          tone.text,
-        )}
-      >
-        <span className="h-2 w-2 rounded-full bg-current" aria-hidden />
-        {judgmentShort[current.judgment]}
-      </p>
-
       {/* The flight */}
-      <div className="mt-4 flex items-center gap-3">
-        <AirlineLogo code={carrierFromLabel(current.flightLabel) ?? current.carrier} size={44} />
-        <p className="min-w-0 truncate font-display text-[26px] font-bold tracking-tight">
+      <div className="mt-3 flex items-center gap-2.5">
+        <AirlineLogo code={carrierFromLabel(current.flightLabel) ?? current.carrier} size={40} />
+        <p className="min-w-0 truncate font-display text-[22px] font-bold tracking-tight">
           {current.flightLabel} · {current.depLocal}
         </p>
       </div>
-      <p className="mt-2 text-[15px] text-muted-foreground">
+      <p className="mt-1 text-[14px] text-muted-foreground">
         {current.origin} → {current.dest}
         {current.kind === "connection" ? " · 1 stop" : ""}
       </p>
 
-      {/* The clock */}
-      <p className={cn("mt-3 font-mono text-[19px] font-semibold", tone.text)}>
-        <Countdown schedDepUtc={current.schedDepUtc} depLocal={current.depLocal} />
-      </p>
+      {/* Standbye's read + clock on one compact row */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <p
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold uppercase tracking-[0.08em]",
+            tone.bg,
+            tone.text,
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-current" aria-hidden />
+          {judgmentShort[current.judgment]}
+        </p>
+        <p className={cn("font-mono text-[16px] font-semibold", tone.text)}>
+          <Countdown schedDepUtc={current.schedDepUtc} depLocal={current.depLocal} />
+        </p>
+      </div>
 
       {typeof seats === "number" && seats > 0 && (
-        <p className="mt-2 text-[15px] text-muted-foreground">
+        <p className="mt-1.5 text-[14px] text-muted-foreground">
           {seats}+ seats publicly sellable
         </p>
       )}
 
       <WatchingRow plan={plan} otherWays={otherWays} />
 
-      <div className="mt-5 grid gap-3">
+      {/* Compact side-by-side actions */}
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
         <Link
           to="/plans/$planId/ways"
           params={{ planId: plan.id }}
-          className="flex min-h-[54px] items-center justify-center rounded-full bg-primary px-5 text-[17px] font-semibold text-primary-foreground"
+          className="flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-primary px-3 text-[14px] font-semibold text-primary-foreground"
         >
-          See other ways
+          Other ways
         </Link>
         <Link
           to="/plans/$planId/loads"
           params={{ planId: plan.id }}
-          className="flex min-h-[54px] items-center justify-center rounded-full border border-primary/40 px-5 text-[17px] font-semibold text-primary"
+          className="flex h-11 items-center justify-center whitespace-nowrap rounded-full border border-primary/40 px-3 text-[14px] font-semibold text-primary"
         >
-          Add what I see
+          Add load
         </Link>
       </div>
 
-      <p className="mt-4 text-[15px] text-muted-foreground">
-        What changed: <WhatChanged plan={plan} current={current} recommended={recommended} />
-      </p>
-
-      <div className="mt-4 flex items-center justify-between">
-        <Link
-          to="/plan"
-          search={{ new: true }}
-          className="text-[16px] font-semibold text-primary"
-        >
-          New plan
-        </Link>
+      <div className="mt-3 flex items-baseline justify-between gap-3">
+        <span className="line-clamp-1 text-[13px] text-muted-foreground">
+          <WhatChanged plan={plan} current={current} recommended={recommended} />
+        </span>
         <Link
           to="/plans/$planId"
           params={{ planId: plan.id }}
-          className="text-[16px] font-semibold text-primary"
+          className="shrink-0 text-[14px] font-semibold text-primary"
         >
-          View my plan
+          View plan
         </Link>
       </div>
     </>
@@ -134,7 +128,18 @@ function dayLabel(travelDate: string): string {
   if (travelDate === iso(d)) return "Today";
   const t = new Date(d.getTime() + 86_400_000);
   if (travelDate === iso(t)) return "Tomorrow";
-  return longDate(travelDate);
+  return shortDate(travelDate);
+}
+
+function shortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /** One honest line about the change that matters, never invented. */
@@ -179,16 +184,19 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
 
   if (!plan.watching) {
     return (
-      <p className="mt-5 text-[15px] text-muted-foreground">
-        Standbye isn't watching this day yet.{" "}
-        <Link
-          to="/plans/$planId"
-          params={{ planId: plan.id }}
-          className="font-semibold text-primary"
-        >
-          Set up monitoring
-        </Link>
-      </p>
+      <div className="mt-4 flex items-center gap-2">
+        <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+        <p className="text-[13px] text-muted-foreground">
+          Not watching yet.{" "}
+          <Link
+            to="/plans/$planId"
+            params={{ planId: plan.id }}
+            className="font-semibold text-primary"
+          >
+            Set up
+          </Link>
+        </p>
+      </div>
     );
   }
 
@@ -199,16 +207,16 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
   );
 
   return (
-    <div className="mt-5">
-      <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-          <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden />
+    <div className="mt-4">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
         </span>
-        <p className="text-[17px] font-bold leading-tight">Standbye is watching</p>
+        <p className="text-[15px] font-bold leading-tight">Standbye is watching</p>
         {otherWays > 0 && (
           <>
-            <span className="h-6 w-px bg-border" aria-hidden />
-            <p className="min-w-0 truncate text-[15px] text-muted-foreground">
+            <span className="h-5 w-px bg-border" aria-hidden />
+            <p className="min-w-0 truncate text-[13px] text-muted-foreground">
               {otherWays} other way{otherWays === 1 ? "" : "s"} still open
             </p>
           </>
@@ -216,7 +224,7 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
       </div>
       <p
         className={cn(
-          "mt-2 flex items-center gap-2 text-[15px]",
+          "mt-1.5 flex items-center gap-2 text-[14px]",
           stale ? "text-rough-foreground" : "text-muted-foreground",
         )}
       >
@@ -235,7 +243,7 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
             disabled={refresh.isPending}
             className="inline-flex items-center gap-1.5 font-semibold text-primary disabled:opacity-60"
           >
-            <RefreshCw className={cn("h-4 w-4", refresh.isPending && "animate-spin")} aria-hidden />
+            <RefreshCw className={cn("h-3.5 w-3.5", refresh.isPending && "animate-spin")} aria-hidden />
             {refresh.isPending ? "Checking" : "Check now"}
           </button>
         )}
@@ -270,30 +278,34 @@ function Countdown({
 function ZeroOptionHome({ plan }: { plan: StandbyPlan }) {
   return (
     <>
-      <h1 className="font-display text-[38px] font-bold leading-none tracking-tight">
-        {plan.origin} → {plan.dest}
-      </h1>
-      <p className="mt-2.5 text-[16px] text-muted-foreground">
-        {dayLabel(plan.travelDate)} · {plan.travelers} traveler
-        {plan.travelers === 1 ? "" : "s"}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h1 className="font-display text-[32px] font-bold leading-none tracking-tight">
+          {plan.origin} → {plan.dest}
+        </h1>
+        <span className="text-[17px] font-semibold text-muted-foreground">
+          {dayLabel(plan.travelDate)}
+        </span>
+      </div>
+      <p className="mt-1 text-[15px] text-muted-foreground">
+        {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
       </p>
 
-      <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
         Standbye couldn't find a setup we'd recommend trying right now.
       </p>
 
-      <div className="mt-5 grid gap-3">
+      <div className="mt-4 grid gap-2.5">
         <Link
           to="/escape"
           search={{ from: plan.origin, to: plan.dest, date: plan.travelDate, planId: plan.id }}
-          className="flex min-h-[54px] items-center justify-center rounded-full bg-primary px-5 text-[17px] font-semibold text-primary-foreground"
+          className="flex h-12 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground"
         >
           Find another way
         </Link>
         <Link
           to="/plan"
           search={{ new: true }}
-          className="flex min-h-[54px] items-center justify-center rounded-full border border-primary/40 px-5 text-[17px] font-semibold text-primary"
+          className="flex h-12 items-center justify-center rounded-full border border-primary/40 px-5 text-[15px] font-semibold text-primary"
         >
           Try another date
         </Link>
