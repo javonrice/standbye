@@ -193,7 +193,7 @@ function Chip({
 }: {
   active: boolean;
   onClick: () => void;
-  children: string;
+  children: React.ReactNode;
 }) {
   return (
     <button
