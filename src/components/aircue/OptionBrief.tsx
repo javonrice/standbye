@@ -147,14 +147,16 @@ export function OptionBrief({
       <SectionLabel>Why this ranks here</SectionLabel>
       <div className="divide-y divide-border rounded-2xl border border-border bg-card px-4">
         {option.pillars.map((p) => (
-          <div key={p.key} className="flex items-start gap-3 py-3.5">
+          <div key={p.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 py-3.5">
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold leading-tight">
                 {pillarTitleV2[p.key] ?? p.key}
               </p>
               <p className="mt-1 text-[14px] leading-snug text-muted-foreground">{p.detail}</p>
             </div>
-            <p className={cn("text-[14px] font-semibold", pillarStateText[p.state])}>{p.label}</p>
+            <p className={cn("shrink-0 text-right text-[14px] font-semibold", pillarStateText[p.state])}>
+              {p.label}
+            </p>
           </div>
         ))}
       </div>
