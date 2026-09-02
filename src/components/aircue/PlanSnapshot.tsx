@@ -91,27 +91,27 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
         <Link
           to="/plans/$planId/ways"
           params={{ planId: plan.id }}
-          className="flex h-11 items-center justify-center rounded-full bg-primary px-3 text-[14px] font-semibold text-primary-foreground"
+          className="flex h-11 items-center justify-center whitespace-nowrap rounded-full bg-primary px-3 text-[14px] font-semibold text-primary-foreground"
         >
           Other ways
         </Link>
         <Link
           to="/plans/$planId/loads"
           params={{ planId: plan.id }}
-          className="flex h-11 items-center justify-center rounded-full border border-primary/40 px-3 text-[14px] font-semibold text-primary"
+          className="flex h-11 items-center justify-center whitespace-nowrap rounded-full border border-primary/40 px-3 text-[14px] font-semibold text-primary"
         >
           Add load
         </Link>
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-[13px] text-muted-foreground">
+      <div className="mt-3 flex items-baseline justify-between gap-3">
+        <span className="line-clamp-1 text-[13px] text-muted-foreground">
           <WhatChanged plan={plan} current={current} recommended={recommended} />
         </span>
         <Link
           to="/plans/$planId"
           params={{ planId: plan.id }}
-          className="text-[14px] font-semibold text-primary"
+          className="shrink-0 text-[14px] font-semibold text-primary"
         >
           View plan
         </Link>
