@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { RefreshCw } from "lucide-react";
 
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
-import { longDate } from "@/components/aircue/PlanView";
 import { formatCountdown } from "@/lib/aircue/tz";
 import { refreshWatchPlan } from "@/lib/aircue/plan.functions";
 import {
