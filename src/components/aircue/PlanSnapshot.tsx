@@ -36,58 +36,65 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
 
   return (
     <>
-      {/* Route + date on one breath */}
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h1 className="font-display text-[32px] font-bold leading-none tracking-tight">
-          {plan.origin} <span className="text-[24px]">→</span> {plan.dest}
-        </h1>
-        <span className="text-[17px] font-semibold text-muted-foreground">
-          {dayLabel(plan.travelDate)}
-        </span>
-      </div>
-      <p className="mt-1 text-[15px] text-muted-foreground">
-        {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
-      </p>
-
-      {/* The flight */}
-      <div className="mt-3 flex items-center gap-2.5">
-        <AirlineLogo code={carrierFromLabel(current.flightLabel) ?? current.carrier} size={40} />
-        <p className="min-w-0 truncate font-display text-[22px] font-bold tracking-tight">
-          {current.flightLabel} · {current.depLocal}
+      {/* Tappable summary card — tap anywhere above the action buttons to open the briefing */}
+      <Link
+        to="/plans/$planId"
+        params={{ planId: plan.id }}
+        className="group block rounded-2xl bg-transparent py-1 active:opacity-90"
+      >
+        {/* Route + date on one breath */}
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <h1 className="font-display text-[32px] font-bold leading-none tracking-tight">
+            {plan.origin} <span className="text-[24px]">→</span> {plan.dest}
+          </h1>
+          <span className="text-[17px] font-semibold text-muted-foreground">
+            {dayLabel(plan.travelDate)}
+          </span>
+        </div>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
         </p>
-      </div>
-      <p className="mt-1 text-[14px] text-muted-foreground">
-        {current.origin} → {current.dest}
-        {current.kind === "connection" ? " · 1 stop" : ""}
-      </p>
 
-      {/* Standbye's read + clock on one compact row */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <p
-          className={cn(
-            "inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold uppercase tracking-[0.08em]",
-            tone.bg,
-            tone.text,
-          )}
-        >
-          <span className="h-2 w-2 rounded-full bg-current" aria-hidden />
-          {judgmentShort[current.judgment]}
+        {/* The flight */}
+        <div className="mt-3 flex items-center gap-2.5">
+          <AirlineLogo code={carrierFromLabel(current.flightLabel) ?? current.carrier} size={40} />
+          <p className="min-w-0 truncate font-display text-[22px] font-bold tracking-tight">
+            {current.flightLabel} · {current.depLocal}
+          </p>
+        </div>
+        <p className="mt-1 text-[14px] text-muted-foreground">
+          {current.origin} → {current.dest}
+          {current.kind === "connection" ? " · 1 stop" : ""}
         </p>
-        <p className={cn("font-mono text-[16px] font-semibold", tone.text)}>
-          <Countdown schedDepUtc={current.schedDepUtc} depLocal={current.depLocal} />
-        </p>
-      </div>
 
-      {typeof seats === "number" && seats > 0 && (
-        <p className="mt-1.5 text-[14px] text-muted-foreground">
-          {seats}+ seats publicly sellable
-        </p>
-      )}
+        {/* Standbye's read + clock on one compact row */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <p
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold uppercase tracking-[0.08em]",
+              tone.bg,
+              tone.text,
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-current" aria-hidden />
+            {judgmentShort[current.judgment]}
+          </p>
+          <p className={cn("font-mono text-[16px] font-semibold", tone.text)}>
+            <Countdown schedDepUtc={current.schedDepUtc} depLocal={current.depLocal} />
+          </p>
+        </div>
 
-      <WatchingRow plan={plan} otherWays={otherWays} />
+        {typeof seats === "number" && seats > 0 && (
+          <p className="mt-1.5 text-[14px] text-muted-foreground">
+            {seats}+ seats publicly sellable
+          </p>
+        )}
+
+        <WatchingRow plan={plan} otherWays={otherWays} />
+      </Link>
 
       {/* Compact side-by-side actions */}
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
+      <div className="mt-2 grid grid-cols-2 gap-2.5">
         <Link
           to="/plans/$planId/ways"
           params={{ planId: plan.id }}
@@ -101,19 +108,6 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
           className="flex h-11 items-center justify-center whitespace-nowrap rounded-full border border-primary/40 px-3 text-[14px] font-semibold text-primary"
         >
           Add load
-        </Link>
-      </div>
-
-      <div className="mt-3 flex items-baseline justify-between gap-3">
-        <span className="line-clamp-1 text-[13px] text-muted-foreground">
-          <WhatChanged plan={plan} current={current} recommended={recommended} />
-        </span>
-        <Link
-          to="/plans/$planId"
-          params={{ planId: plan.id }}
-          className="shrink-0 text-[14px] font-semibold text-primary"
-        >
-          View plan
         </Link>
       </div>
     </>
