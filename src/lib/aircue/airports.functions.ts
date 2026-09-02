@@ -59,3 +59,30 @@ export const searchAirports = createServerFn({ method: "GET" })
 
     return [...exactRows, ...dedupe(prefixRes.data), ...dedupe(textRes.data)].slice(0, 6);
   });
+
+export interface AirportPoint {
+  iata: string;
+  lat: number;
+  lon: number;
+  city: string | null;
+}
+
+/**
+ * Coordinates for a handful of IATA codes, used to draw the route on the
+ * Home globe. Reference data only.
+ */
+export const airportPoints = createServerFn({ method: "GET" })
+  .inputValidator((input: { codes: string[] }) =>
+    z.object({ codes: z.array(z.string()).max(12) }).parse(input),
+  )
+  .handler(async ({ data }): Promise<AirportPoint[]> => {
+    const { airportGeo } = await import("@/lib/aircue/airport-lookup.server");
+    const wanted = data.codes.map((c) => c.toUpperCase()).filter(Boolean);
+    const geo = await airportGeo(wanted);
+    return wanted
+      .map((code) => {
+        const hit = geo.get(code);
+        return hit ? { iata: code, lat: hit.lat, lon: hit.lon, city: hit.city } : null;
+      })
+      .filter((p): p is AirportPoint => p !== null);
+  });

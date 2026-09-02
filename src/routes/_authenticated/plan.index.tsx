@@ -5,13 +5,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarDays, MapPin, PlaneTakeoff, SlidersHorizontal, Users } from "lucide-react";
 
-import homeSky from "@/assets/home-sky.jpg";
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Screen } from "@/components/aircue/Layout";
 import { PlanBuildingState } from "@/components/aircue/PlanBuildingState";
 import { PlanSnapshot } from "@/components/aircue/PlanSnapshot";
 import { QueryState } from "@/components/aircue/QueryState";
+import { RouteGlobe, routeStops } from "@/components/aircue/RouteGlobe";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -124,11 +124,7 @@ function HomePage() {
   }
 
   if (!forceBuilder && plan) {
-    return (
-      <Screen width="lg">
-        <CurrentPlanHome plan={plan} />
-      </Screen>
-    );
+    return <CurrentPlanHome plan={plan} />;
   }
 
   return (
@@ -138,31 +134,42 @@ function HomePage() {
   );
 }
 
-/** State A — open Standbye, see the standby day you are currently working on. */
+/**
+ * State A — the standby day you are working on, presented as a sheet over an
+ * interactive globe drawing the actual flight path, hubs included.
+ */
 function CurrentPlanHome({ plan }: { plan: StandbyPlan }) {
+  const selected = plan.primaryOptionId
+    ? (plan.options.find((o) => o.id === plan.primaryOptionId) ?? null)
+    : null;
+  const current =
+    selected ??
+    plan.options.find((o) => o.id === plan.preferredOptionId) ??
+    plan.options[0] ??
+    null;
+  const stops = routeStops(plan, current);
+
   return (
-    <>
-      <div className="-mx-5 -mt-7 md:-mx-10 md:-mt-12">
-        <div className="relative h-52 overflow-hidden">
-          <img
-            src={homeSky}
-            alt="Golden-hour sky seen from an airplane window"
-            width={1024}
-            height={640}
-            className="h-full w-full object-cover [mask-image:linear-gradient(to_bottom,black_45%,transparent)]"
-          />
-          <img
-            src={wordmark.url}
-            alt="Standbye"
-            className="absolute left-5 top-5 h-9 w-auto object-contain drop-shadow md:left-10 md:top-8"
-          />
+    <main className="relative min-h-[100dvh] w-full overflow-hidden bg-[#050b1a]">
+      <div className="absolute inset-x-0 top-0 h-[62vh]">
+        <RouteGlobe stops={stops} />
+      </div>
+
+      <img
+        src={wordmark.url}
+        alt="Standbye"
+        className="pointer-events-none absolute left-5 top-6 z-20 h-8 w-auto object-contain drop-shadow-lg md:left-10"
+      />
+
+      <div className="pointer-events-none relative z-10 flex min-h-[100dvh] flex-col justify-end">
+        <div className="pointer-events-auto mx-auto w-full max-w-md rounded-t-[28px] bg-background px-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-16px_40px_-12px_rgba(0,0,0,0.45)] md:max-w-3xl md:px-10">
+          <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border" aria-hidden />
+          <PlanSnapshot plan={plan} />
         </div>
       </div>
-      <div className="relative z-10 -mt-24">
-        <PlanSnapshot plan={plan} />
-      </div>
-    </>
+    </main>
   );
+
 }
 
 /** State B — the builder: from, to, when, travelers. Everything else is quiet. */
