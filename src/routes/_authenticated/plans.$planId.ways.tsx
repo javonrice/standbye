@@ -232,12 +232,6 @@ function Pill({ judgment }: { judgment: Judgment }) {
   );
 }
 
-function seatsLine(o: StandbyOption): string {
-  const a = o.evidence.availability;
-  if (!a.checked) return "Booking check not run yet";
-  if (a.largestShowing) return `${a.largestShowing}+ seats publicly sellable`;
-  return "No public seats showing";
-}
 
 function parseUtc(value?: string | null): number | null {
   if (!value) return null;
@@ -270,7 +264,41 @@ function WayCard({ option }: { option: StandbyOption }) {
   const tint = cardTint[option.judgment];
   const isConnection = option.kind === "connection" && option.segments.length > 1;
   const duration = totalDuration(option);
-  const stops = isConnection ? `${option.segments.length - 1} stop${option.segments.length > 2 ? "s" : ""}` : "Nonstop";
+  const stopCount = option.segments.length - 1;
+  const onward = option.evidence.recovery.laterNonstops.length;
+
+  if (!isConnection) {
+    return (
+      <Link
+        to="/options/$optionId"
+        params={{ optionId: option.id }}
+        className={cn(
+          "flex items-stretch gap-3 rounded-2xl border border-border border-l-4 px-4 py-3.5 transition-colors hover:border-primary/40",
+          tint,
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="text-[15px] font-bold text-muted-foreground">#{option.rank}</span>
+            <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={22} />
+            <p className="font-display text-[17px] font-bold tracking-tight">
+              {option.flightLabel}
+            </p>
+          </div>
+          <p className="mt-1.5 text-[14px] font-medium">
+            {option.origin} → {option.dest}
+          </p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{option.depLocal} · Nonstop</p>
+          <SeatsText option={option} className="mt-1.5" />
+        </div>
+
+        <div className="flex shrink-0 items-start gap-2">
+          <Pill judgment={option.judgment} />
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </Link>
+    );
+  }
 
   return (
     <Link
@@ -281,71 +309,82 @@ function WayCard({ option }: { option: StandbyOption }) {
         tint,
       )}
     >
-      {/* Left column: rank, flight, route, seats */}
+      {/* Left column: rank, judgment, timing, stops, onward */}
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-semibold text-muted-foreground">#{option.rank}</p>
+        <p className="text-[15px] font-bold text-muted-foreground">#{option.rank}</p>
+        <div className="mt-1.5">
+          <Pill judgment={option.judgment} />
+        </div>
+        <p className="mt-2.5 font-display text-[15px] font-bold leading-tight tracking-tight">
+          {option.depLocal}
+          <span aria-hidden className="mx-1 text-muted-foreground">
+            ——
+          </span>
+          <LocalTime value={formatOptionArrival(option)} />
+        </p>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          {duration ? `${duration} · ` : ""}
+          {stopCount} stop{stopCount === 1 ? "" : "s"}
+        </p>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          {onward} onward to {option.dest}
+        </p>
+      </div>
 
-        {!isConnection ? (
-          <>
-            <div className="mt-1 flex min-w-0 items-center gap-2.5">
-              <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={22} />
-              <p className="font-display text-[17px] font-bold tracking-tight">
-                {option.flightLabel}
-              </p>
-            </div>
-            <p className="mt-2 text-[14px] font-medium">
-              {option.origin} → {option.dest}
-            </p>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              {option.depLocal} · {stops}
-            </p>
-            <p className="mt-2 text-[14px] font-semibold">{seatsLine(option)}</p>
-          </>
-        ) : (
-          <>
-            <p className="mt-1.5 font-display text-[20px] font-bold tracking-tight">
-              {option.depLocal} — <LocalTime value={formatOptionArrival(option)} />
-            </p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {duration ? `${duration} · ` : ""}
-              {stops}
-            </p>
-
-            <div className="mt-3 space-y-3">
-              {option.segments.map((seg, i) => (
-                <div key={`${seg.flightLabel}-${i}`}>
-                  {i > 0 ? (
-                    <p className="mb-2 border-t border-border/70 pt-2 text-center text-[12px] text-muted-foreground">
+      {/* Right column: per-segment panel */}
+      <div className="w-[52%] shrink-0 rounded-xl bg-card/90 p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 space-y-2.5">
+            {option.segments.map((seg, i) => (
+              <div key={`${seg.flightLabel}-${i}`}>
+                {i > 0 ? (
+                  <div className="my-2.5 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="text-[11px] text-muted-foreground">
                       {layoverAfter(option.segments, i - 1)
                         ? `${layoverAfter(option.segments, i - 1)} layover`
                         : "Layover"}
-                    </p>
-                  ) : null}
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <AirlineLogo code={seg.carrier || carrierFromLabel(seg.flightLabel)} size={22} />
-                    <div className="min-w-0">
-                      <p className="text-[13px] text-muted-foreground">
-                        {seg.origin} → {seg.dest}
-                      </p>
-                      <p className="font-display text-[15px] font-bold leading-tight tracking-tight">
-                        {seg.flightLabel}
-                      </p>
-                    </div>
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
                   </div>
-                  <p className="mt-1 pl-8 text-[13px] font-semibold">{seatsLine(option)}</p>
+                ) : null}
+                <div className="flex min-w-0 gap-2">
+                  <AirlineLogo code={seg.carrier || carrierFromLabel(seg.flightLabel)} size={20} />
+                  <div className="min-w-0">
+                    <p className="text-[12px] text-muted-foreground">
+                      {seg.origin} → {seg.dest}
+                    </p>
+                    <p className="font-display text-[15px] font-bold leading-tight tracking-tight">
+                      {seg.flightLabel}
+                    </p>
+                    <SeatsText option={option} className="mt-1" />
+                  </div>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Right column: judgment pill over chevron */}
-      <div className="flex shrink-0 flex-col items-end justify-between gap-2">
-        <Pill judgment={option.judgment} />
-        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            ))}
+          </div>
+          <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+        </div>
       </div>
     </Link>
+  );
+}
+
+function SeatsText({ option, className }: { option: StandbyOption; className?: string }) {
+  const a = option.evidence.availability;
+  if (!a.checked) {
+    return <p className={cn("text-[12px] text-muted-foreground", className)}>Not checked yet</p>;
+  }
+  if (!a.largestShowing) {
+    return (
+      <p className={cn("text-[12px] text-muted-foreground", className)}>No public seats showing</p>
+    );
+  }
+  return (
+    <p className={cn("text-[13px] font-bold leading-tight", className)}>
+      {a.largestShowing}+ seats
+      <span className="block text-[12px] font-normal text-muted-foreground">publicly sellable</span>
+    </p>
   );
 }
 
