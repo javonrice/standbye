@@ -19,6 +19,7 @@ export default function GlobeCanvas({ points }: { points: AirportPoint[] }) {
   const wrap = useRef<HTMLDivElement>(null);
   const globe = useRef<GlobeMethods | undefined>(undefined);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = wrap.current;
@@ -44,7 +45,7 @@ export default function GlobeCanvas({ points }: { points: AirportPoint[] }) {
   // Frame the whole route, then let the traveler spin and drag it themselves.
   useEffect(() => {
     const g = globe.current;
-    if (!g || points.length === 0) return;
+    if (!g || !ready || points.length === 0) return;
     const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
     const lng = points.reduce((s, p) => s + p.lon, 0) / points.length;
     const span = Math.max(
@@ -62,7 +63,7 @@ export default function GlobeCanvas({ points }: { points: AirportPoint[] }) {
     // No auto-spin: the route should stay framed until the traveler drags it.
     controls.autoRotate = false;
     controls.enableZoom = true;
-  }, [points]);
+  }, [points, ready]);
 
   return (
     <div ref={wrap} className="h-full w-full">
@@ -71,6 +72,7 @@ export default function GlobeCanvas({ points }: { points: AirportPoint[] }) {
           ref={globe}
           width={size.w}
           height={size.h}
+          onGlobeReady={() => setReady(true)}
           backgroundColor="rgba(0,0,0,0)"
           globeImageUrl="https://unpkg.com/three-globe@2.44.0/example/img/earth-night.jpg"
           atmosphereColor="#7db4ff"
