@@ -56,7 +56,7 @@ export default function GlobeCanvas({ points }: { points: AirportPoint[] }) {
     );
     // Tilt the framing north a touch so the arc sits above the sheet edge.
     g.pointOfView(
-      { lat: lat + 8, lng, altitude: Math.min(2.8, Math.max(1.5, 1.0 + span / 20)) },
+      { lat: lat + 14, lng, altitude: Math.min(2.8, Math.max(1.5, 1.0 + span / 20)) },
       1200,
     );
     const controls = g.controls();
