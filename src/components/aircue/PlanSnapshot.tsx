@@ -24,8 +24,7 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
   const selected = plan.primaryOptionId
     ? (plan.options.find((o) => o.id === plan.primaryOptionId) ?? null)
     : null;
-  const recommended =
-    (plan.options.find((o) => o.id === plan.preferredOptionId) ?? plan.options[0]) ?? null;
+  const recommended = plan.options[0] ?? null;
   const current = selected ?? recommended;
 
   if (!current) return <ZeroOptionHome plan={plan} />;
