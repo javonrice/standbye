@@ -181,7 +181,7 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
 
   if (!plan.watching) {
     return (
-      <p className="mt-5 text-[15px] text-muted-foreground">
+      <p className="mt-4 text-[14px] text-muted-foreground">
         Standbye isn't watching this day yet.{" "}
         <Link
           to="/plans/$planId"
@@ -201,16 +201,16 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
   );
 
   return (
-    <div className="mt-5">
-      <div className="flex items-center gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-          <span className="h-2.5 w-2.5 rounded-full bg-primary" aria-hidden />
+    <div className="mt-4">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
         </span>
-        <p className="text-[17px] font-bold leading-tight">Standbye is watching</p>
+        <p className="text-[15px] font-bold leading-tight">Standbye is watching</p>
         {otherWays > 0 && (
           <>
-            <span className="h-6 w-px bg-border" aria-hidden />
-            <p className="min-w-0 truncate text-[15px] text-muted-foreground">
+            <span className="h-5 w-px bg-border" aria-hidden />
+            <p className="min-w-0 truncate text-[13px] text-muted-foreground">
               {otherWays} other way{otherWays === 1 ? "" : "s"} still open
             </p>
           </>
@@ -218,7 +218,7 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
       </div>
       <p
         className={cn(
-          "mt-2 flex items-center gap-2 text-[15px]",
+          "mt-1.5 flex items-center gap-2 text-[14px]",
           stale ? "text-rough-foreground" : "text-muted-foreground",
         )}
       >
@@ -237,7 +237,7 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
             disabled={refresh.isPending}
             className="inline-flex items-center gap-1.5 font-semibold text-primary disabled:opacity-60"
           >
-            <RefreshCw className={cn("h-4 w-4", refresh.isPending && "animate-spin")} aria-hidden />
+            <RefreshCw className={cn("h-3.5 w-3.5", refresh.isPending && "animate-spin")} aria-hidden />
             {refresh.isPending ? "Checking" : "Check now"}
           </button>
         )}
