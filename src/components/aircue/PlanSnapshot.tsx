@@ -272,30 +272,30 @@ function Countdown({
 function ZeroOptionHome({ plan }: { plan: StandbyPlan }) {
   return (
     <>
-      <h1 className="font-display text-[38px] font-bold leading-none tracking-tight">
+      <h1 className="font-display text-[32px] font-bold leading-none tracking-tight">
         {plan.origin} → {plan.dest}
       </h1>
-      <p className="mt-2.5 text-[16px] text-muted-foreground">
+      <p className="mt-1.5 text-[15px] text-muted-foreground">
         {dayLabel(plan.travelDate)} · {plan.travelers} traveler
         {plan.travelers === 1 ? "" : "s"}
       </p>
 
-      <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
         Standbye couldn't find a setup we'd recommend trying right now.
       </p>
 
-      <div className="mt-5 grid gap-3">
+      <div className="mt-4 grid gap-2.5">
         <Link
           to="/escape"
           search={{ from: plan.origin, to: plan.dest, date: plan.travelDate, planId: plan.id }}
-          className="flex min-h-[54px] items-center justify-center rounded-full bg-primary px-5 text-[17px] font-semibold text-primary-foreground"
+          className="flex h-12 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground"
         >
           Find another way
         </Link>
         <Link
           to="/plan"
           search={{ new: true }}
-          className="flex min-h-[54px] items-center justify-center rounded-full border border-primary/40 px-5 text-[17px] font-semibold text-primary"
+          className="flex h-12 items-center justify-center rounded-full border border-primary/40 px-5 text-[15px] font-semibold text-primary"
         >
           Try another date
         </Link>
