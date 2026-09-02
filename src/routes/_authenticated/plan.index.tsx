@@ -5,13 +5,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarDays, MapPin, PlaneTakeoff, SlidersHorizontal, Users } from "lucide-react";
 
-import homeSky from "@/assets/home-sky.jpg";
 import wordmark from "@/assets/standbye-wordmark.png.asset.json";
 import { AirportField } from "@/components/aircue/AirportField";
 import { Screen } from "@/components/aircue/Layout";
 import { PlanBuildingState } from "@/components/aircue/PlanBuildingState";
 import { PlanSnapshot } from "@/components/aircue/PlanSnapshot";
 import { QueryState } from "@/components/aircue/QueryState";
+import { RouteGlobe, routeStops } from "@/components/aircue/RouteGlobe";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
