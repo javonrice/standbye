@@ -373,9 +373,7 @@ function WayCard({ option }: { option: StandbyOption }) {
 function SeatsText({ option, className }: { option: StandbyOption; className?: string }) {
   const a = option.evidence.availability;
   if (!a.checked) {
-    return (
-      <p className={cn("text-[12px] text-muted-foreground", className)}>Booking check not run yet</p>
-    );
+    return <p className={cn("text-[12px] text-muted-foreground", className)}>Not checked yet</p>;
   }
   if (!a.largestShowing) {
     return (
