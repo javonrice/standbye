@@ -158,7 +158,7 @@ function CurrentPlanHome({ plan }: { plan: StandbyPlan }) {
       <img
         src={wordmark.url}
         alt="Standbye"
-        className="pointer-events-none absolute left-5 top-6 z-20 h-8 w-auto object-contain drop-shadow-lg md:left-10"
+        className="pointer-events-none absolute left-5 top-4 z-20 h-14 w-auto object-contain drop-shadow-lg md:left-10"
       />
 
       <div className="pointer-events-none relative z-10 flex min-h-[100dvh] flex-col justify-end">
@@ -234,7 +234,7 @@ function PlanBuilder() {
     <>
       {run.isPending && <PlanBuildingState origin={origin} dest={dest} />}
 
-      <img src={wordmark.url} alt="Standbye" className="h-11 w-auto object-contain md:hidden" />
+      <img src={wordmark.url} alt="Standbye" className="h-14 w-auto object-contain md:hidden" />
 
       <h1 className="mt-6 font-display text-[30px] font-bold leading-[1.15] tracking-tight md:text-[34px]">
         Where are you trying to go?
