@@ -1,25 +1,23 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
-import { Screen } from "@/components/aircue/Layout";
 import { CueBadge } from "@/components/aircue/CueBadge";
-import { FlightHero } from "@/components/aircue/FlightHero";
-import { SignalGroup, SignalLinkRow, SignalRow } from "@/components/aircue/SignalRow";
+import { LocalTime } from "@/components/aircue/LocalTime";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { useOption } from "@/lib/aircue/use-option";
 import { setPrimaryOptionFn } from "@/lib/aircue/plan.functions";
-import { LocalTime } from "@/components/aircue/LocalTime";
-import { formatOptionArrival, formatSegmentArrival } from "@/lib/aircue/option-display";
-
-import {
-  agoLabel,
-  loadIsStale,
-  loadSourceLabel,
-  pillarTitle,
-} from "@/lib/aircue/standby";
+import { formatOptionArrival } from "@/lib/aircue/option-display";
+import { agoLabel, loadSourceLabel, type PillarState } from "@/lib/aircue/standby";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/options/$optionId/")({
   head: () => ({
@@ -37,10 +35,19 @@ export const Route = createFileRoute("/_authenticated/options/$optionId/")({
   component: OptionScreen,
 });
 
-type ContextLink =
-  | "/options/$optionId/context/history"
-  | "/options/$optionId/context/weather"
-  | "/options/$optionId/context/holiday";
+const pillarStateText: Record<PillarState, string> = {
+  good: "text-emerald-600",
+  fair: "text-amber-600",
+  poor: "text-rose-600",
+  unknown: "text-muted-foreground",
+};
+
+const v2PillarTitle: Record<string, string> = {
+  availability: "Booking check",
+  operations: "Operations",
+  recovery: "Backup runway",
+  history: "History",
+};
 
 function OptionScreen() {
   const { optionId } = Route.useParams();
@@ -95,7 +102,6 @@ function OptionScreen() {
     );
   }
 
-  const stale = loadIsStale(option.load);
   const dateLabel = formatTravelDate(data?.travelDate ?? null);
   const stops =
     option.kind === "connection" && option.segments.length > 1
@@ -105,197 +111,269 @@ function OptionScreen() {
           .join(", ")}`
       : "Nonstop";
 
-  const v2PillarTitle: Record<string, string> = {
-    availability: "Booking check",
-    operations: "Operations",
-    recovery: "Backup runway",
-    history: "Route history",
-  };
+  const availability = option.evidence.availability;
+  const seatsLine = !availability.checked
+    ? "Booking check not run yet"
+    : availability.largestShowing
+      ? `${availability.largestShowing}+ seats publicly sellable`
+      : "No public seats showing";
 
-  const pillarLink: Record<string, { to: string }> = {
-    availability: { to: "/options/$optionId/availability" },
-    operations: { to: "/options/$optionId/context/weather" },
-    recovery: { to: "/options/$optionId/recovery" },
-    history: { to: "/options/$optionId/context/history" },
-  };
-
-  const contextLinks: Array<{ to: ContextLink; label: string }> = [
-    { to: "/options/$optionId/context/history", label: "Route history" },
-  ];
-  if (option.evidence.holiday) {
-    contextLinks.push({ to: "/options/$optionId/context/holiday", label: "Holiday demand" });
-  }
+  const conditions = option.evidence.conditions;
+  const holiday = option.evidence.holiday;
+  const liveStatus = option.segments[0]?.status ?? null;
 
   return (
-    <Screen width="lg">
-      {data?.planId && (
-        <Link
-          to="/plans/$planId"
-          params={{ planId: data.planId }}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> {option.origin} → {option.dest}
-        </Link>
-      )}
-
-      <header className="mt-4">
-        <div className="mb-3 flex items-center gap-3">
-          <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={44} />
-          <div className="min-w-0">
-            <p className="font-display text-[19px] font-bold leading-tight tracking-tight">
-              {option.flightLabel}
-            </p>
-            {dateLabel ? (
-              <p className="text-[13px] text-muted-foreground">{dateLabel}</p>
-            ) : null}
-          </div>
-        </div>
-        <FlightHero
-          origin={option.origin}
-          dest={option.dest}
-          depLocal={option.depLocal}
-          arrLocal={formatOptionArrival(option)}
-          footnote={`${stops} · all times local · checked ${agoLabel(option.refreshedAt)}`}
-        />
-
-        {option.kind === "connection" && option.segments.length > 1 && (
-          <ul className="mt-4 space-y-2 text-[14px] text-muted-foreground">
-            {option.segments.map((seg, idx) => (
-              <li key={`${seg.flightLabel}-${seg.schedDepUtc}-${idx}`}>
-                <span className="font-semibold text-foreground">{seg.flightLabel}</span>
-                {" · "}
-                {seg.origin} → {seg.dest}
-                {" · "}
-                {seg.depLocal}
-                {seg.arrLocal ? (
-                  <>
-                    {" → "}
-                    <LocalTime value={formatSegmentArrival(seg)} />
-                  </>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+    <main className="min-h-dvh bg-muted/40 pb-28">
+      {/* Sticky header — back to the plan, route as the title. */}
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-border/60 bg-background/85 px-4 py-3 backdrop-blur">
+        {data?.planId ? (
+          <Link
+            to="/plans/$planId"
+            params={{ planId: data.planId }}
+            aria-label="Back to plan"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        ) : (
+          <span className="h-9 w-9" />
         )}
-
-        <div className="mt-4 flex items-center gap-2">
-          <CueBadge judgment={option.judgment} />
-        </div>
+        <p className="flex-1 text-center text-[15px] font-semibold">
+          {option.origin} → {option.dest}
+        </p>
+        <span className="h-9 w-9" />
       </header>
 
-      <section className="mt-7">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Why this ranks here
-        </h2>
-        <div className="mt-2 rounded-2xl border border-border bg-card px-4">
-          <SignalGroup>
-            {option.pillars
-              .filter((p) => p.key !== "history")
-              .map((p) => {
-              const link = pillarLink[p.key];
-              return link ? (
-                <SignalLinkRow
-                  key={p.key}
-                  state={p.state}
-                  title={v2PillarTitle[p.key] ?? pillarTitle[p.key]}
-                  detail={p.label}
-                  to={link.to}
-                  params={{ optionId }}
-                />
-              ) : (
-                <SignalRow
-                  key={p.key}
-                  state={p.state}
-                  title={v2PillarTitle[p.key] ?? pillarTitle[p.key]}
-                  detail={p.label}
-                />
-              );
-            })}
-          </SignalGroup>
-        </div>
-      </section>
+      <div className="mx-auto max-w-md px-5">
+        {/* Hero */}
+        <section className="pt-5">
+          <div className="flex items-center gap-3">
+            <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={40} />
+            <h1 className="font-display text-[38px] font-bold leading-none tracking-tight">
+              {option.flightLabel}
+            </h1>
+          </div>
 
-      <section className="mt-7">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Reported load
-        </h2>
-        <div className="mt-2 rounded-2xl border border-border bg-card p-4">
+          {dateLabel ? (
+            <p className="mt-3 text-[14px] text-muted-foreground">{dateLabel}</p>
+          ) : null}
+          <p className="mt-1 font-display text-[20px] font-semibold tracking-tight">
+            {option.origin} → {option.dest}
+          </p>
+
+          <div className="mt-5 space-y-4">
+            <TimeRow code={option.origin} time={option.depLocal} label="Departs" />
+            <TimeRow code={option.dest} time={formatOptionArrival(option)} label="Arrives" />
+          </div>
+
+          <p className="mt-4 text-[13px] text-muted-foreground">{stops} · all times local</p>
+          <p className="text-[13px] text-muted-foreground">
+            {availability.checkedAt
+              ? `Checked ${agoLabel(availability.checkedAt)}`
+              : "Not checked yet"}
+          </p>
+          {liveStatus ? (
+            <p className="text-[13px] font-medium text-emerald-600">{liveStatus}</p>
+          ) : null}
+
+          <div className="mt-4">
+            <CueBadge judgment={option.judgment} />
+          </div>
+          <p className="mt-2 text-[14px] text-muted-foreground">{seatsLine}</p>
+        </section>
+
+        {/* Seats */}
+        <SectionLabel>Seats</SectionLabel>
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={28} />
+            <div className="min-w-0">
+              <p className="text-[13px] text-muted-foreground">
+                {option.origin} → {option.dest}
+              </p>
+              <p className="text-[17px] font-semibold leading-tight">{option.flightLabel}</p>
+            </div>
+          </div>
+
           {option.load ? (
             <>
-              <p className="text-[17px] font-semibold text-foreground">
+              <p className="mt-3 text-[17px] font-semibold">
                 {option.load.openSeats ?? "—"} open
                 {option.load.standbys !== null ? ` · ${option.load.standbys} listed` : ""}
               </p>
               <p className="mt-1 text-[13px] text-muted-foreground">
                 {loadSourceLabel[option.load.source] ?? "Reported"} ·{" "}
                 {agoLabel(option.load.checkedAt)}
-                {stale ? " — worth checking again." : ""}
               </p>
             </>
           ) : (
-            <p className="text-[15px] leading-snug text-muted-foreground">
-              No load yet. If you can see the real numbers, Standbye will re-rank the whole plan
-              around them.
-            </p>
+            <>
+              <p className="mt-3 text-[17px] font-semibold">{seatsLine}</p>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                Publicly sellable on Google Flights
+              </p>
+            </>
           )}
-          <Link
-            to="/options/$optionId/load"
-            params={{ optionId }}
-            className="mt-2.5 inline-flex items-center gap-1 text-sm font-semibold text-primary"
-          >
-            {option.load ? "Update load" : "Add a load"} <ChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
 
-      <section className="mt-7">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          More context
-        </h2>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {contextLinks.map((c) => (
-            <Link
-              key={c.to}
-              to={c.to}
-              params={{ optionId }}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3.5 py-2 text-[13px] font-medium"
-            >
-              {c.label} <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          <Button asChild variant="outline" className="mt-4 h-12 w-full text-primary">
+            <Link to="/options/$optionId/load" params={{ optionId }}>
+              {option.load ? "Update the load" : "Add a load"}
             </Link>
+          </Button>
+        </div>
+
+        {/* Why this ranks here */}
+        <SectionLabel>Why this ranks here</SectionLabel>
+        <div className="divide-y divide-border rounded-2xl border border-border bg-card px-4">
+          {option.pillars.map((p) => (
+            <div key={p.key} className="flex items-start gap-3 py-3.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-semibold leading-tight">
+                  {v2PillarTitle[p.key] ?? p.key}
+                </p>
+                <p className="mt-1 text-[14px] leading-snug text-muted-foreground">{p.detail}</p>
+              </div>
+              <p className={cn("text-[14px] font-semibold", pillarStateText[p.state])}>
+                {p.label}
+              </p>
+            </div>
           ))}
         </div>
-      </section>
 
+        {/* More context */}
+        <SectionLabel>More context</SectionLabel>
+        <Accordion
+          type="single"
+          collapsible
+          className="divide-y divide-border rounded-2xl border border-border bg-card px-4"
+        >
+          {conditions ? (
+            <AccordionItem value="conditions" className="border-0">
+              <AccordionTrigger className="py-3.5 hover:no-underline">
+                <div className="text-left">
+                  <p className="text-[15px] font-semibold leading-tight">Operations & weather</p>
+                  <p className="mt-1 text-[13px] font-normal text-muted-foreground">
+                    {conditions.airport} {conditions.weather}
+                  </p>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4 text-[14px] leading-snug text-muted-foreground">
+                <p>{conditions.note}</p>
+                <p className="mt-1">FAA: {conditions.faa}</p>
+                <p>Delays: {conditions.delays}</p>
+                {conditions.forecast ? <p className="mt-1">{conditions.forecast}</p> : null}
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+
+          {holiday ? (
+            <AccordionItem value="holiday" className="border-0">
+              <AccordionTrigger className="py-3.5 hover:no-underline">
+                <div className="text-left">
+                  <p className="text-[15px] font-semibold leading-tight">Holiday near trip</p>
+                  <p className="mt-1 text-[13px] font-normal text-muted-foreground">
+                    {holiday.name}
+                  </p>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-4 text-[14px] leading-snug text-muted-foreground">
+                {holiday.note}
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+
+          <AccordionItem value="status" className="border-0">
+            <AccordionTrigger className="py-3.5 hover:no-underline">
+              <div className="text-left">
+                <p className="text-[15px] font-semibold leading-tight">Live flight status</p>
+                <p className="mt-1 text-[13px] font-normal text-muted-foreground">
+                  {liveStatus ?? "No status published yet"}
+                </p>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pb-4 text-[14px] leading-snug text-muted-foreground">
+              <p>
+                {option.flightLabel} · {option.origin} <LocalTime value={option.depLocal} /> →{" "}
+                {option.dest} <LocalTime value={formatOptionArrival(option)} />
+              </p>
+              <p className="mt-1">Refreshed {agoLabel(option.refreshedAt)}.</p>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        <p className="mt-6 text-xs text-muted-foreground">
+          Standbye reads public booking signals and operating conditions. It is not airline load
+          data and never predicts whether you will clear.
+        </p>
+      </div>
+
+      {/* Commit bar */}
       {data?.planId && (
-        <div className="mt-8">
-          {data.isPrimary ? (
-            <p className="flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 text-sm font-semibold text-muted-foreground">
-              <Check className="h-4 w-4" /> Your current plan
-            </p>
-          ) : (
-            <Button
-              className="h-12 w-full"
-              disabled={useThisOption.isPending}
-              onClick={() => useThisOption.mutate()}
-            >
-              {useThisOption.isPending ? "Saving…" : "Use this option"}
-            </Button>
-          )}
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/60 bg-background/90 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <div className="mx-auto max-w-md">
+            {data.isPrimary ? (
+              <p className="flex h-12 items-center justify-center gap-2 text-sm font-semibold text-emerald-600">
+                <Check className="h-4 w-4" /> Your current plan
+              </p>
+            ) : (
+              <Button
+                className="h-12 w-full"
+                disabled={useThisOption.isPending}
+                onClick={() => useThisOption.mutate()}
+              >
+                {useThisOption.isPending ? "Saving…" : "Use this option"}
+              </Button>
+            )}
+          </div>
         </div>
       )}
-
-      <p className="mt-5 text-xs text-muted-foreground">
-        Standbye reads public booking signals and operating conditions. It is not airline load data
-        and never predicts whether you will clear.
-      </p>
-    </Screen>
+    </main>
   );
 }
 
-/** "Aug 29" from a plain yyyy-mm-dd date, without timezone drift. */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-2 mt-7 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      {children}
+    </h2>
+  );
+}
+
+function TimeRow({
+  code,
+  time,
+  label,
+}: {
+  code: string;
+  time: string | null | undefined;
+  label: string;
+}) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <p className="font-display text-[22px] font-bold tracking-tight text-muted-foreground">
+        {code}
+      </p>
+      <div>
+        <p className="font-display text-[22px] font-bold leading-none tracking-tight">
+          <LocalTime value={time} />
+        </p>
+        <p className="mt-1 text-[12px] text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+/** "Today" / "Aug 29" from a plain yyyy-mm-dd date, without timezone drift. */
 function formatTravelDate(date: string | null): string | null {
   if (!date) return null;
   const [y, m, d] = date.split("-").map(Number);
   if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const now = new Date();
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (date === iso) return "Today";
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
