@@ -270,109 +270,107 @@ function layoverAfter(segs: OptionSegment[], i: number): string | null {
 }
 
 function WayCard({ option }: { option: StandbyOption }) {
-  const tint = cardTint[option.judgment];
   const isConnection = option.kind === "connection" && option.segments.length > 1;
   const duration = totalDuration(option);
   const stopCount = option.segments.length - 1;
   const onward = option.evidence.recovery.laterNonstops.length;
-
-  if (!isConnection) {
-    return (
-      <Link
-        to="/options/$optionId"
-        params={{ optionId: option.id }}
-        className={cn(
-          "flex items-stretch gap-3 rounded-2xl border border-border border-l-4 px-4 py-3.5 transition-colors hover:border-primary/40",
-          tint,
-        )}
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="text-[15px] font-bold text-muted-foreground">#{option.rank}</span>
-            <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={22} />
-            <p className="font-display text-[17px] font-bold tracking-tight">
-              {option.flightLabel}
-            </p>
-          </div>
-          <p className="mt-1.5 text-[14px] font-medium">
-            {option.origin} → {option.dest}
-          </p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">{option.depLocal} · Nonstop</p>
-          <SeatsText option={option} className="mt-1.5" />
-        </div>
-
-        <div className="flex shrink-0 items-start gap-2">
-          <Pill judgment={option.judgment} />
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </div>
-      </Link>
-    );
-  }
+  const accent = accentBar[option.judgment];
+  const mainLabel = option.segments[0]?.flightLabel ?? option.flightLabel;
 
   return (
     <Link
       to="/options/$optionId"
       params={{ optionId: option.id }}
-      className={cn(
-        "flex items-stretch gap-3 rounded-2xl border border-border border-l-4 px-4 py-3.5 transition-colors hover:border-primary/40",
-        tint,
-      )}
+      className="group relative block overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:border-foreground/20 hover:shadow-md"
     >
-      {/* Left column: rank, judgment, timing, stops, onward */}
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-bold text-muted-foreground">#{option.rank}</p>
-        <div className="mt-1.5">
-          <Pill judgment={option.judgment} />
-        </div>
-        <p className="mt-2.5 font-display text-[15px] font-bold leading-tight tracking-tight">
-          {option.depLocal}
-          <span aria-hidden className="mx-1 text-muted-foreground">
-            ——
-          </span>
-          <LocalTime value={formatOptionArrival(option)} />
-        </p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          {duration ? `${duration} · ` : ""}
-          {stopCount} stop{stopCount === 1 ? "" : "s"}
-        </p>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
-          {onward} onward to {option.dest}
-        </p>
-      </div>
+      {/* Judgment accent */}
+      <span aria-hidden className={cn("absolute inset-y-0 left-0 w-1", accent)} />
 
-      {/* Right column: per-segment panel */}
-      <div className="w-[52%] shrink-0 rounded-xl bg-card/90 p-3">
+      <div className="pl-5 pr-3.5 pt-3.5 pb-3">
+        {/* Top row: rank + carrier/flight · pill */}
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1 space-y-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[12px] font-bold text-muted-foreground">
+              {option.rank}
+            </span>
+            <AirlineLogo code={carrierFromLabel(mainLabel)} size={24} />
+            <p className="truncate font-display text-[16px] font-bold tracking-tight">
+              {mainLabel}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Pill judgment={option.judgment} />
+            <ChevronRight className="h-4.5 w-4.5 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </div>
+
+        {/* Timing rail */}
+        <div className="mt-3 flex items-center gap-3">
+          <div className="min-w-0">
+            <p className="font-display text-[20px] font-bold leading-none tracking-tight">
+              {option.depLocal}
+            </p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {option.origin}
+            </p>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col items-center px-1">
+            <div className="flex w-full items-center gap-1.5">
+              <span className="h-px flex-1 bg-border" />
+              <Plane className="h-3.5 w-3.5 shrink-0 rotate-90 text-muted-foreground/70" />
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <p className="mt-1 truncate text-[11px] font-medium text-muted-foreground">
+              {duration ? `${duration} · ` : ""}
+              {isConnection ? `${stopCount} stop${stopCount === 1 ? "" : "s"}` : "Nonstop"}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="font-display text-[20px] font-bold leading-none tracking-tight">
+              <LocalTime value={formatOptionArrival(option)} />
+            </p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {option.dest}
+            </p>
+          </div>
+        </div>
+
+        {/* Connection legs */}
+        {isConnection && (
+          <div className="mt-3 space-y-2 rounded-xl bg-muted/60 px-3 py-2.5">
             {option.segments.map((seg, i) => (
               <div key={`${seg.flightLabel}-${i}`}>
                 {i > 0 ? (
-                  <div className="my-2.5 flex items-center gap-2">
-                    <span className="h-px flex-1 bg-border" />
-                    <span className="text-[11px] text-muted-foreground">
-                      {layoverAfter(option.segments, i - 1)
-                        ? `${layoverAfter(option.segments, i - 1)} layover`
-                        : "Layover"}
-                    </span>
-                    <span className="h-px flex-1 bg-border" />
-                  </div>
+                  <p className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                    <Clock3 className="h-3 w-3" />
+                    {layoverAfter(option.segments, i - 1)
+                      ? `${layoverAfter(option.segments, i - 1)} layover in ${option.segments[i - 1]?.dest}`
+                      : `Layover in ${option.segments[i - 1]?.dest}`}
+                  </p>
                 ) : null}
-                <div className="flex min-w-0 gap-2">
-                  <AirlineLogo code={seg.carrier || carrierFromLabel(seg.flightLabel)} size={20} />
-                  <div className="min-w-0">
-                    <p className="text-[12px] text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <AirlineLogo code={seg.carrier || carrierFromLabel(seg.flightLabel)} size={18} />
+                  <p className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                    {seg.flightLabel}
+                    <span className="ml-1.5 font-normal text-muted-foreground">
                       {seg.origin} → {seg.dest}
-                    </p>
-                    <p className="font-display text-[15px] font-bold leading-tight tracking-tight">
-                      {seg.flightLabel}
-                    </p>
-                    <SeatsText option={option} className="mt-1" />
-                  </div>
+                    </span>
+                  </p>
+                  <p className="shrink-0 text-[12px] text-muted-foreground">{seg.depLocal}</p>
                 </div>
               </div>
             ))}
           </div>
-          <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+        )}
+
+        {/* Footer: seats + onward */}
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/60 pt-2.5">
+          <SeatsText option={option} />
+          {isConnection && (
+            <p className="shrink-0 text-[12px] font-medium text-muted-foreground">
+              {onward} onward to {option.dest}
+            </p>
+          )}
         </div>
       </div>
     </Link>
