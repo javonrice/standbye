@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock3, Plane } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AirlineLogo, carrierFromLabel } from "@/components/aircue/AirlineLogo";
@@ -380,17 +380,23 @@ function WayCard({ option }: { option: StandbyOption }) {
 function SeatsText({ option, className }: { option: StandbyOption; className?: string }) {
   const a = option.evidence.availability;
   if (!a.checked) {
-    return <p className={cn("text-[12px] text-muted-foreground", className)}>Not checked yet</p>;
+    return (
+      <p className={cn("text-[12px] font-medium text-muted-foreground", className)}>
+        Seats not checked yet
+      </p>
+    );
   }
   if (!a.largestShowing) {
     return (
-      <p className={cn("text-[12px] text-muted-foreground", className)}>No public seats showing</p>
+      <p className={cn("text-[12px] font-semibold text-rose-600", className)}>
+        No public seats showing
+      </p>
     );
   }
   return (
-    <p className={cn("text-[13px] font-bold leading-tight", className)}>
-      {a.largestShowing}+ seats
-      <span className="block text-[12px] font-normal text-muted-foreground">publicly sellable</span>
+    <p className={cn("text-[12px] text-muted-foreground", className)}>
+      <span className="text-[13px] font-bold text-foreground">{a.largestShowing}+ seats</span>{" "}
+      publicly sellable
     </p>
   );
 }
