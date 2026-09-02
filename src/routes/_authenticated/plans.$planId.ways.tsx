@@ -277,63 +277,50 @@ function WayCard({ option }: { option: StandbyOption }) {
       to="/options/$optionId"
       params={{ optionId: option.id }}
       className={cn(
-        "block rounded-2xl border border-border border-l-4 px-4 py-3.5 transition-colors hover:border-primary/40",
+        "flex items-stretch gap-3 rounded-2xl border border-border border-l-4 px-4 py-3.5 transition-colors hover:border-primary/40",
         tint,
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      {/* Left column: rank, flight, route, seats */}
+      <div className="min-w-0 flex-1">
         <p className="text-[13px] font-semibold text-muted-foreground">#{option.rank}</p>
-        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-      </div>
 
-      {!isConnection ? (
-        <>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2.5">
+        {!isConnection ? (
+          <>
+            <div className="mt-1 flex min-w-0 items-center gap-2.5">
               <AirlineLogo code={carrierFromLabel(option.flightLabel)} size={22} />
               <p className="font-display text-[17px] font-bold tracking-tight">
                 {option.flightLabel}
               </p>
             </div>
-            <Pill judgment={option.judgment} />
-          </div>
-          <p className="mt-2 text-[14px] font-medium">
-            {option.origin} → {option.dest}
-          </p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            {option.depLocal} · {stops}
-          </p>
-          <p className="mt-2 text-[14px] font-semibold">
-            {seatsLine(option)}{" "}
-            <span className="font-normal text-muted-foreground">
-              {option.evidence.availability.largestShowing ? "publicly sellable" : ""}
-            </span>
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="mt-1">
-            <Pill judgment={option.judgment} />
-          </div>
-          <p className="mt-2.5 font-display text-[20px] font-bold tracking-tight">
-            {option.depLocal} — <LocalTime value={formatOptionArrival(option)} />
-          </p>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            {duration ? `${duration} · ` : ""}
-            {stops}
-          </p>
+            <p className="mt-2 text-[14px] font-medium">
+              {option.origin} → {option.dest}
+            </p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              {option.depLocal} · {stops}
+            </p>
+            <p className="mt-2 text-[14px] font-semibold">{seatsLine(option)}</p>
+          </>
+        ) : (
+          <>
+            <p className="mt-1.5 font-display text-[20px] font-bold tracking-tight">
+              {option.depLocal} — <LocalTime value={formatOptionArrival(option)} />
+            </p>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              {duration ? `${duration} · ` : ""}
+              {stops}
+            </p>
 
-          <div className="mt-3 space-y-3">
-            {option.segments.map((seg, i) => (
-              <div key={`${seg.flightLabel}-${i}`}>
-                {i > 0 ? (
-                  <p className="mb-2 border-t border-border/70 pt-2 text-center text-[12px] text-muted-foreground">
-                    {layoverAfter(option.segments, i - 1)
-                      ? `${layoverAfter(option.segments, i - 1)} layover`
-                      : "Layover"}
-                  </p>
-                ) : null}
-                <div className="flex items-center justify-between gap-3">
+            <div className="mt-3 space-y-3">
+              {option.segments.map((seg, i) => (
+                <div key={`${seg.flightLabel}-${i}`}>
+                  {i > 0 ? (
+                    <p className="mb-2 border-t border-border/70 pt-2 text-center text-[12px] text-muted-foreground">
+                      {layoverAfter(option.segments, i - 1)
+                        ? `${layoverAfter(option.segments, i - 1)} layover`
+                        : "Layover"}
+                    </p>
+                  ) : null}
                   <div className="flex min-w-0 items-center gap-2.5">
                     <AirlineLogo code={seg.carrier || carrierFromLabel(seg.flightLabel)} size={22} />
                     <div className="min-w-0">
@@ -345,13 +332,19 @@ function WayCard({ option }: { option: StandbyOption }) {
                       </p>
                     </div>
                   </div>
+                  <p className="mt-1 pl-8 text-[13px] font-semibold">{seatsLine(option)}</p>
                 </div>
-                <p className="mt-1 pl-8 text-[13px] font-semibold">{seatsLine(option)}</p>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Right column: judgment pill over chevron */}
+      <div className="flex shrink-0 flex-col items-end justify-between gap-2">
+        <Pill judgment={option.judgment} />
+        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+      </div>
     </Link>
   );
 }
