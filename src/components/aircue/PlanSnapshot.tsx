@@ -38,20 +38,20 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
   return (
     <>
       {/* Route — the biggest thing on the screen */}
-      <h1 className="flex flex-wrap items-baseline gap-x-3 font-display text-[38px] font-bold leading-none tracking-tight">
-        {plan.origin} <span className="text-[30px]">→</span> {plan.dest}
-        <span className="text-[19px] font-semibold text-muted-foreground">
+      <h1 className="flex flex-wrap items-baseline gap-x-2 font-display text-[32px] font-bold leading-none tracking-tight">
+        {plan.origin} <span className="text-[24px]">→</span> {plan.dest}
+        <span className="text-[17px] font-semibold text-muted-foreground">
           {dayLabel(plan.travelDate)}
         </span>
       </h1>
-      <p className="mt-2.5 text-[16px] text-muted-foreground">
+      <p className="mt-1.5 text-[15px] text-muted-foreground">
         {plan.travelers} traveler{plan.travelers === 1 ? "" : "s"}
       </p>
 
       {/* Standbye's read */}
       <p
         className={cn(
-          "mt-4 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em]",
+          "mt-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold uppercase tracking-[0.08em]",
           tone.bg,
           tone.text,
         )}
@@ -61,63 +61,65 @@ export function PlanSnapshot({ plan }: { plan: StandbyPlan }) {
       </p>
 
       {/* The flight */}
-      <div className="mt-4 flex items-center gap-3">
-        <AirlineLogo code={carrierFromLabel(current.flightLabel) ?? current.carrier} size={44} />
-        <p className="min-w-0 truncate font-display text-[26px] font-bold tracking-tight">
+      <div className="mt-3 flex items-center gap-2.5">
+        <AirlineLogo code={carrierFromLabel(current.flightLabel) ?? current.carrier} size={40} />
+        <p className="min-w-0 truncate font-display text-[22px] font-bold tracking-tight">
           {current.flightLabel} · {current.depLocal}
         </p>
       </div>
-      <p className="mt-2 text-[15px] text-muted-foreground">
+      <p className="mt-1 text-[14px] text-muted-foreground">
         {current.origin} → {current.dest}
         {current.kind === "connection" ? " · 1 stop" : ""}
       </p>
 
-      {/* The clock */}
-      <p className={cn("mt-3 font-mono text-[19px] font-semibold", tone.text)}>
+      {/* The clock + seats on one line when possible */}
+      <p className={cn("mt-2 font-mono text-[17px] font-semibold", tone.text)}>
         <Countdown schedDepUtc={current.schedDepUtc} depLocal={current.depLocal} />
       </p>
 
       {typeof seats === "number" && seats > 0 && (
-        <p className="mt-2 text-[15px] text-muted-foreground">
+        <p className="mt-1 text-[14px] text-muted-foreground">
           {seats}+ seats publicly sellable
         </p>
       )}
 
       <WatchingRow plan={plan} otherWays={otherWays} />
 
-      <div className="mt-5 grid gap-3">
+      <div className="mt-4 grid gap-2.5">
         <Link
           to="/plans/$planId/ways"
           params={{ planId: plan.id }}
-          className="flex min-h-[54px] items-center justify-center rounded-full bg-primary px-5 text-[17px] font-semibold text-primary-foreground"
+          className="flex h-12 items-center justify-center rounded-full bg-primary px-5 text-[15px] font-semibold text-primary-foreground"
         >
           See other ways
         </Link>
         <Link
           to="/plans/$planId/loads"
           params={{ planId: plan.id }}
-          className="flex min-h-[54px] items-center justify-center rounded-full border border-primary/40 px-5 text-[17px] font-semibold text-primary"
+          className="flex h-12 items-center justify-center rounded-full border border-primary/40 px-5 text-[15px] font-semibold text-primary"
         >
           Add what I see
         </Link>
       </div>
 
-      <p className="mt-4 text-[15px] text-muted-foreground">
-        What changed: <WhatChanged plan={plan} current={current} recommended={recommended} />
-      </p>
+      <div className="mt-3 flex items-center justify-between text-[14px]">
+        <span className="text-muted-foreground">
+          What changed: <WhatChanged plan={plan} current={current} recommended={recommended} />
+        </span>
+      </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-3 flex items-center justify-between">
         <Link
           to="/plan"
           search={{ new: true }}
-          className="text-[16px] font-semibold text-primary"
+          className="text-[15px] font-semibold text-primary"
         >
           New plan
         </Link>
         <Link
           to="/plans/$planId"
           params={{ planId: plan.id }}
-          className="text-[16px] font-semibold text-primary"
+          className="text-[15px] font-semibold text-primary"
         >
           View my plan
         </Link>
