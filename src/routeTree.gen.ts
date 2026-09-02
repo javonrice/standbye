@@ -33,6 +33,7 @@ import { Route as AuthenticatedOptionsOptionIdRecoveryRouteImport } from './rout
 import { Route as AuthenticatedPlansPlanIdIndexRouteImport } from './routes/_authenticated/plans.$planId.index'
 import { Route as AuthenticatedPlansPlanIdCompareRouteImport } from './routes/_authenticated/plans.$planId.compare'
 import { Route as AuthenticatedPlansPlanIdLoadsRouteImport } from './routes/_authenticated/plans.$planId.loads'
+import { Route as AuthenticatedPlansPlanIdOptionsRouteImport } from './routes/_authenticated/plans.$planId.options'
 import { Route as AuthenticatedPlansPlanIdWaysRouteImport } from './routes/_authenticated/plans.$planId.ways'
 import { Route as AuthenticatedEscapePlanIdViaHubRouteImport } from './routes/_authenticated/escape.$planId.via.$hub'
 import { Route as AuthenticatedOptionsOptionIdContextHistoryRouteImport } from './routes/_authenticated/options.$optionId.context.history'
@@ -172,6 +173,12 @@ const AuthenticatedPlansPlanIdLoadsRoute =
     path: '/plans/$planId/loads',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPlansPlanIdOptionsRoute =
+  AuthenticatedPlansPlanIdOptionsRouteImport.update({
+    id: '/plans/$planId/options',
+    path: '/plans/$planId/options',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPlansPlanIdWaysRoute =
   AuthenticatedPlansPlanIdWaysRouteImport.update({
     id: '/plans/$planId/ways',
@@ -224,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
   '/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
   '/plans/$planId/loads': typeof AuthenticatedPlansPlanIdLoadsRoute
+  '/plans/$planId/options': typeof AuthenticatedPlansPlanIdOptionsRoute
   '/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/escape/$planId/': typeof AuthenticatedEscapePlanIdIndexRoute
   '/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
@@ -254,6 +262,7 @@ export interface FileRoutesByTo {
   '/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
   '/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
   '/plans/$planId/loads': typeof AuthenticatedPlansPlanIdLoadsRoute
+  '/plans/$planId/options': typeof AuthenticatedPlansPlanIdOptionsRoute
   '/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/escape/$planId': typeof AuthenticatedEscapePlanIdIndexRoute
   '/options/$optionId': typeof AuthenticatedOptionsOptionIdIndexRoute
@@ -286,6 +295,7 @@ export interface FileRoutesById {
   '/_authenticated/options/$optionId/recovery': typeof AuthenticatedOptionsOptionIdRecoveryRoute
   '/_authenticated/plans/$planId/compare': typeof AuthenticatedPlansPlanIdCompareRoute
   '/_authenticated/plans/$planId/loads': typeof AuthenticatedPlansPlanIdLoadsRoute
+  '/_authenticated/plans/$planId/options': typeof AuthenticatedPlansPlanIdOptionsRoute
   '/_authenticated/plans/$planId/ways': typeof AuthenticatedPlansPlanIdWaysRoute
   '/_authenticated/escape/$planId/': typeof AuthenticatedEscapePlanIdIndexRoute
   '/_authenticated/options/$optionId/': typeof AuthenticatedOptionsOptionIdIndexRoute
@@ -318,6 +328,7 @@ export interface FileRouteTypes {
     | '/options/$optionId/recovery'
     | '/plans/$planId/compare'
     | '/plans/$planId/loads'
+    | '/plans/$planId/options'
     | '/plans/$planId/ways'
     | '/escape/$planId/'
     | '/options/$optionId/'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/options/$optionId/recovery'
     | '/plans/$planId/compare'
     | '/plans/$planId/loads'
+    | '/plans/$planId/options'
     | '/plans/$planId/ways'
     | '/escape/$planId'
     | '/options/$optionId'
@@ -379,6 +391,7 @@ export interface FileRouteTypes {
     | '/_authenticated/options/$optionId/recovery'
     | '/_authenticated/plans/$planId/compare'
     | '/_authenticated/plans/$planId/loads'
+    | '/_authenticated/plans/$planId/options'
     | '/_authenticated/plans/$planId/ways'
     | '/_authenticated/escape/$planId/'
     | '/_authenticated/options/$optionId/'
@@ -567,6 +580,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlansPlanIdLoadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/plans/$planId/options': {
+      id: '/_authenticated/plans/$planId/options'
+      path: '/plans/$planId/options'
+      fullPath: '/plans/$planId/options'
+      preLoaderRoute: typeof AuthenticatedPlansPlanIdOptionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/plans/$planId/ways': {
       id: '/_authenticated/plans/$planId/ways'
       path: '/plans/$planId/ways'
@@ -622,6 +642,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOptionsOptionIdRecoveryRoute: typeof AuthenticatedOptionsOptionIdRecoveryRoute
   AuthenticatedPlansPlanIdCompareRoute: typeof AuthenticatedPlansPlanIdCompareRoute
   AuthenticatedPlansPlanIdLoadsRoute: typeof AuthenticatedPlansPlanIdLoadsRoute
+  AuthenticatedPlansPlanIdOptionsRoute: typeof AuthenticatedPlansPlanIdOptionsRoute
   AuthenticatedPlansPlanIdWaysRoute: typeof AuthenticatedPlansPlanIdWaysRoute
   AuthenticatedEscapePlanIdIndexRoute: typeof AuthenticatedEscapePlanIdIndexRoute
   AuthenticatedOptionsOptionIdIndexRoute: typeof AuthenticatedOptionsOptionIdIndexRoute
@@ -651,6 +672,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedOptionsOptionIdRecoveryRoute,
   AuthenticatedPlansPlanIdCompareRoute: AuthenticatedPlansPlanIdCompareRoute,
   AuthenticatedPlansPlanIdLoadsRoute: AuthenticatedPlansPlanIdLoadsRoute,
+  AuthenticatedPlansPlanIdOptionsRoute: AuthenticatedPlansPlanIdOptionsRoute,
   AuthenticatedPlansPlanIdWaysRoute: AuthenticatedPlansPlanIdWaysRoute,
   AuthenticatedEscapePlanIdIndexRoute: AuthenticatedEscapePlanIdIndexRoute,
   AuthenticatedOptionsOptionIdIndexRoute:
