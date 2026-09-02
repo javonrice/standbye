@@ -184,16 +184,19 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
 
   if (!plan.watching) {
     return (
-      <p className="mt-4 text-[14px] text-muted-foreground">
-        Not watching yet.{" "}
-        <Link
-          to="/plans/$planId"
-          params={{ planId: plan.id }}
-          className="font-semibold text-primary"
-        >
-          Set up monitoring
-        </Link>
-      </p>
+      <div className="mt-4 flex items-center gap-2">
+        <span className="inline-flex h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+        <p className="text-[13px] text-muted-foreground">
+          Not watching yet.{" "}
+          <Link
+            to="/plans/$planId"
+            params={{ planId: plan.id }}
+            className="font-semibold text-primary"
+          >
+            Set up
+          </Link>
+        </p>
+      </div>
     );
   }
 
