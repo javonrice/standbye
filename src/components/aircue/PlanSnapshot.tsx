@@ -135,24 +135,6 @@ function shortDate(iso: string): string {
   });
 }
 
-/** One honest line about the change that matters, never invented. */
-function WhatChanged({
-  plan,
-  current,
-  recommended,
-}: {
-  plan: StandbyPlan;
-  current: StandbyOption;
-  recommended: StandbyOption | null;
-}) {
-  if (plan.loadResortNotice) return <>{plan.loadResortNotice.headline}</>;
-  if (plan.planVerdict === "changed" && recommended && recommended.id !== current.id) {
-    return <>{recommended.flightLabel} now looks stronger than {current.flightLabel}</>;
-  }
-  if (plan.watching) return <>Standbye is watching {current.flightLabel} at {current.depLocal}</>;
-  return <>nothing yet</>;
-}
-
 /**
  * Freshness is a trust signal: never claim to be watching while the last look
  * is older than the monitoring cadence — say so and offer one tap to re-check.
