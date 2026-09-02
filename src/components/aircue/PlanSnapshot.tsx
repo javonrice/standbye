@@ -185,7 +185,7 @@ function WatchingRow({ plan, otherWays }: { plan: StandbyPlan; otherWays: number
   if (!plan.watching) {
     return (
       <p className="mt-4 text-[14px] text-muted-foreground">
-        Standbye isn't watching this day yet.{" "}
+        Not watching yet.{" "}
         <Link
           to="/plans/$planId"
           params={{ planId: plan.id }}
